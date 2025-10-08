@@ -1,0 +1,232 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Search, Globe } from "lucide-react";
+import { toast } from "sonner";
+
+interface Country {
+  id: string;
+  iso2: string;
+  name: string;
+  softoneCode?: string;
+}
+
+interface CountrySelectProps {
+  value?: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  label?: string;
+  disabled?: boolean;
+}
+
+export function CountrySelect({
+  value,
+  onValueChange,
+  placeholder = "Select country",
+  required = false,
+  label = "Country",
+  disabled = false,
+}: CountrySelectProps) {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const loadCountries = async (searchTerm = "") => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      
+      const response = await fetch(`/api/master-data/countries?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCountries(data.countries);
+      } else {
+        toast.error("Failed to load countries");
+      }
+    } catch (error) {
+      toast.error("Error loading countries");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCountries();
+  }, []);
+
+  const handleSearch = (searchTerm: string) => {
+    setSearch(searchTerm);
+    loadCountries(searchTerm);
+  };
+
+  const selectedCountry = countries.find(c => c.id === value);
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2">
+        <Globe className="h-4 w-4" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </Label>
+      
+      <div className="flex gap-2">
+        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            <div className="p-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search countries..."
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            {loading ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Loading countries...
+              </div>
+            ) : countries.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No countries found
+              </div>
+            ) : (
+              countries.map((country) => (
+                <SelectItem key={country.id} value={country.id}>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs bg-muted px-1 rounded">
+                      {country.iso2}
+                    </span>
+                    <span>{country.name}</span>
+                  </div>
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        
+        <CreateCountryDialog onCountryCreated={loadCountries} />
+      </div>
+      
+      {selectedCountry && (
+        <div className="text-sm text-muted-foreground">
+          Selected: {selectedCountry.name} ({selectedCountry.iso2})
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateCountryDialog({ onCountryCreated }: { onCountryCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [iso2, setIso2] = useState("");
+  const [name, setName] = useState("");
+  const [softoneCode, setSoftoneCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!iso2 || !name) {
+      toast.error("ISO2 and name are required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/master-data/countries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          iso2: iso2.toUpperCase(),
+          name,
+          softoneCode: softoneCode || undefined,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Country created successfully");
+        setOpen(false);
+        setIso2("");
+        setName("");
+        setSoftoneCode("");
+        onCountryCreated();
+      } else {
+        toast.error("Failed to create country");
+      }
+    } catch (error) {
+      toast.error("Error creating country");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon" disabled={loading}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Country</DialogTitle>
+          <DialogDescription>
+            Add a new country to the system
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="iso2">ISO2 Code *</Label>
+            <Input
+              id="iso2"
+              value={iso2}
+              onChange={(e) => setIso2(e.target.value.toUpperCase())}
+              placeholder="e.g., GR"
+              maxLength={2}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="name">Country Name *</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Greece"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="softoneCode">SoftOne Code</Label>
+            <Input
+              id="softoneCode"
+              value={softoneCode}
+              onChange={(e) => setSoftoneCode(e.target.value)}
+              placeholder="Optional SoftOne code"
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreate} disabled={loading}>
+            {loading ? "Creating..." : "Create Country"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

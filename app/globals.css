@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand colors - Blue theme */
+    --color-brand: 210 100% 50%;
+    --color-brand-foreground: 0 0% 100%;
+    --color-brand-50: 210 100% 97%;
+    --color-brand-100: 210 100% 94%;
+    --color-brand-200: 210 100% 87%;
+    --color-brand-300: 210 100% 75%;
+    --color-brand-400: 210 100% 65%;
+    --color-brand-500: 210 100% 50%;
+    --color-brand-600: 210 100% 40%;
+    --color-brand-700: 210 100% 30%;
+    --color-brand-800: 210 100% 20%;
+    --color-brand-900: 210 100% 15%;
+    --color-brand-950: 210 100% 10%;
+
+    /* Accent colors - Purple theme */
+    --color-accent: 262 83% 58%;
+    --color-accent-foreground: 0 0% 100%;
+    --color-accent-50: 262 100% 97%;
+    --color-accent-100: 262 100% 94%;
+    --color-accent-200: 262 100% 87%;
+    --color-accent-300: 262 83% 75%;
+    --color-accent-400: 262 83% 65%;
+    --color-accent-500: 262 83% 58%;
+    --color-accent-600: 262 83% 50%;
+    --color-accent-700: 262 83% 45%;
+    --color-accent-800: 262 83% 38%;
+    --color-accent-900: 262 83% 32%;
+    --color-accent-950: 262 83% 20%;
+
+    /* Success colors - Green theme */
+    --color-success: 160 84% 39%;
+    --color-success-foreground: 0 0% 100%;
+    --color-success-50: 160 84% 96%;
+    --color-success-100: 160 84% 91%;
+    --color-success-200: 160 84% 83%;
+    --color-success-300: 160 84% 70%;
+    --color-success-400: 160 84% 56%;
+    --color-success-500: 160 84% 39%;
+    --color-success-600: 160 84% 35%;
+    --color-success-700: 160 84% 30%;
+    --color-success-800: 160 84% 25%;
+    --color-success-900: 160 84% 25%;
+    --color-success-950: 160 84% 15%;
+
+    /* Warning colors - Orange theme */
+    --color-warning: 20 91% 48%;
+    --color-warning-foreground: 0 0% 100%;
+    --color-warning-50: 20 91% 96%;
+    --color-warning-100: 20 91% 91%;
+    --color-warning-200: 20 91% 83%;
+    --color-warning-300: 20 91% 70%;
+    --color-warning-400: 20 91% 56%;
+    --color-warning-500: 20 91% 48%;
+    --color-warning-600: 0 84% 60%;
+    --color-warning-700: 0 84% 50%;
+    --color-warning-800: 0 84% 42%;
+    --color-warning-900: 0 84% 37%;
+    --color-warning-950: 0 84% 20%;
+
+    /* Danger colors - Red theme */
+    --color-danger: 0 84% 60%;
+    --color-danger-foreground: 0 0% 100%;
+    --color-danger-50: 0 84% 96%;
+    --color-danger-100: 0 84% 91%;
+    --color-danger-200: 0 84% 83%;
+    --color-danger-300: 0 84% 70%;
+    --color-danger-400: 0 84% 56%;
+    --color-danger-500: 0 84% 60%;
+    --color-danger-600: 0 84% 50%;
+    --color-danger-700: 0 84% 42%;
+    --color-danger-800: 0 84% 37%;
+    --color-danger-900: 0 84% 32%;
+    --color-danger-950: 0 84% 20%;
+
+    /* Base colors */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 210 100% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 210 100% 50%;
+  }
+}
+
+@layer base {
+  html {
+    font-size: 11px;
+  }
+  
+  body {
+    @apply text-[1.4rem] bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
