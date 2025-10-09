@@ -15,20 +15,20 @@ const updateTaskSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify task exists and get project info
+    
+    const { id, taskId } = await params;
+// Verify task exists and get project info
     const task = await prisma.task.findUnique({
-      where: { id: params.taskId },
+      where: { id: taskId },
       include: {
         project: {
           include: {
@@ -42,7 +42,7 @@ export async function PUT(
       },
     });
 
-    if (!task || task.projectId !== params.id) {
+    if (!task || task.projectId !== id) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
@@ -74,7 +74,7 @@ export async function PUT(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: params.taskId },
+      where: { id: taskId },
       data: {
         ...updateData,
         dueAt: updateData.dueAt ? new Date(updateData.dueAt) : null,
@@ -101,7 +101,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -115,28 +115,28 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify task exists
+    
+    const { id, taskId } = await params;
+// Verify task exists
     const task = await prisma.task.findUnique({
-      where: { id: params.taskId },
+      where: { id: taskId },
     });
 
-    if (!task || task.projectId !== params.id) {
+    if (!task || task.projectId !== id) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     await prisma.task.delete({
-      where: { id: params.taskId },
+      where: { id: taskId },
     });
 
     return NextResponse.json({ message: 'Task deleted successfully' });

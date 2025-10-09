@@ -23,8 +23,59 @@ import {
   BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import * as ReactIcons from "react-icons";
+import * as FaIcons from "react-icons/fa";
+import * as Fa6Icons from "react-icons/fa6";
+import * as MdIcons from "react-icons/md";
+import * as IoIcons from "react-icons/io5";
+import * as HiIcons from "react-icons/hi2";
+import * as BsIcons from "react-icons/bs";
+import * as AiIcons from "react-icons/ai";
+import * as BiIcons from "react-icons/bi";
+import * as CiIcons from "react-icons/ci";
+import * as DiIcons from "react-icons/di";
+import * as FiIcons from "react-icons/fi";
+import * as GiIcons from "react-icons/gi";
+import * as GoIcons from "react-icons/go";
+import * as GrIcons from "react-icons/gr";
+import * as ImIcons from "react-icons/im";
+import * as LuIcons from "react-icons/lu";
+import * as PiIcons from "react-icons/pi";
+import * as RiIcons from "react-icons/ri";
+import * as RxIcons from "react-icons/rx";
+import * as SiIcons from "react-icons/si";
+import * as SlIcons from "react-icons/sl";
+import * as TbIcons from "react-icons/tb";
+import * as VscIcons from "react-icons/vsc";
+import * as WiIcons from "react-icons/wi";
 import { toast } from "sonner";
+
+// Combine all icon collections for rendering
+const ALL_ICON_COLLECTIONS = [
+  FaIcons,
+  Fa6Icons,
+  MdIcons,
+  IoIcons,
+  HiIcons,
+  BsIcons,
+  AiIcons,
+  BiIcons,
+  CiIcons,
+  DiIcons,
+  FiIcons,
+  GiIcons,
+  GoIcons,
+  GrIcons,
+  ImIcons,
+  LuIcons,
+  PiIcons,
+  RiIcons,
+  RxIcons,
+  SiIcons,
+  SlIcons,
+  TbIcons,
+  VscIcons,
+  WiIcons,
+];
 
 interface MenuGroup {
   id: string;
@@ -154,10 +205,12 @@ export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProp
     if (!iconName) return fallback;
     
     try {
-      // Try to get icon from react-icons
-      const IconComponent = (ReactIcons as any)[iconName];
-      if (IconComponent) {
-        return <IconComponent style={{ color: iconColor }} />;
+      // Search through all icon collections to find the icon
+      for (const collection of ALL_ICON_COLLECTIONS) {
+        const IconComponent = (collection as any)[iconName];
+        if (IconComponent) {
+          return <IconComponent className="h-4 w-4" style={{ color: iconColor }} />;
+        }
       }
     } catch (error) {
       console.warn(`Icon ${iconName} not found`);
@@ -209,7 +262,7 @@ export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProp
             </div>
           )}
           
-          <span className="flex-1">{item.name}</span>
+          <span className="flex-1 text-[10px]">{item.name}</span>
           
           {item.isExternal && (
             <Badge variant="secondary" className="text-xs">
@@ -270,7 +323,7 @@ export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProp
                       <div className="w-4 h-4 flex items-center justify-center">
                         {renderIcon(group.icon, group.iconColor, <Home className="h-4 w-4" />)}
                       </div>
-                      <span className="flex-1 text-left font-medium">{group.name}</span>
+                      <span className="flex-1 text-left font-medium text-[12px]">{group.name}</span>
                       {group.isCollapsible && group.items.length > 3 && (
                         <ChevronDown className={cn(
                           "h-4 w-4 transition-transform",

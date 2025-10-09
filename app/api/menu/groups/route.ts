@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }
@@ -109,14 +109,14 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(menuGroup);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('[MenuGroups PUT] Zod validation failed:', error.errors);
+      console.error('[MenuGroups PUT] Zod validation failed:', error.issues);
     } else {
       console.error('Menu Groups PUT error:', error);
     }
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }

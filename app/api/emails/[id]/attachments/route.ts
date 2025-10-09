@@ -14,7 +14,7 @@ const getAttachmentsSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth();
@@ -33,7 +33,7 @@ export async function GET(
     };
 
     const emailService = await createEmailService(emailProvider);
-    const attachments = await emailService.getMessageAttachments(params.id);
+    const attachments = await emailService.getMessageAttachments(id);
 
     return NextResponse.json({
       success: true,
@@ -44,7 +44,7 @@ export async function GET(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

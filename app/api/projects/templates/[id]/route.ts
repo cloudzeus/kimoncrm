@@ -11,19 +11,19 @@ const updateTemplateSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const template = await prisma.projectTemplate.findUnique({
-      where: { id: params.id },
+    
+    const { id } = await params;
+const template = await prisma.projectTemplate.findUnique({
+      where: { id: id },
       include: {
         creator: {
           select: {
@@ -59,20 +59,20 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify template exists
+    
+    const { id } = await params;
+// Verify template exists
     const existingTemplate = await prisma.projectTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!existingTemplate) {
@@ -83,7 +83,7 @@ export async function PUT(
     const updateData = updateTemplateSchema.parse(body);
 
     const template = await prisma.projectTemplate.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       include: {
         creator: {
@@ -110,7 +110,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -124,20 +124,20 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify template exists
+    
+    const { id } = await params;
+// Verify template exists
     const existingTemplate = await prisma.projectTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!existingTemplate) {
@@ -146,7 +146,7 @@ export async function DELETE(
 
     // Soft delete by setting isActive to false
     await prisma.projectTemplate.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { isActive: false },
     });
 

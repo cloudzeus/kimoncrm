@@ -12,23 +12,23 @@ const updatePricingSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    
+    const { id } = await params;
+const body = await request.json();
     const { cost, manualB2BPrice, manualRetailPrice, reason } = updatePricingSchema.parse(body);
 
     // Verify product exists
     const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         brand: { select: { name: true } },
         manufacturer: { select: { name: true } },
@@ -42,7 +42,7 @@ export async function PUT(
 
     // Update product pricing
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(cost !== undefined && { cost }),
         ...(manualB2BPrice !== undefined && { manualB2BPrice }),
@@ -53,7 +53,7 @@ export async function PUT(
     // Record pricing history
     await prisma.productPricingHistory.create({
       data: {
-        productId: params.id,
+        productId: id,
         cost: cost !== undefined ? cost : existingProduct.cost,
         b2bPrice: manualB2BPrice !== undefined ? manualB2BPrice : existingProduct.manualB2BPrice,
         retailPrice: manualRetailPrice !== undefined ? manualRetailPrice : existingProduct.manualRetailPrice,
@@ -71,7 +71,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

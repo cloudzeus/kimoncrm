@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 // PUT - Update a supported language
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -54,7 +54,7 @@ export async function PUT(
 // DELETE - Delete a supported language
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();

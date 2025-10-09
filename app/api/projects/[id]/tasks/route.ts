@@ -15,20 +15,20 @@ const createTaskSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user has access to the project
+    
+    const { id } = await params;
+// Verify user has access to the project
     const project = await prisma.project.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         assignedUsers: {
           include: {
@@ -53,7 +53,7 @@ export async function GET(
     }
 
     const tasks = await prisma.task.findMany({
-      where: { projectId: params.id },
+      where: { projectId: id },
       include: {
         assignee: {
           select: {
@@ -87,20 +87,20 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify project exists and user has access
+    
+    const { id } = await params;
+// Verify project exists and user has access
     const project = await prisma.project.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         assignedUsers: true,
         company: true,
@@ -131,7 +131,7 @@ export async function POST(
 
     // Get the next order number for the project
     const lastTask = await prisma.task.findFirst({
-      where: { projectId: params.id },
+      where: { projectId: id },
       orderBy: { order: 'desc' },
       select: { order: true },
     });
@@ -141,7 +141,7 @@ export async function POST(
     const task = await prisma.task.create({
       data: {
         ...taskData,
-        projectId: params.id,
+        projectId: id,
         order: nextOrder,
         dueAt: taskData.dueAt ? new Date(taskData.dueAt) : null,
       },
@@ -182,7 +182,7 @@ export async function POST(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

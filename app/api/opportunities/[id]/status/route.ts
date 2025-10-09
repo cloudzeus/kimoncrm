@@ -11,20 +11,20 @@ const updateStatusSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify opportunity exists
+    
+    const { id } = await params;
+// Verify opportunity exists
     const opportunity = await prisma.opportunity.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         company: true,
       },
@@ -48,7 +48,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Update opportunity
       const updatedOpportunity = await tx.opportunity.update({
-        where: { id: params.id },
+        where: { id: id },
         data: {
           ...(updateData.status && { status: updateData.status }),
           ...(updateData.stage && { stage: updateData.stage }),
@@ -61,7 +61,7 @@ export async function PUT(
       // Record status change
       await tx.opportunityStatusChange.create({
         data: {
-          opportunityId: params.id,
+          opportunityId: id,
           fromStatus: opportunity.status,
           toStatus: updateData.status || opportunity.status,
           changedBy: session.user.id,
@@ -78,7 +78,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -92,19 +92,19 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const statusHistory = await prisma.opportunityStatusChange.findMany({
-      where: { opportunityId: params.id },
+    
+    const { id } = await params;
+const statusHistory = await prisma.opportunityStatusChange.findMany({
+      where: { opportunityId: id },
       include: {
         changedByUser: {
           select: {

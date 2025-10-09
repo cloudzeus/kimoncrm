@@ -21,7 +21,9 @@ const createMenuItemSchema = z.object({
   })).optional(),
 });
 
-const updateMenuItemSchema = createMenuItemSchema.partial().omit({ groupId: true });
+const updateMenuItemSchema = createMenuItemSchema.partial().extend({
+  id: z.string().min(1, "ID is required"),
+});
 
 // GET /api/menu/items
 export async function GET(request: NextRequest) {
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }
@@ -154,22 +156,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(menuItem);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('[MenuItems PUT] Zod validation failed:', error.errors);
-    } else {
-      console.error('Menu Items PUT error:', error);
-    }
-    
-    if (error instanceof z.ZodError) {
+      console.error('[MenuItems PUT] Zod validation failed:', error.issues);
+      console.error('[MenuItems PUT] Validation schema:', updateMenuItemSchema.shape);
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
+    } else {
+      console.error('Menu Items PUT error:', error);
+      return NextResponse.json(
+        { message: "Failed to update menu item", error: error.message },
+        { status: 500 }
+      );
     }
-
-    return NextResponse.json(
-      { message: "Failed to update menu item" },
-      { status: 500 }
-    );
   }
 }
 

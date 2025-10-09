@@ -13,7 +13,7 @@ export default async function B2BPage() {
   }
 
   // Fetch B2B user with contact and company data
-  const b2bUser = await prisma.user.findUnique({
+  const rawB2bUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: {
       contact: {
@@ -32,9 +32,32 @@ export default async function B2BPage() {
     },
   });
 
-  if (!b2bUser?.contact?.company) {
+  if (!rawB2bUser?.contact?.company) {
     redirect('/dashboard');
   }
+
+  // Serialize dates for client component
+  const b2bUser = {
+    ...rawB2bUser,
+    contact: {
+      ...rawB2bUser.contact,
+      company: {
+        ...rawB2bUser.contact.company,
+        supportContracts: rawB2bUser.contact.company.supportContracts.map(contract => ({
+          ...contract,
+          startDate: contract.startDate.toISOString(),
+          endDate: contract.endDate ? contract.endDate.toISOString() : null,
+          createdAt: contract.createdAt.toISOString(),
+          updatedAt: contract.updatedAt.toISOString(),
+          sla: {
+            ...contract.sla,
+            createdAt: contract.sla.createdAt.toISOString(),
+            updatedAt: contract.sla.updatedAt.toISOString(),
+          },
+        })),
+      },
+    },
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">

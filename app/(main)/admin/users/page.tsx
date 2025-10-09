@@ -15,7 +15,7 @@ export default async function AdminUsersPage() {
   }
 
   // Fetch initial data
-  const [users, departments, workPositions, branches] = await Promise.all([
+  const [rawUsers, departments, workPositions, branches] = await Promise.all([
     prisma.user.findMany({
       include: {
         department: { select: { id: true, name: true } },
@@ -37,6 +37,15 @@ export default async function AdminUsersPage() {
       orderBy: { name: 'asc' },
     }),
   ]);
+
+  // Serialize dates to strings for client component
+  const users = rawUsers.map(user => ({
+    ...user,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+    lastLoginAt: user.lastLoginAt?.toISOString() || null,
+    emailVerified: user.emailVerified?.toISOString() || null,
+  }));
 
   return (
     <div className="container mx-auto p-6 space-y-6">

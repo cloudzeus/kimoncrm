@@ -11,20 +11,20 @@ const updateStatusSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify task exists and get project info
+    
+    const { id, taskId } = await params;
+// Verify task exists and get project info
     const task = await prisma.task.findUnique({
-      where: { id: params.taskId },
+      where: { id: taskId },
       include: {
         project: {
           include: {
@@ -42,7 +42,7 @@ export async function PUT(
       },
     });
 
-    if (!task || task.projectId !== params.id) {
+    if (!task || task.projectId !== id) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
@@ -67,7 +67,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Update task status
       const updatedTask = await tx.task.update({
-        where: { id: params.taskId },
+        where: { id: taskId },
         data: { status },
         include: {
           assignee: {
@@ -88,7 +88,7 @@ export async function PUT(
       // Record status change
       await tx.taskStatusChange.create({
         data: {
-          taskId: params.taskId,
+          taskId: taskId,
           fromStatus: fromStatus || task.status,
           toStatus: status,
           changedBy: session.user.id,
@@ -119,7 +119,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

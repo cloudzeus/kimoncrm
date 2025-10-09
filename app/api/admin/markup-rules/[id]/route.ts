@@ -20,19 +20,19 @@ const updateMarkupRuleSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rule = await prisma.markupRule.findUnique({
-      where: { id: params.id },
+    
+    const { id } = await params;
+const rule = await prisma.markupRule.findUnique({
+      where: { id: id },
       include: {
         brand: {
           select: { name: true },
@@ -65,23 +65,23 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    
+    const { id } = await params;
+const body = await request.json();
     const ruleData = updateMarkupRuleSchema.parse(body);
 
     // Verify rule exists
     const existingRule = await prisma.markupRule.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!existingRule) {
@@ -127,7 +127,7 @@ export async function PUT(
     }
 
     const updatedRule = await prisma.markupRule.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...ruleData,
         targetId: ruleData.type === 'global' ? null : ruleData.targetId,
@@ -154,7 +154,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -168,20 +168,20 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify rule exists
+    
+    const { id } = await params;
+// Verify rule exists
     const existingRule = await prisma.markupRule.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!existingRule) {
@@ -189,7 +189,7 @@ export async function DELETE(
     }
 
     await prisma.markupRule.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: 'Markup rule deleted successfully' });

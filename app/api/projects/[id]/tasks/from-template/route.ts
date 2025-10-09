@@ -9,23 +9,23 @@ const createFromTemplateSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    
+    const { id } = await params;
+const body = await request.json();
     const { templateId } = createFromTemplateSchema.parse(body);
 
     // Verify project exists and user has access
     const project = await prisma.project.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         assignedUsers: true,
       },
@@ -49,7 +49,7 @@ export async function POST(
 
     // Get the current highest order number for the project
     const lastTask = await prisma.task.findFirst({
-      where: { projectId: params.id },
+      where: { projectId: id },
       orderBy: { order: 'desc' },
       select: { order: true },
     });
@@ -65,7 +65,7 @@ export async function POST(
             description: task.description,
             priority: task.priority,
             estimatedHours: task.estimatedHours,
-            projectId: params.id,
+            projectId: id,
             createdBy: session.user.id,
             templateId: template.id,
             order: nextOrder++,
@@ -97,7 +97,7 @@ export async function POST(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

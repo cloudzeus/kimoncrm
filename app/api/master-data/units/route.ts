@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Units POST error:', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid data', errors: error.issues }, { status: 400 });
     }
     return NextResponse.json({ message: 'Failed to create unit' }, { status: 500 });
   }
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Units PUT error:', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ message: 'Invalid data', errors: error.errors }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid data', errors: error.issues }, { status: 400 });
     }
     return NextResponse.json({ message: 'Failed to update unit' }, { status: 500 });
   }

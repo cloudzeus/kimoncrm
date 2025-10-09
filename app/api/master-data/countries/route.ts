@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }
@@ -97,7 +97,7 @@ export async function PUT(request: NextRequest) {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: "Invalid data", errors: error.errors },
+        { message: "Invalid data", errors: error.issues },
         { status: 400 }
       );
     }

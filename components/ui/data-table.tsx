@@ -117,6 +117,11 @@ export function DataTable<T extends Record<string, any>>({
   );
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
 
+  // Helper functions
+  const getNestedValue = (obj: any, path: string) => {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  };
+
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     let result = [...data];
@@ -268,10 +273,6 @@ export function DataTable<T extends Record<string, any>>({
   }, [filteredAndSortedData, columns, columnConfig, onExport]);
 
   // Helper functions
-  const getNestedValue = (obj: any, path: string) => {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
-  };
-
   const getRowId = (row: T) => {
     return row.id || row.key || JSON.stringify(row);
   };

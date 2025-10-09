@@ -10,20 +10,20 @@ const updateStatusSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify lead exists
+    
+    const { id } = await params;
+// Verify lead exists
     const lead = await prisma.lead.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         company: true,
         contact: true,
@@ -45,7 +45,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Update lead status
       const updatedLead = await tx.lead.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { status },
         include: {
           company: true,
@@ -56,7 +56,7 @@ export async function PUT(
       // Record status change
       await tx.leadStatusChange.create({
         data: {
-          leadId: params.id,
+          leadId: id,
           fromStatus: lead.status,
           toStatus: status,
           changedBy: session.user.id,
@@ -82,7 +82,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -96,19 +96,19 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const statusHistory = await prisma.leadStatusChange.findMany({
-      where: { leadId: params.id },
+    
+    const { id } = await params;
+const statusHistory = await prisma.leadStatusChange.findMany({
+      where: { leadId: id },
       include: {
         changedByUser: {
           select: {

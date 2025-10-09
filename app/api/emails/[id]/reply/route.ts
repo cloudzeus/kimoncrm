@@ -16,7 +16,7 @@ const replyEmailSchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireAuth();
@@ -32,7 +32,7 @@ export async function POST(
     const emailService = await createEmailService(emailProvider);
     
     const messageId = await emailService.replyToEmail(
-      params.id,
+      id,
       validatedBody.content,
       validatedBody.replyAll
     );
@@ -47,7 +47,7 @@ export async function POST(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

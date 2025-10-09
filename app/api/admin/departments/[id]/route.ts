@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 // PUT - Update a department
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,11 +14,12 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { name, emailGroup, parentId, managerId } = body;
 
     const department = await prisma.department.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         emailGroup: emailGroup || null,
@@ -40,7 +41,7 @@ export async function PUT(
 // DELETE - Delete a department
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -49,9 +50,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if department has users or children
     const department = await prisma.department.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -84,7 +86,7 @@ export async function DELETE(
     }
 
     await prisma.department.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });

@@ -420,13 +420,27 @@ async function seedMenu() {
       },
     });
 
+    const vatCodesItem = await prisma.menuItem.create({
+      data: {
+        groupId: administrationGroup.id,
+        name: 'VAT Codes',
+        key: 'vat_codes',
+        path: '/vatcodes',
+        icon: 'FaPercentage',
+        iconColor: '#DC2626',
+        order: 5,
+        isActive: true,
+        isExternal: false,
+      },
+    });
+
     // Create permissions for all menu items
     const menuItems = [
       dashboardItem, companiesItem, contactsItem, leadsItem, opportunitiesItem,
       productsItem, categoriesItem, brandsItem, unitsItem, ordersItem, quotesItem,
       ticketsItem, projectsItem, usersItem, menuItem, profileItem, translationsItem,
       userManagementItem, statusManagementItem, pricingManagementItem, 
-      systemSettingsItem, auditLogsItem
+      systemSettingsItem, auditLogsItem, vatCodesItem
     ];
 
     for (const item of menuItems) {
@@ -441,7 +455,7 @@ async function seedMenu() {
       });
 
       // Manager can view most things, edit some (but not administration items)
-      const isAdministrationItem = ['user_management', 'status_management', 'pricing_management', 'system_settings', 'audit_logs'].includes(item.key);
+      const isAdministrationItem = ['user_management', 'status_management', 'pricing_management', 'system_settings', 'audit_logs', 'vat_codes'].includes(item.key);
       await prisma.menuPermission.create({
         data: {
           menuItemId: item.id,

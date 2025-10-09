@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 // PUT - Update a work position
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,11 +14,12 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { title, departmentId } = body;
 
     const position = await prisma.workPosition.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title,
         departmentId
@@ -38,7 +39,7 @@ export async function PUT(
 // DELETE - Delete a work position
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -47,9 +48,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if position has assigned users
     const position = await prisma.workPosition.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         _count: {
           select: {
@@ -74,7 +76,7 @@ export async function DELETE(
     }
 
     await prisma.workPosition.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ success: true });

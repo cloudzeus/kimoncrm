@@ -19,9 +19,9 @@ import {
 import { SaveProjectAsTemplateDialog } from '@/components/projects/save-project-as-template-dialog';
 
 interface ProjectPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
@@ -31,9 +31,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     redirect('/dashboard');
   }
 
+  // Await params (Next.js 15 requirement)
+  const { id } = await params;
+
   // Fetch project details
   const project = await prisma.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       company: true,
       contact: true,
@@ -73,7 +76,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // Get project stats
   const taskStats = await prisma.task.groupBy({
     by: ['status'],
-    where: { projectId: params.id },
+    where: { projectId: id },
     _count: {
       status: true,
     },
@@ -90,7 +93,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
           <p className="text-muted-foreground">
-            {project.company.name} • {project.contact?.firstName} {project.contact?.lastName}
+            {project.company?.name} • {project.contact?.firstName} {project.contact?.lastName}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -188,10 +191,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium">Company</h4>
-                <p className="text-sm text-muted-foreground">{project.company.name}</p>
-              </div>
+              {project.company && (
+                <div>
+                  <h4 className="font-medium">Company</h4>
+                  <p className="text-sm text-muted-foreground">{project.company.name}</p>
+                </div>
+              )}
               
               {project.contact && (
                 <div>

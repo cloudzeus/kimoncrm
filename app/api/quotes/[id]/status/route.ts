@@ -10,20 +10,20 @@ const updateStatusSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify quote exists
+    
+    const { id } = await params;
+// Verify quote exists
     const quote = await prisma.quote.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         company: true,
         contact: true,
@@ -48,7 +48,7 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // Update quote status
       const updatedQuote = await tx.quote.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { status },
         include: {
           company: true,
@@ -62,7 +62,7 @@ export async function PUT(
       // Record status change
       await tx.quoteStatusChange.create({
         data: {
-          quoteId: params.id,
+          quoteId: id,
           fromStatus: quote.status,
           toStatus: status,
           changedBy: session.user.id,
@@ -88,7 +88,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -102,19 +102,19 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth();
 
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const statusHistory = await prisma.quoteStatusChange.findMany({
-      where: { quoteId: params.id },
+    
+    const { id } = await params;
+const statusHistory = await prisma.quoteStatusChange.findMany({
+      where: { quoteId: id },
       include: {
         changedByUser: {
           select: {

@@ -592,13 +592,103 @@ model Manufacturer {
 
 model Country {
   id          String   @id @default(cuid())
-  iso2        String   @unique
-  name        String
-  softoneCode String?  @unique
+  softoneCode String   @unique // COUNTRY from SoftOne
+  name        String   // NAME from SoftOne (Greek by default)
+  iso2        String   // INTERCODE from SoftOne
+  shortcut    String   // SHORTCUT from SoftOne
+  currency    String   // SOCURRENCY from SoftOne
+  countryType String   // COUNTRYTYPE from SoftOne
+  cntIrs      String?  // CNTIRS from SoftOne
+  isActive    Boolean  @default(true) // ISACTIVE from SoftOne
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products    Product[]
+  products     Product[]
+  translations CountryTranslation[]
+  districts    District[]
+}
+
+model CountryTranslation {
+  id           String   @id @default(cuid())
+  countryId    String
+  languageCode String  // "el", "en", etc.
+  name         String  // Translated country name
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  country      Country           @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  language     SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([countryId, languageCode])
+}
+
+model District {
+  id              String   @id @default(cuid())
+  code            String   @unique // CODE from SoftOne
+  countrySoftone  String   // COUNTRY from SoftOne (relation to Country.softoneCode)
+  name            String   // NAME from SoftOne (Greek by default)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  country         Country           @relation(fields: [countrySoftone], references: [softoneCode])
+  translations    DistrictTranslation[]
+
+  @@index([countrySoftone])
+}
+
+model DistrictTranslation {
+  id           String   @id @default(cuid())
+  districtId   String
+  languageCode String  // "el", "en", etc.
+  name         String  // Translated district name
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  district     District          @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  language     SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([districtId, languageCode])
+}
+
+model IrsData {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  district  String?
+  zip       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Currency {
+  id          String   @id @default(cuid())
+  socurrency  String   @unique
+  shortcut    String
+  name        String
+  intercode   String
+  symbol      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PaymentType {
+  id        String   @id @default(cuid())
+  payment   String   @unique
+  code      String
+  name      String
+  sodtype   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SoftOnePresalesPeople {
+  id       String   @id @default(cuid())
+  uftbl01  String   @unique
+  code     String
+  name     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Unit {
@@ -994,6 +1084,8 @@ model SupportedLanguage {
   batchTargetLangs TranslationBatch[] @relation("BatchTargetLang")
   brandTranslations BrandTranslation[]
   categoryTranslations CategoryTranslation[]
+  countryTranslations CountryTranslation[]
+  districtTranslations DistrictTranslation[]
   unitTranslations UnitTranslation[]
   isoCertTranslations ISOCertTranslation[]
   companyTranslations DefaultCompanyDataTranslation[]

@@ -14,6 +14,31 @@ import { DataTable, Column } from "@/components/ui/data-table";
 import { SortableList } from "@/components/drag-drop/sortable-list";
 import { IconSelector } from "@/components/admin/icon-selector";
 import { ColorPicker } from "@/components/admin/color-picker";
+import * as LucideIcons from "lucide-react";
+import * as FaIcons from "react-icons/fa";
+import * as Fa6Icons from "react-icons/fa6";
+import * as MdIcons from "react-icons/md";
+import * as IoIcons from "react-icons/io5";
+import * as HiIcons from "react-icons/hi2";
+import * as BsIcons from "react-icons/bs";
+import * as AiIcons from "react-icons/ai";
+import * as BiIcons from "react-icons/bi";
+import * as CiIcons from "react-icons/ci";
+import * as DiIcons from "react-icons/di";
+import * as FiIcons from "react-icons/fi";
+import * as GiIcons from "react-icons/gi";
+import * as GoIcons from "react-icons/go";
+import * as GrIcons from "react-icons/gr";
+import * as ImIcons from "react-icons/im";
+import * as LuIcons from "react-icons/lu";
+import * as PiIcons from "react-icons/pi";
+import * as RiIcons from "react-icons/ri";
+import * as RxIcons from "react-icons/rx";
+import * as SiIcons from "react-icons/si";
+import * as SlIcons from "react-icons/sl";
+import * as TbIcons from "react-icons/tb";
+import * as VscIcons from "react-icons/vsc";
+import * as WiIcons from "react-icons/wi";
 import { 
   Plus, 
   Edit, 
@@ -28,6 +53,47 @@ import {
   Save,
   X
 } from "lucide-react";
+
+// Combine all icon collections for rendering
+const ALL_ICON_COLLECTIONS = {
+  "FontAwesome 5": FaIcons,
+  "FontAwesome 6": Fa6Icons,
+  "Material Design": MdIcons,
+  "Ionicons 5": IoIcons,
+  "Heroicons 2": HiIcons,
+  "Bootstrap": BsIcons,
+  "Ant Design": AiIcons,
+  "BoxIcons": BiIcons,
+  "Circum Icons": CiIcons,
+  "Devicons": DiIcons,
+  "Feather": FiIcons,
+  "Game Icons": GiIcons,
+  "Github Octicons": GoIcons,
+  "Grommet": GrIcons,
+  "IcoMoon": ImIcons,
+  "Lucide": LuIcons,
+  "Phosphor Icons": PiIcons,
+  "Remix Icons": RiIcons,
+  "Radix Icons": RxIcons,
+  "Simple Icons": SiIcons,
+  "Simple Line Icons": SlIcons,
+  "Tabler Icons": TbIcons,
+  "VS Code Icons": VscIcons,
+  "Weather Icons": WiIcons,
+};
+
+// Helper function to find icon component - moved outside component
+const getIconComponent = (iconName: string) => {
+  if (!iconName) return null;
+  
+  // Search through all collections to find the icon
+  for (const collection of Object.values(ALL_ICON_COLLECTIONS)) {
+    if ((collection as any)[iconName]) {
+      return (collection as any)[iconName];
+    }
+  }
+  return null;
+};
 import { toast } from "sonner";
 
 interface MenuGroup {
@@ -66,18 +132,24 @@ interface MenuPermission {
   canEdit: boolean;
 }
 
-const USER_ROLES = ['ADMIN', 'MANAGER', 'USER', 'B2B'];
+const USER_ROLES = ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER', 'B2B'];
 
 export function MenuManager() {
   const [menuGroups, setMenuGroups] = useState<MenuGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("groups");
+  const [mounted, setMounted] = useState(false);
   
   // Dialog states
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<MenuGroup | null>(null);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load menu data
   useEffect(() => {
@@ -251,20 +323,24 @@ export function MenuManager() {
     }
   }, []);
 
+
   // Define columns for groups table
   const groupColumns: Column<MenuGroup>[] = [
     {
       key: "name",
       label: "Name",
       sortable: true,
-      render: (value, group) => (
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 flex items-center justify-center">
-            {/* Icon would be rendered here */}
+      render: (value, group) => {
+        const IconComponent = getIconComponent(group.icon);
+        return (
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 flex items-center justify-center" style={{ color: group.iconColor }}>
+              {IconComponent && <IconComponent className="h-4 w-4" />}
+            </div>
+            <span className="font-medium text-[11px]">{value}</span>
           </div>
-          <span className="font-medium text-[11px]">{value}</span>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "key",
@@ -333,40 +409,54 @@ export function MenuManager() {
   ];
 
   // Render group item for sortable list
-  const renderGroupItem = useCallback((group: MenuGroup, index: number) => (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center space-x-3">
-        <Folder className="h-5 w-5 text-muted-foreground" />
-        <div>
-          <h4 className="font-medium">{group.name}</h4>
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <Badge variant="outline" className="text-xs">
-              {group.key}
-            </Badge>
-            <span>•</span>
-            <span>{group.items.length} items</span>
-            {!group.isCollapsible && (
-              <>
-                <span>•</span>
-                <Badge variant="secondary" className="text-xs">
-                  Always expanded
-                </Badge>
-              </>
-            )}
+  const renderGroupItem = useCallback((group: MenuGroup, index: number) => {
+    const GroupIcon = getIconComponent(group.icon) || Folder;
+    return (
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center space-x-3">
+          {GroupIcon && <GroupIcon className="h-5 w-5" style={{ color: group.iconColor || undefined }} />}
+          <div>
+            <h4 className="font-medium">{group.name}</h4>
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Badge variant="outline" className="text-xs">
+                {group.key}
+              </Badge>
+              <span>•</span>
+              <span>{group.items.length} items</span>
+              {!group.isCollapsible && (
+                <>
+                  <span>•</span>
+                  <Badge variant="secondary" className="text-xs">
+                    Always expanded
+                  </Badge>
+                </>
+              )}
+            </div>
           </div>
         </div>
+        
+        <div className="flex items-center space-x-2">
+          <Badge variant={group.isActive ? "default" : "secondary"} className="text-xs">
+            {group.isActive ? "Active" : "Inactive"}
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            #{index + 1}
+          </Badge>
+        </div>
       </div>
-      
-      <div className="flex items-center space-x-2">
-        <Badge variant={group.isActive ? "default" : "secondary"} className="text-xs">
-          {group.isActive ? "Active" : "Inactive"}
-        </Badge>
-        <Badge variant="outline" className="text-xs">
-          #{index + 1}
-        </Badge>
+    );
+  }, []);
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-muted-foreground">Loading menu manager...</div>
+        </div>
       </div>
-    </div>
-  ), []);
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -957,19 +1047,22 @@ function MenuItemsTable({
       key: "name",
       label: "Name",
       sortable: true,
-      render: (value, item) => (
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 flex items-center justify-center">
-            {/* Icon would be rendered here */}
+      render: (value, item) => {
+        const ItemIcon = getIconComponent(item.icon);
+        return (
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 flex items-center justify-center" style={{ color: item.iconColor }}>
+              {ItemIcon && <ItemIcon className="h-4 w-4" />}
+            </div>
+            <span className="font-medium">{value}</span>
+            {item.parent && (
+              <Badge variant="secondary" className="text-xs">
+                Sub-item
+              </Badge>
+            )}
           </div>
-          <span className="font-medium">{value}</span>
-          {item.parent && (
-            <Badge variant="secondary" className="text-xs">
-              Sub-item
-            </Badge>
-          )}
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "path",
