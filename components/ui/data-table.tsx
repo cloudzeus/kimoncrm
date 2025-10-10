@@ -41,7 +41,7 @@ import {
   Filter
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -244,7 +244,7 @@ export function DataTable<T extends Record<string, any>>({
   }, [selectedRows, filteredAndSortedData, onSelectionChange]);
 
   // Export to Excel
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     try {
       const visibleColumns = columns.filter(col => columnConfig[col.key as string]?.visible);
       
@@ -257,12 +257,30 @@ export function DataTable<T extends Record<string, any>>({
         return exportRow;
       });
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Data");
 
+      // Add headers
+      if (exportData.length > 0) {
+        const headers = Object.keys(exportData[0]);
+        worksheet.addRow(headers);
+        
+        // Add data rows
+        exportData.forEach(row => {
+          worksheet.addRow(Object.values(row));
+        });
+      }
+
+      // Generate and download the file
       const fileName = `export_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
       
       toast.success("Data exported successfully");
       onExport?.(filteredAndSortedData, visibleColumns);

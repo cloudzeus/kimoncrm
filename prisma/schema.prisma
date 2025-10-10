@@ -606,6 +606,7 @@ model Country {
   products     Product[]
   translations CountryTranslation[]
   districts    District[]
+  customers    Customer[]
 }
 
 model CountryTranslation {
@@ -1383,4 +1384,42 @@ model SupportContract {
   company     Company @relation(fields: [companyId], references: [id])
   sla         SLA @relation(fields: [slaId], references: [id])
   tickets     Ticket[]
+}
+
+/*** Customers (SoftOne Integration) ***/
+enum CustomerActiveStatus {
+  ACTIVE @map("1")
+  INACTIVE @map("0")
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  trdr        Int?     // SoftOne TRDR number
+  code        String?  @unique
+  afm         String?  @unique
+  name        String
+  sotitle     String?
+  jobtypetrd  String?
+  address     String?
+  city        String?
+  zip         String?
+  district    String?
+  country     String?  // References Country.softoneCode
+  isactive    CustomerActiveStatus @default(ACTIVE)
+  erp         Boolean  @default(false) // Synced to SoftOne ERP
+  phone01     String?
+  phone02     String?
+  email       String?
+  emailacc    String?
+  irsdata     String?
+  socurrency  Int?
+  update      DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+
+  countryRel  Country? @relation(fields: [country], references: [softoneCode])
+
+  @@index([country])
+  @@index([afm])
+  @@index([trdr])
+  @@index([update])
 }

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,23 +98,35 @@ export function XLSXImport({ entityType, onImport, sampleData }: XLSXImportProps
     multiple: false,
   });
 
-  const parseExcelFile = (file: File) => {
+  const parseExcelFile = async (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
 
-        if (jsonData.length < 2) {
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+          toast.error("Excel file has no worksheets");
+          return;
+        }
+
+        const jsonData: any[][] = [];
+        worksheet.eachRow((row) => {
+          jsonData.push(row.values as any[]);
+        });
+
+        // Remove first element (row.values includes an extra element at index 0)
+        const cleanedData = jsonData.map(row => row.slice(1));
+
+        if (cleanedData.length < 2) {
           toast.error("Excel file must have at least a header row and one data row");
           return;
         }
 
-        const headers = jsonData[0] as string[];
-        const rows = jsonData.slice(1) as any[][];
+        const headers = cleanedData[0].map(h => h?.toString() || '');
+        const rows = cleanedData.slice(1);
         
         const processedData = rows.map(row => {
           const obj: any = {};
@@ -207,13 +219,32 @@ export function XLSXImport({ entityType, onImport, sampleData }: XLSXImportProps
     }
   };
 
-  const downloadSample = () => {
+  const downloadSample = async () => {
     if (!sampleData || sampleData.length === 0) return;
 
-    const worksheet = XLSX.utils.json_to_sheet(sampleData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sample Data');
-    XLSX.writeFile(workbook, `${entityType}_sample.xlsx`);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Sample Data');
+
+    // Add headers
+    if (sampleData.length > 0) {
+      const headers = Object.keys(sampleData[0]);
+      worksheet.addRow(headers);
+      
+      // Add data rows
+      sampleData.forEach(row => {
+        worksheet.addRow(Object.values(row));
+      });
+    }
+
+    // Generate and download the file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${entityType}_sample.xlsx`;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
