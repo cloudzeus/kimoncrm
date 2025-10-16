@@ -81,6 +81,12 @@ interface VoipSurveyData {
   internetFeedSpeed: string | null;
   networkDevices: any[] | null;
   cablingStatus: string | null;
+  pbxBrand: string | null;
+  conChannelsNum: string | null;
+  extensionsNum: string | null;
+  hotelPms: string | null;
+  createdAt: string;
+  updatedAt: string;
   siteSurvey: SiteSurveyDetail;
 }
 
