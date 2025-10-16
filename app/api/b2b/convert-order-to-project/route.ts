@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
             data: {
               projectId: project.id,
               title: `Install ${item.product.name}`,
-              description: `Installation task for ${item.product.name} (SKU: ${item.product.sku})`,
+              description: `Installation task for ${item.product.name} (Code: ${item.product.code || 'N/A'})`,
               status: 'Todo',
               createdBy: session.user.id,
             },
