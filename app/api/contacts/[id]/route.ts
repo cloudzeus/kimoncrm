@@ -4,11 +4,12 @@ import { prisma } from "@/lib/db/prisma";
 // GET /api/contacts/[id] - Get contact by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const contact = await prisma.contact.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         country: true,
         customers: {
@@ -49,9 +50,10 @@ export async function GET(
 // PATCH /api/contacts/[id] - Update contact
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const {
       title,
@@ -87,7 +89,7 @@ export async function PATCH(
 
     // Update contact and manage relationships
     const contact = await prisma.contact.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title: title || null,
         name,
@@ -125,14 +127,14 @@ export async function PATCH(
     if (customerIds !== undefined) {
       // Delete existing relationships
       await prisma.contactCustomer.deleteMany({
-        where: { contactId: params.id },
+        where: { contactId: id },
       });
 
       // Create new relationships
       if (customerIds.length > 0) {
         await prisma.contactCustomer.createMany({
           data: customerIds.map((customerId: string) => ({
-            contactId: params.id,
+            contactId: id,
             customerId,
           })),
         });
@@ -143,14 +145,14 @@ export async function PATCH(
     if (supplierIds !== undefined) {
       // Delete existing relationships
       await prisma.contactSupplier.deleteMany({
-        where: { contactId: params.id },
+        where: { contactId: id },
       });
 
       // Create new relationships
       if (supplierIds.length > 0) {
         await prisma.contactSupplier.createMany({
           data: supplierIds.map((supplierId: string) => ({
-            contactId: params.id,
+            contactId: id,
             supplierId,
           })),
         });
@@ -161,14 +163,14 @@ export async function PATCH(
     if (projectIds !== undefined) {
       // Delete existing relationships
       await prisma.contactProject.deleteMany({
-        where: { contactId: params.id },
+        where: { contactId: id },
       });
 
       // Create new relationships
       if (projectIds.length > 0) {
         await prisma.contactProject.createMany({
           data: projectIds.map((projectId: string) => ({
-            contactId: params.id,
+            contactId: id,
             projectId,
           })),
         });
@@ -177,7 +179,7 @@ export async function PATCH(
 
     // Fetch updated contact with all relationships
     const updatedContact = await prisma.contact.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         country: true,
         customers: {
@@ -211,11 +213,12 @@ export async function PATCH(
 // DELETE /api/contacts/[id] - Delete contact
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.contact.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: "Contact deleted successfully" });

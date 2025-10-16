@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 
-export async function saveCablingData(siteSurveyId: string, buildings: any[]) {
+export async function saveCablingData(siteSurveyId: string, buildings: any[], buildingConnections: any[] = []) {
   // Ensure cabling survey exists
   await prisma.cablingSurvey.upsert({
     where: { siteSurveyId },
@@ -276,5 +276,14 @@ export async function saveCablingData(siteSurveyId: string, buildings: any[]) {
       }
     }
   }
+
+  // Save buildings and building connections to cabling survey
+  await prisma.cablingSurvey.update({
+    where: { siteSurveyId },
+    data: {
+      generalNotes: JSON.stringify(buildings),
+      buildingConnections: buildingConnections.length > 0 ? JSON.stringify(buildingConnections) : null,
+    },
+  });
 }
 

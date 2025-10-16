@@ -40,7 +40,14 @@ export default async function B2BPage() {
   const b2bUser = {
     ...rawB2bUser,
     contact: {
-      ...rawB2bUser.contact,
+      id: rawB2bUser.contact.id,
+      firstName: rawB2bUser.contact.name?.split(' ')[0] || null,
+      lastName: rawB2bUser.contact.name?.split(' ').slice(1).join(' ') || null,
+      email: rawB2bUser.contact.email,
+      phone: rawB2bUser.contact.workPhone || rawB2bUser.contact.homePhone || null,
+      mobile: rawB2bUser.contact.mobilePhone || null,
+      jobTitle: rawB2bUser.contact.title || null,
+      department: null,
       company: {
         ...rawB2bUser.contact.company,
         supportContracts: rawB2bUser.contact.company.supportContracts.map(contract => ({

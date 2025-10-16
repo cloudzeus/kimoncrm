@@ -4,9 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 // POST /api/contacts/[id]/link - Link contact to customer/supplier/project
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { type, entityId } = body;
 
@@ -17,7 +18,7 @@ export async function POST(
       );
     }
 
-    const contactId = params.id;
+    const contactId = id;
 
     // Validate contact exists
     const contact = await prisma.contact.findUnique({
@@ -115,9 +116,10 @@ export async function POST(
 // DELETE /api/contacts/[id]/link - Unlink contact from customer/supplier/project
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const entityId = searchParams.get("entityId");
@@ -129,7 +131,7 @@ export async function DELETE(
       );
     }
 
-    const contactId = params.id;
+    const contactId = id;
 
     switch (type) {
       case "customer":

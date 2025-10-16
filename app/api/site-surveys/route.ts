@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const assignedTo = searchParams.get("assignedTo") || "";
     const skip = (page - 1) * limit;
 
-    let where: any = {};
+    const where: any = {};
 
     // Build search filter
     if (search) {

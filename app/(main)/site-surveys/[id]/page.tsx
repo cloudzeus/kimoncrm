@@ -103,6 +103,7 @@ export default function SiteSurveyDetailPage() {
 
   useEffect(() => {
     fetchSurveyDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchSurveyDetails = async () => {

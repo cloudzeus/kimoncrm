@@ -37,12 +37,20 @@ import {
   RefreshCw,
   Mail,
   Phone,
+  Network,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SiteSurveyFormDialog } from "@/components/site-surveys/site-survey-form-dialog";
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarchy-form";
+import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,6 +113,9 @@ export default function SiteSurveysPage() {
   const [selectedVoipSurvey, setSelectedVoipSurvey] = useState<SiteSurvey | null>(null);
   const [cablingDialogOpen, setCablingDialogOpen] = useState(false);
   const [selectedCablingSurvey, setSelectedCablingSurvey] = useState<SiteSurvey | null>(null);
+  const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
+  const [diagramData, setDiagramData] = useState<any>(null);
+  const [diagramSurveyId, setDiagramSurveyId] = useState<string | null>(null);
 
   // Fix hydration by mounting on client side
   useEffect(() => {
@@ -113,6 +124,7 @@ export default function SiteSurveysPage() {
 
   useEffect(() => {
     fetchSiteSurveys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchTerm, typeFilter, statusFilter]);
 
   const fetchSiteSurveys = async () => {
@@ -179,6 +191,63 @@ export default function SiteSurveysPage() {
     } finally {
       setDeleteDialogOpen(false);
       setSurveyToDelete(null);
+    }
+  };
+
+  const handleShowDiagram = async (surveyId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/site-surveys/${surveyId}/cabling`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to load cabling data");
+      }
+
+      const data = await response.json();
+      
+      // Debug: Log the API response
+      console.log("API Response data:", data);
+      console.log("Buildings from API:", data.siteSurvey?.buildings);
+      console.log("Building connections from API:", data.buildingConnections);
+      
+      // Transform the data to match NetworkDiagram props
+      const diagramData = {
+        buildings: data.siteSurvey?.buildings || [],
+        buildingConnections: data.buildingConnections || [], // Get building connections from API
+      };
+      
+      setDiagramData(diagramData);
+      setDiagramSurveyId(surveyId);
+      setNetworkDiagramOpen(true);
+    } catch (error) {
+      console.error("Error loading diagram:", error);
+      toast.error("Failed to load network diagram");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshDiagramData = async () => {
+    if (diagramSurveyId && networkDiagramOpen) {
+      try {
+        const response = await fetch(`/api/site-surveys/${diagramSurveyId}/cabling`);
+        
+        if (!response.ok) {
+          throw new Error("Failed to load cabling data");
+        }
+
+        const data = await response.json();
+        
+        // Transform the data to match NetworkDiagram props
+        const diagramData = {
+          buildings: data.siteSurvey?.buildings || [],
+          buildingConnections: data.buildingConnections || [], // Get building connections from API
+        };
+        
+        setDiagramData(diagramData);
+      } catch (error) {
+        console.error("Error refreshing diagram:", error);
+      }
     }
   };
 
@@ -426,6 +495,10 @@ export default function SiteSurveysPage() {
                               <Edit className="h-4 w-4 mr-2" />
                               CABLING DETAILS
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleShowDiagram(survey.id)}>
+                              <Network className="h-4 w-4 mr-2" />
+                              SHOW DIAGRAM
+                            </DropdownMenuItem>
                           </>
                         )}
                         <DropdownMenuSeparator />
@@ -516,6 +589,8 @@ export default function SiteSurveysPage() {
                   setCablingDialogOpen(false);
                   setSelectedCablingSurvey(null);
                   fetchSiteSurveys();
+                  // Refresh diagram data if it's currently open
+                  refreshDiagramData();
                 }}
               />
             </div>
@@ -546,6 +621,19 @@ export default function SiteSurveysPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Network Diagram Modal */}
+      {diagramData && (
+        <NetworkDiagramModal
+          open={networkDiagramOpen}
+          onClose={() => {
+            setNetworkDiagramOpen(false);
+            setDiagramData(null);
+          }}
+          buildings={diagramData.buildings}
+          buildingConnections={diagramData.buildingConnections}
+        />
+      )}
     </div>
   );
 }

@@ -57,29 +57,29 @@ interface ProductDetailClientProps {
     height: number | null;
     weight: number | null;
     productDataSheet: string | null;
-    brandId: string;
-    categoryId: string;
+    brandId: string | null;
+    categoryId: string | null;
     manufacturerId: string | null;
     unitId: string | null;
     brand: {
       id: string;
       name: string;
-      code: string;
+      code: string | null;
     } | null;
     manufacturer: {
       id: string;
       name: string;
-      code: string;
+      code: string | null;
     } | null;
     category: {
       id: string;
       name: string;
-      softoneCode: string;
+      softoneCode: string | null;
     } | null;
     unit: {
       id: string;
       name: string;
-      shortcut: string;
+      shortcut: string | null;
     } | null;
     translations: Array<{
       id: string;

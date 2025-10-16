@@ -49,9 +49,10 @@ export async function GET(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { entityType: string; entityId: string } }
+  { params }: { params: Promise<{ entityType: string; entityId: string }> }
 ) {
   try {
+    await params; // params not needed for DELETE but required for type
     const { searchParams } = new URL(req.url);
     const fileId = searchParams.get("fileId");
 

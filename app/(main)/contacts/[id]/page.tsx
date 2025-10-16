@@ -1,15 +1,17 @@
 import { ContactDetailView } from "@/components/contacts/contact-detail-view";
 
 interface ContactDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function ContactDetailPage({ params }: ContactDetailPageProps) {
+export default async function ContactDetailPage({ params }: ContactDetailPageProps) {
+  const { id } = await params;
+  
   return (
     <div className="container mx-auto py-6">
-      <ContactDetailView contactId={params.id} />
+      <ContactDetailView contactId={id} />
     </div>
   );
 }

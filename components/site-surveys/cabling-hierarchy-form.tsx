@@ -35,6 +35,10 @@ import {
   Camera,
   FileImage,
   X,
+  Network,
+  Package,
+  Hash,
+  Euro,
 } from "lucide-react";
 import {
   Dialog,
@@ -47,6 +51,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageUploadButton } from "./image-upload-button";
 import { ImagePreviewTooltip } from "@/components/ui/image-preview-tooltip";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { NetworkDiagramModal } from "./network-diagram-modal";
+import { EquipmentSelection } from "./equipment-selection";
+import { BOMManager } from "./bom-manager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CablingHierarchyFormProps {
   siteSurveyId: string;
@@ -125,17 +133,34 @@ interface Device {
   notes?: string;
 }
 
+interface EquipmentItem {
+  id: string;
+  type: 'product' | 'service';
+  itemId: string;
+  name: string;
+  brand?: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  price: number;
+  totalPrice: number;
+  notes?: string;
+}
+
 interface Room {
   id?: string;
   name: string;
   number?: string;
   type: string;
   connectionType: string;
+  selectedRackId?: string;
   floorPlanUrl?: string;
   notes?: string;
   outlets: number;
   images?: string[];
   devices?: Device[];
+  isTypicalRoom?: boolean;
+  identicalRoomsCount?: number;
 }
 
 export function CablingHierarchyForm({
@@ -170,7 +195,34 @@ export function CablingHierarchyForm({
     floorIdx?: number;
     rackIdx?: number;
     roomIdx?: number;
+    deviceIdx?: number;
   } | null>(null);
+
+  // Building connections
+  const [buildingConnectionDialog, setBuildingConnectionDialog] = useState(false);
+  const [selectedBuildingForConnection, setSelectedBuildingForConnection] = useState<number | null>(null);
+  const [buildingConnections, setBuildingConnections] = useState<Array<{
+    id: string;
+    fromBuilding: number;
+    toBuilding: number;
+    connectionType: string;
+    description: string;
+    distance?: number;
+    notes?: string;
+  }>>([]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment' | 'bom'>('infrastructure');
+  const [connectionForm, setConnectionForm] = useState({
+    toBuilding: "",
+    connectionType: "WIRELESS",
+    description: "",
+    distance: "",
+    notes: "",
+  });
+
+  // Network Diagram Modal
+  const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
 
   // Cable type options
   const cableTypeOptions = [
@@ -186,6 +238,11 @@ export function CablingHierarchyForm({
     { value: "OM3", label: "OM3 - Multi-Mode Fiber (50/125)" },
     { value: "OM4", label: "OM4 - Multi-Mode Fiber (50/125)" },
     { value: "OM5", label: "OM5 - Multi-Mode Fiber (50/125)" },
+    // Coaxial Cables
+    { value: "RG6", label: "RG6 - Coaxial Cable (Digital)" },
+    { value: "RG11", label: "RG11 - Coaxial Cable (Long Run)" },
+    { value: "RG59", label: "RG59 - Coaxial Cable (Analog)" },
+    { value: "QUAD_SHIELD_RG6", label: "Quad Shield RG6 - Enhanced Digital" },
     // Telephone
     { value: "RJ11", label: "RJ11 - Telephone Line" },
     { value: "RJ45", label: "RJ45 - Ethernet" },
@@ -275,6 +332,8 @@ export function CablingHierarchyForm({
                   floorPlanUrl: r.floorPlanUrl,
                   notes: r.notes,
                   outlets: r.outlets?.length || 0,
+                  isTypicalRoom: r.isTypicalRoom || false,
+                  identicalRoomsCount: r.identicalRoomsCount || 1,
                   images: r.images?.map((img: any) => img.url) || [],
                   devices: r.devices?.map((d: any) => ({
                     id: d.id,
@@ -329,6 +388,8 @@ export function CablingHierarchyForm({
     type: "ROOM",
     connectionType: "FLOOR_RACK",
     outlets: 0,
+    isTypicalRoom: false,
+    identicalRoomsCount: 1,
   });
 
   const addBuilding = () => {
@@ -631,10 +692,54 @@ export function CablingHierarchyForm({
       type: "ROOM",
       connectionType: "FLOOR_RACK",
       outlets: 0,
+      isTypicalRoom: false,
+      identicalRoomsCount: 1,
     });
     setSelectedFloor({ building: buildingIndex, floor: floorIndex });
     setSelectedRoom(null);
     setRoomDialog(true);
+  };
+
+  // Building connection functions
+  const openBuildingConnections = (buildingIdx: number) => {
+    setSelectedBuildingForConnection(buildingIdx);
+    setConnectionForm({
+      toBuilding: "",
+      connectionType: "WIRELESS",
+      description: "",
+      distance: "",
+      notes: "",
+    });
+    setBuildingConnectionDialog(true);
+  };
+
+  const saveBuildingConnection = () => {
+    if (selectedBuildingForConnection === null || !connectionForm.toBuilding) return;
+
+    const newConnection = {
+      id: `conn_${Date.now()}`,
+      fromBuilding: selectedBuildingForConnection,
+      toBuilding: parseInt(connectionForm.toBuilding),
+      connectionType: connectionForm.connectionType,
+      description: connectionForm.description,
+      distance: connectionForm.distance ? parseFloat(connectionForm.distance) : undefined,
+      notes: connectionForm.notes,
+    };
+
+    setBuildingConnections([...buildingConnections, newConnection]);
+    toast.success(`Connected ${buildings[selectedBuildingForConnection].name} to ${buildings[parseInt(connectionForm.toBuilding)].name}`);
+
+    setConnectionForm({
+      toBuilding: "",
+      connectionType: "WIRELESS",
+      description: "",
+      distance: "",
+      notes: "",
+    });
+  };
+
+  const deleteBuildingConnection = (connectionId: string) => {
+    setBuildingConnections(buildingConnections.filter(conn => conn.id !== connectionId));
   };
 
   const editRoom = (buildingIndex: number, floorIndex: number, roomIndex: number) => {
@@ -787,6 +892,7 @@ export function CablingHierarchyForm({
         },
         body: JSON.stringify({
           buildings: cleanedBuildings,
+          buildingConnections: buildingConnections,
         }),
       });
 
@@ -871,8 +977,12 @@ export function CablingHierarchyForm({
         
         floor.rooms.forEach((room) => {
           totalRooms++;
-          totalOutlets += room.outlets;
-          if (room.devices) totalDevices += room.devices.length;
+          
+          // For typical rooms, multiply by the count of identical rooms
+          const roomMultiplier = room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1;
+          
+          totalOutlets += room.outlets * roomMultiplier;
+          if (room.devices) totalDevices += room.devices.length * roomMultiplier;
         });
       });
     });
@@ -904,8 +1014,25 @@ export function CablingHierarchyForm({
 
   return (
     <div className="space-y-6">
-      
-      {/* Stats Summary */}
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="infrastructure" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            INFRASTRUCTURE
+          </TabsTrigger>
+          <TabsTrigger value="equipment" className="flex items-center gap-2">
+            <Server className="h-4 w-4" />
+            EQUIPMENT
+          </TabsTrigger>
+          <TabsTrigger value="bom" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            BOM
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="infrastructure" className="space-y-6">
+          {/* Stats Summary */}
       {buildings.length > 0 && (
         <div className="space-y-3">
           <div className="grid grid-cols-4 gap-3">
@@ -1042,6 +1169,14 @@ export function CablingHierarchyForm({
                             >
                               <Plus className="h-3 w-3 mr-1" />
                               Add Floor
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openBuildingConnections(bIdx)}
+                            >
+                              <Link2 className="h-3 w-3 mr-1" />
+                              Connect
                             </Button>
                             <Button
                               variant="outline"
@@ -1687,15 +1822,26 @@ export function CablingHierarchyForm({
         </Card>
       )}
 
-      {/* Save Button */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()}>
-          CANCEL
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center gap-4">
+        <Button
+          variant="outline"
+          onClick={() => setNetworkDiagramOpen(true)}
+          disabled={buildings.length === 0}
+        >
+          <Network className="h-4 w-4 mr-2" />
+          SHOW DIAGRAM
         </Button>
-        <Button onClick={handleSave} disabled={loading || buildings.length === 0}>
-          <Save className="h-4 w-4 mr-2" />
-          {loading ? "SAVING..." : "SAVE STRUCTURE"}
-        </Button>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.back()}>
+            CANCEL
+          </Button>
+          <Button onClick={handleSave} disabled={loading || buildings.length === 0}>
+            <Save className="h-4 w-4 mr-2" />
+            {loading ? "SAVING..." : "SAVE STRUCTURE"}
+          </Button>
+        </div>
       </div>
 
       {/* Building Dialog */}
@@ -2282,6 +2428,39 @@ export function CablingHierarchyForm({
                 placeholder="0"
               />
             </div>
+
+            {/* Typical Room Configuration */}
+            <div className="space-y-3 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isTypicalRoom"
+                  checked={roomForm.isTypicalRoom || false}
+                  onChange={(e) => setRoomForm({ ...roomForm, isTypicalRoom: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="isTypicalRoom" className="cursor-pointer font-semibold">
+                  🏠 Mark as Typical Room
+                </Label>
+              </div>
+              
+              {roomForm.isTypicalRoom && (
+                <div>
+                  <Label>NUMBER OF IDENTICAL ROOMS ON THIS FLOOR</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={roomForm.identicalRoomsCount || 1}
+                    onChange={(e) => setRoomForm({ ...roomForm, identicalRoomsCount: parseInt(e.target.value) || 1 })}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This will multiply outlets and devices by this number in totals
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setRoomDialog(false)}>
                 CANCEL
@@ -2387,6 +2566,249 @@ export function CablingHierarchyForm({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Building Connection Dialog */}
+      <Dialog open={buildingConnectionDialog} onOpenChange={setBuildingConnectionDialog}>
+        <DialogContent className="max-w-2xl z-[9999]">
+          <DialogHeader>
+            <DialogTitle>CONNECT BUILDINGS</DialogTitle>
+            <DialogDescription>
+              Create connections between buildings using wireless, fiber, or cable links
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>FROM BUILDING</Label>
+              <div className="p-3 bg-muted rounded-md font-semibold">
+                {selectedBuildingForConnection !== null && buildings[selectedBuildingForConnection]?.name}
+              </div>
+            </div>
+            
+            <div>
+              <Label>TO BUILDING</Label>
+              {buildings.length <= 1 ? (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+                  ⚠️ You need at least 2 buildings to create connections. Please add more buildings first.
+                </div>
+              ) : (
+                <Select
+                  value={connectionForm.toBuilding}
+                  onValueChange={(value) => setConnectionForm({ ...connectionForm, toBuilding: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target building" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000]">
+                    {buildings
+                      .map((building, idx) => ({ building, idx }))
+                      .filter(({ idx }) => idx !== selectedBuildingForConnection)
+                      .map(({ building, idx }) => (
+                        <SelectItem key={`building-${idx}`} value={idx.toString()}>
+                          {building.name}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div>
+              <Label>CONNECTION TYPE</Label>
+              <Select
+                value={connectionForm.connectionType}
+                onValueChange={(value) => setConnectionForm({ ...connectionForm, connectionType: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[10000]">
+                  <SelectItem value="WIRELESS">📡 Wireless (WiFi/WiMAX)</SelectItem>
+                  <SelectItem value="FIBER">🔗 Fiber Optic</SelectItem>
+                  <SelectItem value="COAXIAL">📺 Coaxial Cable</SelectItem>
+                  <SelectItem value="ETHERNET">🌐 Ethernet Cable</SelectItem>
+                  <SelectItem value="POWERLINE">⚡ Powerline</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>DISTANCE (meters)</Label>
+                <Input
+                  type="number"
+                  value={connectionForm.distance}
+                  onChange={(e) => setConnectionForm({ ...connectionForm, distance: e.target.value })}
+                  placeholder="Distance"
+                />
+              </div>
+              <div>
+                <Label>DESCRIPTION</Label>
+                <Input
+                  value={connectionForm.description}
+                  onChange={(e) => setConnectionForm({ ...connectionForm, description: e.target.value })}
+                  placeholder="e.g., Backbone link"
+                />
+              </div>
+            </div>
+
+            {/* Existing Connections */}
+            {selectedBuildingForConnection !== null && buildingConnections.filter(conn => 
+              conn.fromBuilding === selectedBuildingForConnection || 
+              conn.toBuilding === selectedBuildingForConnection
+            ).length > 0 && (
+              <div className="mt-4">
+                <Label>EXISTING CONNECTIONS FOR THIS BUILDING</Label>
+                <div className="space-y-2 mt-2">
+                  {buildingConnections
+                    .filter(conn => 
+                      conn.fromBuilding === selectedBuildingForConnection || 
+                      conn.toBuilding === selectedBuildingForConnection
+                    )
+                    .map(connection => {
+                      const isOutgoing = connection.fromBuilding === selectedBuildingForConnection;
+                      const connectedBuildingIdx = isOutgoing ? connection.toBuilding : connection.fromBuilding;
+                      const direction = isOutgoing ? "→" : "←";
+                      
+                      return (
+                        <div key={connection.id} className="flex items-center justify-between p-3 bg-muted rounded border-l-4 border-blue-500">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {direction} {buildings[connectedBuildingIdx]?.name}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                {connection.connectionType}
+                              </span>
+                            </div>
+                            {connection.distance && (
+                              <p className="text-xs text-muted-foreground">Distance: {connection.distance}m</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteBuildingConnection(connection.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBuildingConnectionDialog(false)}>
+                CANCEL
+              </Button>
+              <Button onClick={saveBuildingConnection} disabled={!connectionForm.toBuilding}>
+                ADD CONNECTION
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+        </TabsContent>
+
+        <TabsContent value="equipment" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  EQUIPMENT & SERVICES
+                </span>
+                <Button
+                  onClick={() => setEquipmentSelectionOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  ADD EQUIPMENT
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {equipment.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No equipment selected</p>
+                  <p className="text-sm">Click "ADD EQUIPMENT" to select products and services</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <Package className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+                        <p className="text-xl font-bold">{equipment.length}</p>
+                        <p className="text-xs text-muted-foreground">Total Items</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <Hash className="h-5 w-5 mx-auto mb-1 text-green-600" />
+                        <p className="text-xl font-bold">
+                          {equipment.reduce((sum, item) => sum + item.quantity, 0)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Total Quantity</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 text-center">
+                        <Euro className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+                        <p className="text-xl font-bold">
+                          €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Total Price</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    Equipment list will be managed in the BOM tab. Use the "ADD EQUIPMENT" button to select products and services.
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bom" className="space-y-6">
+          <BOMManager
+            equipment={equipment}
+            onUpdateEquipment={setEquipment}
+            siteSurveyData={{
+              title: `Site Survey ${siteSurveyId}`,
+              customer: { name: 'Customer Name' }, // This would come from site survey data
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Equipment Selection Modal */}
+      <EquipmentSelection
+        open={equipmentSelectionOpen}
+        onClose={() => setEquipmentSelectionOpen(false)}
+        onSave={(newEquipment) => {
+          setEquipment(newEquipment);
+          setEquipmentSelectionOpen(false);
+          setActiveTab('bom'); // Switch to BOM tab after adding equipment
+        }}
+        existingEquipment={equipment}
+      />
+
+      {/* Network Diagram Modal */}
+      <NetworkDiagramModal
+        open={networkDiagramOpen}
+        onClose={() => setNetworkDiagramOpen(false)}
+        buildings={buildings}
+        buildingConnections={buildingConnections}
+      />
     </div>
   );
 }

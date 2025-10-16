@@ -99,6 +99,15 @@ const saveCablingSurveySchema = z.object({
       })),
     })),
   })),
+  buildingConnections: z.array(z.object({
+    id: z.string(),
+    fromBuilding: z.number(),
+    toBuilding: z.number(),
+    connectionType: z.string(),
+    description: z.string().optional().nullable(),
+    distance: z.number().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  })).optional(),
 });
 
 export async function GET(
@@ -189,12 +198,23 @@ export async function GET(
       }
     }
 
+    // Parse building connections
+    let buildingConnections = [];
+    if (cablingSurvey.buildingConnections) {
+      try {
+        buildingConnections = JSON.parse(cablingSurvey.buildingConnections);
+      } catch (e) {
+        console.error("Error parsing building connections:", e);
+      }
+    }
+
     return NextResponse.json({
       ...cablingSurvey,
       siteSurvey: {
         ...cablingSurvey.siteSurvey,
         buildings: buildings,
       },
+      buildingConnections: buildingConnections,
     });
   } catch (error) {
     console.error("Error fetching cabling survey:", error);
@@ -220,7 +240,7 @@ export async function POST(
     const validatedData = saveCablingSurveySchema.parse(body);
     
     // Save all the data using the helper function
-    await saveCablingData(id, validatedData.buildings);
+    await saveCablingData(id, validatedData.buildings, validatedData.buildingConnections || []);
     
     console.log("Cabling survey saved successfully");
 
