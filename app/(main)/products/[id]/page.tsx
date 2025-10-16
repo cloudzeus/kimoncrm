@@ -84,11 +84,7 @@ async function getProductDetails(id: string) {
         stock: {
           select: {
             id: true,
-            warehouse: {
-              select: {
-                name: true,
-              },
-            },
+            warehouse: true,
             qty: true,
             updatedAt: true,
           },
@@ -152,7 +148,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     weight: product.weight ? Number(product.weight) : null,
     stock: product.stock.map(s => ({
       id: s.id,
-      warehouse: s.warehouse.name,
+      warehouse: s.warehouse,
       qty: s.qty,
       updatedAt: s.updatedAt.toISOString(),
     })),
