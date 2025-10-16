@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
+import { Package, Search, X, Plus, ShoppingCart, Minus, FileText, Settings } from 'lucide-react';
 import { SelectedElement, EquipmentItem, Product, Service, getElementDisplayName, getElementContextPath } from "@/types/equipment-selection";
 
 interface EquipmentSelectionProps {

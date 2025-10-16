@@ -40,6 +40,7 @@ import {
   Hash,
   Euro,
   CheckCircle,
+  Settings,
 } from "lucide-react";
 import {
   Dialog,
