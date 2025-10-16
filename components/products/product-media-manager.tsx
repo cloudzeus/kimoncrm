@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Image from "next/image";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,12 +123,13 @@ export function ProductMediaManager({
   // Render media item for grid view
   const renderMediaItem = useCallback((mediaItem: ProductMedia, index: number) => (
     <div className="space-y-2">
-      <div className="aspect-square bg-muted rounded-md overflow-hidden">
+      <div className="aspect-square bg-muted rounded-md overflow-hidden relative">
         {mediaItem.fileType === "image" && mediaItem.url ? (
-          <img
+          <Image
             src={mediaItem.url}
             alt={mediaItem.name}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
           />
         ) : mediaItem.fileType === "video" ? (
           <div className="w-full h-full flex items-center justify-center">
@@ -177,12 +179,13 @@ export function ProductMediaManager({
       label: "Preview",
       width: 100,
       render: (_, item) => (
-        <div className="w-16 h-16 bg-muted rounded-md overflow-hidden">
+        <div className="w-16 h-16 bg-muted rounded-md overflow-hidden relative">
           {item.fileType === "image" && item.url ? (
-            <img
+            <Image
               src={item.url}
               alt={item.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           ) : item.fileType === "video" ? (
             <div className="w-full h-full flex items-center justify-center">
@@ -408,12 +411,13 @@ export function ProductMediaManager({
               {editingMedia.url && (
                 <div className="space-y-2">
                   <Label>Preview</Label>
-                  <div className="w-full h-48 bg-muted rounded-md overflow-hidden">
+                  <div className="w-full h-48 bg-muted rounded-md overflow-hidden relative">
                     {editingMedia.fileType === "image" ? (
-                      <img
+                      <Image
                         src={editingMedia.url}
                         alt={editingMedia.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

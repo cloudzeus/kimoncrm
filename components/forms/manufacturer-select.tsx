@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -116,11 +117,15 @@ export function ManufacturerSelect({
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       {manufacturer.logo?.url && (
-                        <img 
-                          src={manufacturer.logo.url} 
-                          alt={manufacturer.name}
-                          className="h-4 w-4 rounded object-cover"
-                        />
+                        <div className="h-4 w-4 rounded overflow-hidden relative">
+                          <Image 
+                            src={manufacturer.logo.url} 
+                            alt={manufacturer.name}
+                            width={16}
+                            height={16}
+                            className="object-cover"
+                          />
+                        </div>
                       )}
                       <span>{manufacturer.name}</span>
                     </div>
@@ -144,11 +149,15 @@ export function ManufacturerSelect({
         <div className="text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             {selectedManufacturer.logo?.url && (
-              <img 
-                src={selectedManufacturer.logo.url} 
-                alt={selectedManufacturer.name}
-                className="h-4 w-4 rounded object-cover"
-              />
+              <div className="h-4 w-4 rounded overflow-hidden relative">
+                <Image 
+                  src={selectedManufacturer.logo.url} 
+                  alt={selectedManufacturer.name}
+                  width={16}
+                  height={16}
+                  className="object-cover"
+                />
+              </div>
             )}
             <span>Selected: {selectedManufacturer.name}</span>
             {selectedManufacturer._count && selectedManufacturer._count.products > 0 && (

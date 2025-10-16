@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -427,11 +428,13 @@ export function UserManager({
                 className="flex items-center justify-between p-4 border rounded-lg"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center overflow-hidden">
                     {user.avatar || user.image ? (
-                      <img
+                      <Image
                         src={user.avatar || user.image || ''}
                         alt={user.name || user.email}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (

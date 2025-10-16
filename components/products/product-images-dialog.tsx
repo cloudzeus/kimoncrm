@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -471,10 +472,11 @@ export default function ProductImagesDialog({
                     className="border rounded-lg overflow-hidden shadow hover:shadow-md transition-shadow"
                   >
                     <div className="relative aspect-square bg-gray-50">
-                      <img
+                      <Image
                         src={image.url}
                         alt={image.alt || 'Product image'}
-                        className="w-full h-full object-contain"
+                        fill
+                        className="object-contain"
                       />
                       {image.isDefault && (
                         <Badge className="absolute top-2 left-2 bg-yellow-500">

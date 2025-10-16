@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   HoverCard,
@@ -71,15 +72,15 @@ export function AvatarGroup({
                   </a>
                 </div>
               ) : (
-                <img
-                  src={url}
-                  alt="Preview"
-                  className="rounded-lg object-contain"
-                  style={{ 
-                    maxWidth: `${previewSize}px`, 
-                    maxHeight: `${previewSize}px` 
-                  }}
-                />
+                <div className="relative rounded-lg overflow-hidden" style={{ maxWidth: `${previewSize}px`, maxHeight: `${previewSize}px` }}>
+                  <Image
+                    src={url}
+                    alt="Preview"
+                    width={previewSize}
+                    height={previewSize}
+                    className="object-contain"
+                  />
+                </div>
               )}
             </HoverCardContent>
           </HoverCard>

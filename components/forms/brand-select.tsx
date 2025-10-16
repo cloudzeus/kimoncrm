@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -116,11 +117,15 @@ export function BrandSelect({
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       {brand.logo?.url && (
-                        <img 
-                          src={brand.logo.url} 
-                          alt={brand.name}
-                          className="h-4 w-4 rounded object-cover"
-                        />
+                        <div className="h-4 w-4 rounded overflow-hidden relative">
+                          <Image 
+                            src={brand.logo.url} 
+                            alt={brand.name}
+                            width={16}
+                            height={16}
+                            className="object-cover"
+                          />
+                        </div>
                       )}
                       <span>{brand.name}</span>
                     </div>
@@ -144,11 +149,15 @@ export function BrandSelect({
         <div className="text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             {selectedBrand.logo?.url && (
-              <img 
-                src={selectedBrand.logo.url} 
-                alt={selectedBrand.name}
-                className="h-4 w-4 rounded object-cover"
-              />
+              <div className="h-4 w-4 rounded overflow-hidden relative">
+                <Image 
+                  src={selectedBrand.logo.url} 
+                  alt={selectedBrand.name}
+                  width={16}
+                  height={16}
+                  className="object-cover"
+                />
+              </div>
             )}
             <span>Selected: {selectedBrand.name}</span>
             {selectedBrand._count && selectedBrand._count.products > 0 && (

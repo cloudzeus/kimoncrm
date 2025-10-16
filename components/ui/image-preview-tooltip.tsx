@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   HoverCard,
@@ -64,16 +65,16 @@ export function ImagePreviewTooltip({
             </a>
           </div>
         ) : (
-          <img
-            src={src}
-            alt="Preview"
-            className="rounded-lg object-contain"
-            style={{ 
-              maxWidth: `${previewSize}px`, 
-              maxHeight: `${previewSize}px` 
-            }}
-            onError={() => setImageError(true)}
-          />
+          <div className="relative rounded-lg overflow-hidden" style={{ maxWidth: `${previewSize}px`, maxHeight: `${previewSize}px` }}>
+            <Image
+              src={src}
+              alt="Preview"
+              width={previewSize}
+              height={previewSize}
+              className="object-contain"
+              onError={() => setImageError(true)}
+            />
+          </div>
         )}
       </HoverCardContent>
     </HoverCard>

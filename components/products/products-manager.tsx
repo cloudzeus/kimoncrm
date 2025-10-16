@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -998,18 +999,24 @@ export default function ProductsManager() {
                             {product.images.slice(0, 2).map((image, index) => (
                               <Tooltip key={image.id}>
                                 <TooltipTrigger asChild>
-                                  <img
-                                    src={image.url}
-                                    alt={image.alt || product.name}
-                                    className="w-10 h-10 rounded object-cover border cursor-pointer hover:opacity-80 transition-opacity"
-                                  />
+                                  <div className="w-10 h-10 rounded overflow-hidden relative border cursor-pointer hover:opacity-80 transition-opacity">
+                                    <Image
+                                      src={image.url}
+                                      alt={image.alt || product.name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="right" className="p-0 border-0 shadow-2xl">
-                                  <img
-                                    src={image.url}
-                                    alt={image.alt || product.name}
-                                    className="w-[400px] h-[400px] object-contain bg-white rounded-lg"
-                                  />
+                                  <div className="w-[400px] h-[400px] relative bg-white rounded-lg overflow-hidden">
+                                    <Image
+                                      src={image.url}
+                                      alt={image.alt || product.name}
+                                      fill
+                                      className="object-contain"
+                                    />
+                                  </div>
                                 </TooltipContent>
                               </Tooltip>
                             ))}

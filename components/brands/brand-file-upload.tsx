@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -103,11 +104,15 @@ export function BrandFileUpload({
       {previewUrl || currentFile ? (
         <div className="flex items-center space-x-3 p-3 border rounded-md bg-muted/50">
           { (previewUrl || currentFile?.url) ? (
-            <img
-              src={previewUrl || currentFile?.url}
-              alt={type}
-              className="h-10 w-10 rounded object-cover"
-            />
+            <div className="h-10 w-10 rounded overflow-hidden relative">
+              <Image
+                src={previewUrl || currentFile?.url || ''}
+                alt={type}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
           ) : (
             <ImageIcon className="h-8 w-8 text-muted-foreground" />
           )}

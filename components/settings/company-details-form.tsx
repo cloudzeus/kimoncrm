@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -187,7 +188,9 @@ export default function CompanyDetailsForm({ initialData }: { initialData: Compa
             <Label>Company Logo</Label>
             <div className="flex items-center gap-3">
               {logoPreview ? (
-                <img src={logoPreview} alt="Logo" className="h-16 w-28 rounded object-contain border bg-white p-1" />
+                <div className="h-16 w-28 rounded border bg-white p-1 relative overflow-hidden">
+                  <Image src={logoPreview} alt="Logo" fill className="object-contain" />
+                </div>
               ) : (
                 <div className="h-16 w-28 rounded border flex items-center justify-center text-xs text-muted-foreground bg-white">No logo</div>
               )}
@@ -218,8 +221,8 @@ export default function CompanyDetailsForm({ initialData }: { initialData: Compa
                 <div className="text-xs text-muted-foreground">No images uploaded</div>
               )}
               {imagePreviews.map((src, i) => (
-                <div key={i} className="relative">
-                  <img src={src} className="h-20 w-20 rounded object-cover border bg-white" />
+                <div key={i} className="h-20 w-20 rounded border bg-white relative overflow-hidden">
+                  <Image src={src} alt={`Company image ${i+1}`} fill className="object-cover" />
                 </div>
               ))}
             </div>
@@ -275,11 +278,13 @@ export default function CompanyDetailsForm({ initialData }: { initialData: Compa
                       }
                     }} />
                   </div>
-                  <div className="h-12 w-12 border rounded bg-white flex items-center justify-center">
+                  <div className="h-12 w-12 border rounded bg-white relative overflow-hidden">
                     {isoUi[idx]?.imageUrl ? (
-                      <img src={isoUi[idx].imageUrl} className="max-h-12 max-w-12 object-contain" />
+                      <Image src={isoUi[idx].imageUrl} alt={`ISO ${cert.code}`} fill className="object-contain" />
                     ) : (
-                      <span className="text-[10px] text-muted-foreground">No image</span>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[10px] text-muted-foreground">No image</span>
+                      </div>
                     )}
                   </div>
                   <Select value={activeLang} onValueChange={setActiveLang}>
@@ -351,11 +356,19 @@ export default function CompanyDetailsForm({ initialData }: { initialData: Compa
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-xs mb-1 text-muted-foreground">Before</div>
-            {previewBefore && (<img src={previewBefore} className="w-full h-48 object-contain bg-white border rounded" />)}
+            {previewBefore && (
+              <div className="w-full h-48 bg-white border rounded relative overflow-hidden">
+                <Image src={previewBefore} alt="Before" fill className="object-contain" />
+              </div>
+            )}
           </div>
           <div>
             <div className="text-xs mb-1 text-muted-foreground">After</div>
-            {previewAfter && (<img src={previewAfter} className="w-full h-48 object-contain bg-white border rounded" />)}
+            {previewAfter && (
+              <div className="w-full h-48 bg-white border rounded relative overflow-hidden">
+                <Image src={previewAfter} alt="After" fill className="object-contain" />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">

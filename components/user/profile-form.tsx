@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -183,12 +184,14 @@ export function ProfileForm({ user, onUpdate }: ProfileFormProps) {
           {/* Avatar Section */}
           <div className="flex items-center space-x-6">
             <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+              <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden relative">
                 {getAvatarUrl() ? (
-                  <img
+                  <Image
                     src={getAvatarUrl() || ''}
                     alt={user.name || user.email}
-                    className="w-24 h-24 object-cover"
+                    width={96}
+                    height={96}
+                    className="object-cover"
                   />
                 ) : (
                   <span className="text-2xl font-medium">
