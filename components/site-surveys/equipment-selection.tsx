@@ -31,90 +31,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
-import {
-  Plus,
-  Search,
-  Package,
-  Settings,
-  Trash2,
-  Edit,
-  ShoppingCart,
-  X,
-  Minus,
-  FileText,
-  Download,
-} from 'lucide-react';
-
-interface Product {
-  id: string;
-  mtrl: string | null;
-  code: string | null;
-  name: string;
-  mtrmark: string | null;
-  mtrmanfctr: string | null;
-  isActive: boolean;
-  brand: {
-    id: string;
-    name: string;
-  } | null;
-  manufacturer: {
-    id: string;
-    name: string;
-  } | null;
-  category: {
-    id: string;
-    name: string;
-  } | null;
-  unit: {
-    id: string;
-    name: string;
-  } | null;
-  price: number | null;
-  stock: number | null;
-}
-
-interface Service {
-  id: string;
-  name: string;
-  description: string | null;
-  category: {
-    id: string;
-    name: string;
-  } | null;
-  unit: {
-    id: string;
-    name: string;
-  } | null;
-  price: number | null;
-  isActive: boolean;
-}
-
-interface EquipmentItem {
-  id: string;
-  type: 'product' | 'service';
-  itemId: string;
-  name: string;
-  brand?: string;
-  category: string;
-  unit: string;
-  quantity: number;
-  price: number;
-  totalPrice: number;
-  notes?: string;
-}
+import { SelectedElement, EquipmentItem, Product, Service, getElementDisplayName, getElementContextPath } from "@/types/equipment-selection";
 
 interface EquipmentSelectionProps {
   open: boolean;
   onClose: () => void;
   onSave: (equipment: EquipmentItem[]) => void;
   existingEquipment?: EquipmentItem[];
+  selectedElement?: SelectedElement | null;
 }
 
 export function EquipmentSelection({
   open,
   onClose,
   onSave,
-  existingEquipment = []
+  existingEquipment = [],
+  selectedElement = null
 }: EquipmentSelectionProps) {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,11 +90,23 @@ export function EquipmentSelection({
       }
 
       const response = await fetch(`/api/products?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Expected JSON but got:', text.substring(0, 200));
+        throw new Error('Response is not JSON');
+      }
+      
       const data = await response.json();
       setProducts(data.products || []);
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
+      toast.error('Failed to load products: ' + (error as Error).message);
     }
   };
 
@@ -180,11 +124,23 @@ export function EquipmentSelection({
       }
 
       const response = await fetch(`/api/services?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Expected JSON but got:', text.substring(0, 200));
+        throw new Error('Response is not JSON');
+      }
+      
       const data = await response.json();
       setServices(data.services || []);
     } catch (error) {
       console.error('Error fetching services:', error);
-      toast.error('Failed to load services');
+      toast.error('Failed to load services: ' + (error as Error).message);
     }
   };
 
@@ -192,6 +148,9 @@ export function EquipmentSelection({
     try {
       // Fetch brands
       const brandsResponse = await fetch('/api/brands');
+      if (!brandsResponse.ok) {
+        throw new Error(`HTTP error! status: ${brandsResponse.status}`);
+      }
       const brandsData = await brandsResponse.json();
       setAvailableBrands(
         brandsData.brands?.map((brand: any) => ({
@@ -201,7 +160,10 @@ export function EquipmentSelection({
       );
 
       // Fetch categories
-      const categoriesResponse = await fetch('/api/categories');
+      const categoriesResponse = await fetch('/api/master-data/categories');
+      if (!categoriesResponse.ok) {
+        throw new Error(`HTTP error! status: ${categoriesResponse.status}`);
+      }
       const categoriesData = await categoriesResponse.json();
       setAvailableCategories(
         categoriesData.categories?.map((category: any) => ({
@@ -279,14 +241,28 @@ export function EquipmentSelection({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] h-[90vh] p-0">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] h-[90vh] p-0 z-[10000]">
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-6 w-6 text-blue-600" />
             EQUIPMENT & SERVICES SELECTION
           </DialogTitle>
           <DialogDescription>
-            Select products and services for your cabling survey. This will generate your Bill of Materials (BOM).
+            {selectedElement ? (
+              <div className="mt-2">
+                <div className="font-semibold text-blue-800">
+                  Adding to: {getElementDisplayName(selectedElement)}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {getElementContextPath(selectedElement)}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Select products and services for this infrastructure element.
+                </div>
+              </div>
+            ) : (
+              "Select products and services for your cabling survey. This will generate your Bill of Materials (BOM)."
+            )}
           </DialogDescription>
         </DialogHeader>
 

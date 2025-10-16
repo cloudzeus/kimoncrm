@@ -56,6 +56,7 @@ import { NetworkDiagramModal } from "./network-diagram-modal";
 import { EquipmentSelection } from "./equipment-selection";
 import { BOMManager } from "./bom-manager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SelectedElement, EquipmentItem } from "@/types/equipment-selection";
 
 interface CablingHierarchyFormProps {
   siteSurveyId: string;
@@ -215,6 +216,7 @@ export function CablingHierarchyForm({
   const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment' | 'bom'>('infrastructure');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [connectionForm, setConnectionForm] = useState({
     toBuilding: "",
     connectionType: "WIRELESS",
@@ -2734,10 +2736,10 @@ export function CablingHierarchyForm({
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-green-800">Infrastructure Saved!</h3>
+                    <h3 className="font-semibold text-green-800">Infrastructure Complete!</h3>
                     <p className="text-sm text-green-700">
-                      Now add equipment and services to complete your survey. 
-                      Use the "ADD EQUIPMENT" button below to select products and services.
+                      Now add equipment and services to your existing infrastructure. 
+                      Click on any element below to add products and services.
                     </p>
                   </div>
                   <Button
@@ -2752,67 +2754,264 @@ export function CablingHierarchyForm({
               </CardContent>
             </Card>
           )}
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Server className="h-5 w-5" />
-                  EQUIPMENT & SERVICES
-                </span>
-                <Button
-                  onClick={() => setEquipmentSelectionOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  ADD EQUIPMENT
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {equipment.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No equipment selected</p>
-                  <p className="text-sm">Click "ADD EQUIPMENT" to select products and services</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="pt-4 text-center">
-                        <Package className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-                        <p className="text-xl font-bold">{equipment.length}</p>
-                        <p className="text-xs text-muted-foreground">Total Items</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 text-center">
-                        <Hash className="h-5 w-5 mx-auto mb-1 text-green-600" />
-                        <p className="text-xl font-bold">
-                          {equipment.reduce((sum, item) => sum + item.quantity, 0)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Total Quantity</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 text-center">
-                        <Euro className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                        <p className="text-xl font-bold">
-                          €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Total Price</p>
-                      </CardContent>
-                    </Card>
+
+          {/* Same Infrastructure UI but with Equipment Selection */}
+          <div className="space-y-6">
+            {buildings.map((building, buildingIndex) => (
+              <Card key={buildingIndex} className="border-2 border-blue-200">
+                <CardHeader className="bg-blue-50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-blue-800">
+                      <Building2 className="h-5 w-5" />
+                      {building.name}
+                      {building.code && <span className="text-sm text-blue-600">({building.code})</span>}
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedElement({ type: 'building', buildingIndex });
+                          setEquipmentSelectionOpen(true);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                      >
+                        <Package className="h-4 w-4 mr-1" />
+                        ADD PRODUCTS
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedElement({ type: 'building', buildingIndex });
+                          setEquipmentSelectionOpen(true);
+                        }}
+                        className="text-green-600 border-green-300 hover:bg-green-100"
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        ADD SERVICES
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <div className="text-sm text-muted-foreground">
-                    Equipment list will be managed in the BOM tab. Use the "ADD EQUIPMENT" button to select products and services.
+                </CardHeader>
+                <CardContent className="p-4">
+                  {/* Central Rack */}
+                  {building.centralRack && (
+                    <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-orange-800 flex items-center gap-2">
+                          <Server className="h-4 w-4" />
+                          Central Rack: {building.centralRack.name}
+                        </h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedElement({ type: 'centralRack', buildingIndex });
+                            setEquipmentSelectionOpen(true);
+                          }}
+                          className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          ADD RACK EQUIPMENT
+                        </Button>
+                      </div>
+                      {/* Show existing devices */}
+                      {building.centralRack.devices && building.centralRack.devices.length > 0 && (
+                        <div className="space-y-1">
+                          {building.centralRack.devices.map((device, deviceIndex) => (
+                            <div key={deviceIndex} className="text-sm text-orange-700 bg-orange-100 px-2 py-1 rounded flex items-center justify-between">
+                              <span>{device.name} ({device.type})</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  // Remove device
+                                  const newBuildings = [...buildings];
+                                  if (newBuildings[buildingIndex].centralRack?.devices) {
+                                    newBuildings[buildingIndex].centralRack!.devices = 
+                                      newBuildings[buildingIndex].centralRack!.devices!.filter((_, i) => i !== deviceIndex);
+                                    setBuildings(newBuildings);
+                                  }
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Floors */}
+                  {building.floors.map((floor, floorIndex) => (
+                    <div key={floorIndex} className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-green-800 flex items-center gap-2">
+                          <Layers3 className="h-4 w-4" />
+                          {floor.name}
+                          {floor.level !== undefined && <span className="text-sm text-green-600">(Level {floor.level})</span>}
+                        </h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedElement({ type: 'floor', buildingIndex, floorIndex });
+                            setEquipmentSelectionOpen(true);
+                          }}
+                          className="text-green-600 border-green-300 hover:bg-green-100"
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          ADD FLOOR EQUIPMENT
+                        </Button>
+                      </div>
+
+                      {/* Floor Racks */}
+                      {floor.floorRacks && floor.floorRacks.map((rack, rackIndex) => (
+                        <div key={rackIndex} className="ml-4 mb-3 p-2 bg-purple-50 border border-purple-200 rounded">
+                          <div className="flex items-center justify-between mb-1">
+                            <h5 className="font-medium text-purple-800 flex items-center gap-2">
+                              <Server className="h-4 w-4" />
+                              Floor Rack: {rack.name}
+                            </h5>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedElement({ type: 'floorRack', buildingIndex, floorIndex, rackIndex });
+                                setEquipmentSelectionOpen(true);
+                              }}
+                              className="text-purple-600 border-purple-300 hover:bg-purple-100"
+                            >
+                              <Package className="h-4 w-4 mr-1" />
+                              ADD RACK EQUIPMENT
+                            </Button>
+                          </div>
+                          {/* Show existing devices */}
+                          {rack.devices && rack.devices.length > 0 && (
+                            <div className="space-y-1">
+                              {rack.devices.map((device, deviceIndex) => (
+                                <div key={deviceIndex} className="text-sm text-purple-700 bg-purple-100 px-2 py-1 rounded flex items-center justify-between">
+                                  <span>{device.name} ({device.type})</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Remove device
+                                      const newBuildings = [...buildings];
+                                      if (newBuildings[buildingIndex].floors[floorIndex].floorRacks?.[rackIndex]?.devices) {
+                                        newBuildings[buildingIndex].floors[floorIndex].floorRacks![rackIndex].devices = 
+                                          newBuildings[buildingIndex].floors[floorIndex].floorRacks![rackIndex].devices!.filter((_, i) => i !== deviceIndex);
+                                        setBuildings(newBuildings);
+                                      }
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Rooms */}
+                      {floor.rooms && floor.rooms.map((room, roomIndex) => (
+                        <div key={roomIndex} className="ml-4 mb-3 p-2 bg-gray-50 border border-gray-200 rounded">
+                          <div className="flex items-center justify-between mb-1">
+                            <h5 className="font-medium text-gray-800 flex items-center gap-2">
+                              <Home className="h-4 w-4" />
+                              {room.name} ({room.type})
+                              <span className="text-sm text-gray-600">- {room.outlets} outlets</span>
+                            </h5>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedElement({ type: 'room', buildingIndex, floorIndex, roomIndex });
+                                setEquipmentSelectionOpen(true);
+                              }}
+                              className="text-gray-600 border-gray-300 hover:bg-gray-100"
+                            >
+                              <Package className="h-4 w-4 mr-1" />
+                              ADD ROOM EQUIPMENT
+                            </Button>
+                          </div>
+                          {/* Show existing devices */}
+                          {room.devices && room.devices.length > 0 && (
+                            <div className="space-y-1">
+                              {room.devices.map((device, deviceIndex) => (
+                                <div key={deviceIndex} className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded flex items-center justify-between">
+                                  <span>{device.name} ({device.type})</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Remove device
+                                      const newBuildings = [...buildings];
+                                      if (newBuildings[buildingIndex].floors[floorIndex].rooms?.[roomIndex]?.devices) {
+                                        newBuildings[buildingIndex].floors[floorIndex].rooms![roomIndex].devices = 
+                                          newBuildings[buildingIndex].floors[floorIndex].rooms![roomIndex].devices!.filter((_, i) => i !== deviceIndex);
+                                        setBuildings(newBuildings);
+                                      }
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Building Connections */}
+            {buildingConnections.length > 0 && (
+              <Card className="border-2 border-green-200">
+                <CardHeader className="bg-green-50">
+                  <CardTitle className="flex items-center gap-2 text-green-800">
+                    <Link2 className="h-5 w-5" />
+                    BUILDING CONNECTIONS
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    {buildingConnections.map((connection, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-green-100 rounded">
+                        <div>
+                          <span className="font-medium">
+                            Building {connection.fromBuilding} ↔ Building {connection.toBuilding}
+                          </span>
+                          <span className="text-sm text-green-700 ml-2">
+                            ({connection.connectionType}
+                            {connection.distance && ` - ${connection.distance}m`})
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedElement({ type: 'buildingConnection', connectionIndex: index });
+                            setEquipmentSelectionOpen(true);
+                          }}
+                          className="text-green-600 border-green-300 hover:bg-green-100"
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          ADD CONNECTION EQUIPMENT
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="bom" className="space-y-6">
@@ -2832,13 +3031,67 @@ export function CablingHierarchyForm({
       {/* Equipment Selection Modal */}
       <EquipmentSelection
         open={equipmentSelectionOpen}
-        onClose={() => setEquipmentSelectionOpen(false)}
-        onSave={(newEquipment) => {
-          setEquipment(newEquipment);
+        onClose={() => {
           setEquipmentSelectionOpen(false);
+          setSelectedElement(null);
+        }}
+        onSave={(newEquipment) => {
+          // Add equipment to the selected element
+          if (selectedElement) {
+            const newBuildings = [...buildings];
+            
+            // Add devices to the selected element
+            newEquipment.forEach(item => {
+              const device = {
+                name: item.name,
+                type: item.type,
+                brand: item.brand,
+                model: item.model,
+              };
+              
+              switch (selectedElement.type) {
+                case 'building':
+                  // Add to building level (could be general building equipment)
+                  break;
+                case 'centralRack':
+                  if (newBuildings[selectedElement.buildingIndex!].centralRack) {
+                    if (!newBuildings[selectedElement.buildingIndex!].centralRack!.devices) {
+                      newBuildings[selectedElement.buildingIndex!].centralRack!.devices = [];
+                    }
+                    newBuildings[selectedElement.buildingIndex!].centralRack!.devices!.push(device);
+                  }
+                  break;
+                case 'floor':
+                  // Add to floor level
+                  break;
+                case 'floorRack':
+                  if (newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks?.[selectedElement.rackIndex!]) {
+                    if (!newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices) {
+                      newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices = [];
+                    }
+                    newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices!.push(device);
+                  }
+                  break;
+                case 'room':
+                  if (newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms?.[selectedElement.roomIndex!]) {
+                    if (!newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices) {
+                      newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices = [];
+                    }
+                    newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices!.push(device);
+                  }
+                  break;
+              }
+            });
+            
+            setBuildings(newBuildings);
+          }
+          
+          setEquipmentSelectionOpen(false);
+          setSelectedElement(null);
           setActiveTab('bom'); // Switch to BOM tab after adding equipment
         }}
         existingEquipment={equipment}
+        selectedElement={selectedElement}
       />
 
       {/* Network Diagram Modal */}
