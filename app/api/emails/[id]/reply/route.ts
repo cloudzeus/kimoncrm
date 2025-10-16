@@ -20,6 +20,7 @@ export async function POST(
 ) {
   try {
     const session = await requireAuth();
+    const { id } = await params;
     const body = await request.json();
     
     const validatedBody = replyEmailSchema.parse(body);

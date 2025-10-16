@@ -257,17 +257,15 @@ export function CustomerFormDialog({
         
         // Auto-fill form with validated data
         if (data.data) {
-          form.setValue("name", data.data.name || form.getValues("name"));
-          form.setValue("sotitle", data.data.sotitle || form.getValues("sotitle"));
-          form.setValue("address", data.data.address || form.getValues("address"));
-          form.setValue("zip", data.data.zip || form.getValues("zip"));
-          form.setValue("city", data.data.city || form.getValues("city"));
-          form.setValue("irsdata", data.data.irsdata || form.getValues("irsdata"));
-          form.setValue("jobtypetrd", data.data.jobtypetrd || form.getValues("jobtypetrd"));
-          
-          if (data.data.isactive) {
-            form.setValue("isactive", data.data.isactive === "1" ? "ACTIVE" : "INACTIVE");
-          }
+          if (data.data.code) form.setValue("code", data.data.code);
+          if (data.data.name) form.setValue("name", data.data.name);
+          if (data.data.sotitle) form.setValue("sotitle", data.data.sotitle);
+          if (data.data.address) form.setValue("address", data.data.address);
+          if (data.data.zip) form.setValue("zip", data.data.zip);
+          if (data.data.city) form.setValue("city", data.data.city);
+          if (data.data.irsdata) form.setValue("irsdata", data.data.irsdata);
+          if (data.data.jobtypetrd) form.setValue("jobtypetrd", data.data.jobtypetrd);
+          if (data.data.isactive) form.setValue("isactive", data.data.isactive);
         }
       } else {
         toast.error(data.error || "Failed to validate AFM");

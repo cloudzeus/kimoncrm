@@ -9,7 +9,9 @@ const createVatRateSchema = z.object({
   softoneCode: z.string().optional(),
 });
 
-const updateVatRateSchema = createVatRateSchema.partial();
+const updateVatRateSchema = createVatRateSchema.partial().extend({
+  id: z.string(),
+});
 
 // GET /api/master-data/vat-rates
 export async function GET(request: NextRequest) {

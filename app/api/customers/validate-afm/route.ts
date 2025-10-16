@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Validate Greek AFM (VAT number) with Greek authorities
+ * Validate AFM and get company details from Greek Tax Authority (AADE) API
  * POST /api/customers/validate-afm
- * Body: { afm: "801946016" }
+ * Used when creating new customers to pre-fill form data
  */
 export async function POST(req: NextRequest) {
   try {
-    const { afm } = await req.json();
+    const body = await req.json();
+    const { afm } = body;
 
     if (!afm) {
       return NextResponse.json(
@@ -34,61 +35,64 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
-    // Map the response to our customer fields
-    if (data.basic_rec) {
-      const basicRec = data.basic_rec;
-      const firmAct = data.firm_act_tab?.item?.[0];
-
-      // Helper function to check if value is null indicator from XML
-      const isNullValue = (value: any): boolean => {
-        return (
-          !value ||
-          (typeof value === "object" && value.$ && value.$.hasOwnProperty("xsi:nil"))
-        );
-      };
-
-      // Helper to get string value or empty string
-      const getStringValue = (value: any): string => {
-        if (isNullValue(value)) return "";
-        if (typeof value === "string") return value;
-        return "";
-      };
-
-      const postalAddress = getStringValue(basicRec.postal_address);
-      const postalAddressNo = getStringValue(basicRec.postal_address_no);
-
-      const mappedData = {
-        afm: getStringValue(basicRec.afm),
-        irsdata: getStringValue(basicRec.doy_descr),
-        name: getStringValue(basicRec.onomasia),
-        sotitle: getStringValue(basicRec.commer_title),
-        address: postalAddress && postalAddressNo
-          ? `${postalAddress} ${postalAddressNo}`
-          : postalAddress,
-        zip: getStringValue(basicRec.postal_zip_code),
-        city: getStringValue(basicRec.postal_area_description),
-        jobtypetrd: getStringValue(firmAct?.firm_act_descr),
-        isactive: basicRec.deactivation_flag === "1" ? "1" : "0",
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: mappedData,
-        raw: data,
-      });
+    // Check if we got valid data
+    if (!data.basic_rec) {
+      return NextResponse.json(
+        { 
+          error: "Invalid AFM or no data found", 
+          details: "The Greek Tax Authority did not return valid information for this AFM"
+        },
+        { status: 404 }
+      );
     }
 
+    const basicRec = data.basic_rec;
+    const firmAct = data.firm_act_tab?.item?.[0];
+
+    // Helper function to check if value is null indicator from XML
+    const isNullValue = (value: any): boolean => {
+      return (
+        !value ||
+        (typeof value === "object" && value.$ && value.$.hasOwnProperty("xsi:nil"))
+      );
+    };
+
+    // Helper to get string value or null
+    const getStringValue = (value: any): string | null => {
+      if (isNullValue(value)) return null;
+      if (typeof value === "string") return value;
+      return null;
+    };
+
+    // Extract data from response
+    const customerData = {
+      code: afm, // Use AFM as code
+      afm,
+      name: getStringValue(basicRec.onomasia),
+      sotitle: getStringValue(basicRec.commer_title),
+      address: (() => {
+        const postalAddress = getStringValue(basicRec.postal_address);
+        const postalAddressNo = getStringValue(basicRec.postal_address_no);
+        if (!postalAddress) return null;
+        return postalAddressNo ? `${postalAddress} ${postalAddressNo}` : postalAddress;
+      })(),
+      zip: getStringValue(basicRec.postal_zip_code),
+      city: getStringValue(basicRec.postal_area_description),
+      irsdata: getStringValue(basicRec.doy_descr),
+      jobtypetrd: getStringValue(firmAct?.firm_act_descr),
+      isactive: basicRec.deactivation_flag === "1" ? "ACTIVE" : "INACTIVE",
+    };
+
     return NextResponse.json({
-      success: false,
-      error: "Invalid response from Greek authorities",
-      raw: data,
+      success: true,
+      data: customerData,
+      message: "AFM validated successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error validating AFM:", error);
     return NextResponse.json(
-      { error: "Failed to validate AFM" },
+      { error: "Failed to validate AFM", details: error.message },
       { status: 500 }
     );
   }
 }
-

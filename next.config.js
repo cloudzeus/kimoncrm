@@ -20,6 +20,12 @@ const nextConfig = {
         hostname: 'lh3.googleusercontent.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'kimoncrm.b-cdn.net',
+        port: '',
+        pathname: '/**',
       }
     ]
   },

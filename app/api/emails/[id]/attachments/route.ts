@@ -18,6 +18,7 @@ export async function GET(
 ) {
   try {
     const session = await requireAuth();
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     
     const query = {

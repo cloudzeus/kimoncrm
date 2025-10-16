@@ -6,10 +6,15 @@ import { requireAuth } from "@/lib/auth/guards";
 const createCountrySchema = z.object({
   iso2: z.string().length(2),
   name: z.string().min(1),
-  softoneCode: z.string().optional(),
+  shortcut: z.string(),
+  currency: z.string(),
+  countryType: z.string(),
+  softoneCode: z.string(),
 });
 
-const updateCountrySchema = createCountrySchema.partial();
+const updateCountrySchema = createCountrySchema.partial().extend({
+  id: z.string(),
+});
 
 // GET /api/master-data/countries
 export async function GET(request: NextRequest) {

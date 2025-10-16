@@ -14,6 +14,11 @@ export async function GET(
       where: { id },
       include: {
         countryRel: true,
+        contacts: {
+          include: {
+            contact: true,
+          },
+        },
       },
     });
 

@@ -91,6 +91,23 @@ export async function POST(req: NextRequest) {
       syncToERP,
     } = body;
 
+    // Check if AFM already exists
+    if (afm) {
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { afm },
+      });
+
+      if (existingCustomer) {
+        return NextResponse.json(
+          { 
+            error: "Customer with this AFM already exists",
+            details: `A customer named "${existingCustomer.name}" with AFM ${afm} already exists in the system.`
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Create customer in database
     const customer = await prisma.customer.create({
       data: {

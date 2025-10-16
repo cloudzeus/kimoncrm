@@ -24,6 +24,8 @@ export const RedisClients = {
   emailCache: redisEmailCache,
 } as const;
 
+export type RedisClientKey = keyof typeof RedisClients;
+
 /**
  * Get Redis client for specific database
  */

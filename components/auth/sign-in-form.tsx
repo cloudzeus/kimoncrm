@@ -51,7 +51,7 @@ export function SignInForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign In</CardTitle>
+        <CardTitle className="uppercase">SIGN IN</CardTitle>
         <CardDescription>
           Enter your email and password to access your account
         </CardDescription>
@@ -144,7 +144,7 @@ export function SignInForm() {
         <div className="mt-4 text-center">
           <p className="text-sm text-muted-foreground">
             DON'T HAVE AN ACCOUNT?{" "}
-            <a href="/sign-up" className="text-brand hover:underline">
+            <a href="/sign-up" className="text-brand hover:underline uppercase">
               SIGN UP
             </a>
           </p>

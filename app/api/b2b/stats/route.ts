@@ -30,9 +30,13 @@ export async function GET(request: NextRequest) {
     // Fetch stats in parallel
     const [
       quotesStats,
+      quotesGrouped,
       ordersStats,
+      ordersGrouped,
       ticketsStats,
+      ticketsGrouped,
       projectsStats,
+      projectsGrouped,
     ] = await Promise.all([
       // Quotes stats
       prisma.quote.aggregate({
@@ -83,35 +87,35 @@ export async function GET(request: NextRequest) {
     // Process quotes stats
     const quotes = {
       total: quotesStats._count.id,
-      pending: quotesStats.find(q => q.status === 'Pending')?._count.id || 0,
-      approved: quotesStats.find(q => q.status === 'Approved')?._count.id || 0,
-      expired: quotesStats.find(q => q.status === 'Expired')?._count.id || 0,
+      pending: quotesGrouped.find(q => q.status === 'Pending')?._count.id || 0,
+      approved: quotesGrouped.find(q => q.status === 'Approved')?._count.id || 0,
+      expired: quotesGrouped.find(q => q.status === 'Expired')?._count.id || 0,
     };
 
     // Process orders stats
     const orders = {
       total: ordersStats._count.id,
-      pending: ordersStats.find(o => o.status === 'Pending')?._count.id || 0,
-      processing: ordersStats.find(o => o.status === 'Processing')?._count.id || 0,
-      completed: ordersStats.find(o => o.status === 'Completed')?._count.id || 0,
+      pending: ordersGrouped.find(o => o.status === 'Pending')?._count.id || 0,
+      processing: ordersGrouped.find(o => o.status === 'Processing')?._count.id || 0,
+      completed: ordersGrouped.find(o => o.status === 'Completed')?._count.id || 0,
       totalValue: ordersStats._sum.total || 0,
     };
 
     // Process tickets stats
     const tickets = {
       total: ticketsStats._count.id,
-      open: ticketsStats.find(t => t.status === 'New' || t.status === 'Open')?._count.id || 0,
-      inProgress: ticketsStats.find(t => t.status === 'In Progress')?._count.id || 0,
-      resolved: ticketsStats.find(t => t.status === 'Resolved')?._count.id || 0,
+      open: ticketsGrouped.find(t => t.status === 'New' || t.status === 'Open')?._count.id || 0,
+      inProgress: ticketsGrouped.find(t => t.status === 'In Progress')?._count.id || 0,
+      resolved: ticketsGrouped.find(t => t.status === 'Resolved')?._count.id || 0,
       avgResolutionTime: 24, // TODO: Calculate actual average resolution time
     };
 
     // Process projects stats
     const projects = {
       total: projectsStats._count.id,
-      active: projectsStats.find(p => p.status === 'Active')?._count.id || 0,
-      completed: projectsStats.find(p => p.status === 'Completed')?._count.id || 0,
-      onHold: projectsStats.find(p => p.status === 'On Hold')?._count.id || 0,
+      active: projectsGrouped.find(p => p.status === 'Active')?._count.id || 0,
+      completed: projectsGrouped.find(p => p.status === 'Completed')?._count.id || 0,
+      onHold: projectsGrouped.find(p => p.status === 'On Hold')?._count.id || 0,
     };
 
     return NextResponse.json({

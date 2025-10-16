@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserRole } from '@prisma/client';
 import { toast } from 'sonner';
 import React from 'react';
+import { Upload } from 'lucide-react';
+import { FileUpload } from '@/components/files/file-upload';
 
 function AvatarUploader({ userId, onUploaded, onDeleted }: { userId: string; onUploaded: (url: string) => void; onDeleted: () => void }) {
   const [uploading, setUploading] = useState(false);
@@ -112,6 +114,8 @@ export function UserManager({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [userForUpload, setUserForUpload] = useState<User | null>(null);
   const [tenantUsers, setTenantUsers] = useState<Array<{ id: string; name: string | null; email: string; jobTitle?: string | null; department?: string | null }>>([]);
   const [selectedTenantUserIds, setSelectedTenantUserIds] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
@@ -137,6 +141,11 @@ export function UserManager({
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     setIsEditDialogOpen(true);
+  };
+
+  const handleUploadFiles = (user: User) => {
+    setUserForUpload(user);
+    setUploadDialogOpen(true);
   };
 
   const handleUpdateUser = async (updatedData: Partial<User>) => {
@@ -463,6 +472,14 @@ export function UserManager({
                   >
                     EDIT
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUploadFiles(user)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    FILES
+                  </Button>
                   {user.isActive && (
                     <Button
                       variant="destructive"
@@ -499,6 +516,32 @@ export function UserManager({
               onUpdate={handleUpdateUser}
               onCancel={() => setIsEditDialogOpen(false)}
               isLoading={isLoading}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Files Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>UPLOAD FILES</DialogTitle>
+            <DialogDescription>
+              Upload files for user: {userForUpload?.name || userForUpload?.email}
+            </DialogDescription>
+          </DialogHeader>
+          {userForUpload && (
+            <FileUpload
+              entityId={userForUpload.id}
+              entityType="USER"
+              folderName={userForUpload.email}
+              onUploadComplete={() => {
+                toast.success('Files uploaded successfully');
+              }}
+              onClose={() => {
+                setUploadDialogOpen(false);
+                setUserForUpload(null);
+              }}
             />
           )}
         </DialogContent>

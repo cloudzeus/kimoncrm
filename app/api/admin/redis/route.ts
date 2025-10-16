@@ -4,7 +4,8 @@ import {
   getRedisDatabaseInfo, 
   clearRedisDatabase, 
   redisHealthCheck,
-  RedisDatabases 
+  RedisDatabases,
+  RedisClients
 } from '@/lib/redis/utils';
 
 /**
@@ -58,7 +59,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    const success = await clearRedisDatabase(database as keyof typeof RedisDatabases);
+    const success = await clearRedisDatabase(database as keyof typeof RedisClients);
     
     if (success) {
       return NextResponse.json({

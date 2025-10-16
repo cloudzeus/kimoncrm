@@ -27,6 +27,8 @@ import {
   RotateCw,
   ExternalLink,
   MoreVertical,
+  Upload,
+  ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -39,6 +41,14 @@ import {
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { ResizableTableHeader } from "./resizable-table-header";
 import { toast } from "sonner";
+import { FileUpload } from "@/components/files/file-upload";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ExcelJS from "exceljs";
 import {
   AlertDialog,
@@ -111,6 +121,8 @@ export function CustomersManager() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [customerForUpload, setCustomerForUpload] = useState<Customer | null>(null);
   // Default values that work for both server and client
   const defaultColumnWidths = {
       trdr: 100,
@@ -269,6 +281,10 @@ export function CustomersManager() {
     router.push(`/customers/${customerId}`);
   };
 
+  const handleNewSiteSurvey = (customer: Customer) => {
+    router.push(`/customers/${customer.id}?tab=site-surveys&action=new`);
+  };
+
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setIsDialogOpen(true);
@@ -277,6 +293,11 @@ export function CustomersManager() {
   const handleDelete = (customer: Customer) => {
     setCustomerToDelete(customer);
     setDeleteDialogOpen(true);
+  };
+
+  const handleUploadFiles = (customer: Customer) => {
+    setCustomerForUpload(customer);
+    setUploadDialogOpen(true);
   };
 
   const handleUpdateFromAFM = async (customer: Customer) => {
@@ -1197,11 +1218,21 @@ export function CustomersManager() {
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleNewSiteSurvey(customer)}>
+                            <ClipboardList className="h-4 w-4 mr-2" />
+                            New Site Survey
+                          </DropdownMenuItem>
                           {customer.afm && (
-                            <DropdownMenuItem onClick={() => handleUpdateFromAFM(customer)}>
-                              <RotateCw className="h-4 w-4 mr-2" />
-                              Update from Tax Authority
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem onClick={() => handleUpdateFromAFM(customer)}>
+                                <RotateCw className="h-4 w-4 mr-2" />
+                                Update from Tax Authority
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleUploadFiles(customer)}>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload Files
+                              </DropdownMenuItem>
+                            </>
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
@@ -1277,6 +1308,32 @@ export function CustomersManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload Files Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>UPLOAD FILES</DialogTitle>
+            <DialogDescription>
+              Upload files for customer: {customerForUpload?.name} (AFM: {customerForUpload?.afm})
+            </DialogDescription>
+          </DialogHeader>
+          {customerForUpload && customerForUpload.afm && (
+            <FileUpload
+              entityId={customerForUpload.id}
+              entityType="CUSTOMER"
+              folderName={customerForUpload.afm}
+              onUploadComplete={() => {
+                toast.success("Files uploaded successfully");
+              }}
+              onClose={() => {
+                setUploadDialogOpen(false);
+                setCustomerForUpload(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

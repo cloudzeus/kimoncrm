@@ -165,7 +165,7 @@ export async function PUT(request: NextRequest) {
     } else {
       console.error('Menu Items PUT error:', error);
       return NextResponse.json(
-        { message: "Failed to update menu item", error: error.message },
+        { message: "Failed to update menu item", error: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
       );
     }

@@ -9,7 +9,9 @@ const createManufacturerSchema = z.object({
   logoId: z.string().optional(),
 });
 
-const updateManufacturerSchema = createManufacturerSchema.partial();
+const updateManufacturerSchema = createManufacturerSchema.partial().extend({
+  id: z.string(),
+});
 
 // GET /api/master-data/manufacturers
 export async function GET(request: NextRequest) {

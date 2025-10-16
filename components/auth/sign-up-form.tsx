@@ -52,7 +52,7 @@ export function SignUpForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
+        <CardTitle className="uppercase">CREATE ACCOUNT</CardTitle>
         <CardDescription>
           Enter your information to create a new account
         </CardDescription>
@@ -60,7 +60,7 @@ export function SignUpForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="name">FULL NAME</Label>
             <Input
               id="name"
               type="text"
@@ -71,7 +71,7 @@ export function SignUpForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">EMAIL</Label>
             <Input
               id="email"
               type="email"
@@ -82,7 +82,7 @@ export function SignUpForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">PASSWORD</Label>
             <Input
               id="password"
               type="password"
@@ -93,7 +93,7 @@ export function SignUpForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">CONFIRM PASSWORD</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -104,15 +104,15 @@ export function SignUpForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
           </Button>
         </form>
         
         <div className="mt-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <a href="/sign-in" className="text-brand hover:underline">
-              Sign in
+            ALREADY HAVE AN ACCOUNT?{" "}
+            <a href="/sign-in" className="text-brand hover:underline uppercase">
+              SIGN IN
             </a>
           </p>
         </div>

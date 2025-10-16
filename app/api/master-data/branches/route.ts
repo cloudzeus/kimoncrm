@@ -11,7 +11,9 @@ const createBranchSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
 });
 
-const updateBranchSchema = createBranchSchema.partial();
+const updateBranchSchema = createBranchSchema.partial().extend({
+  id: z.string(),
+});
 
 // GET /api/master-data/branches
 export async function GET(request: NextRequest) {

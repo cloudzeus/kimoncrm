@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
               title: `Install ${item.product.name}`,
               description: `Installation task for ${item.product.name} (SKU: ${item.product.sku})`,
               status: 'Todo',
+              createdBy: session.user.id,
             },
           })
         )

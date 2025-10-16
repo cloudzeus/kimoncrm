@@ -43,8 +43,6 @@ export async function POST(request: NextRequest) {
         microsoftId: microsoftProfile.id,
         name: microsoftProfile.displayName || session.user.name,
         email: microsoftProfile.mail || microsoftProfile.userPrincipalName || session.user.email,
-        phone: microsoftProfile.businessPhones?.[0] || session.user.phone,
-        mobile: microsoftProfile.mobilePhone || session.user.mobile,
         lastLoginAt: new Date(),
         updatedAt: new Date(),
       },

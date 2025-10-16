@@ -5,21 +5,14 @@ import * as iconv from "iconv-lite";
 
 /**
  * Cron job endpoint for automatic customer sync from SoftOne ERP
- * This endpoint performs delta sync (only customers updated since last sync)
+ * This endpoint performs delta sync (only customers updated/created in the last 10 minutes)
  * Should be called every 10 minutes
  * 
  * GET/POST /api/cron/sync-customers
  */
 async function syncCustomers() {
   try {
-    // Get the last sync timestamp
-    const lastCustomer = await prisma.customer.findFirst({
-      where: { erp: true },
-      orderBy: { update: "desc" },
-    });
-    const lastSyncDate = lastCustomer?.update || null;
-
-    // Fetch customers from SoftOne ERP
+    // Fetch only updated/newly created customers from SoftOne ERP (delta endpoint)
     const response = await fetch(
       "https://aic.oncloud.gr/s1services/JS/webservice.customers/getCustomers",
       {
@@ -32,6 +25,7 @@ async function syncCustomers() {
           password: process.env.SOFTONE_PASSWORD || "Service",
           company: parseInt(process.env.SOFTONE_COMPANY || "1000"),
           sodtype: 13,
+          // The ERP now returns only updated/newly created customers in the time window
         }),
       }
     );
@@ -46,28 +40,38 @@ async function syncCustomers() {
     const decodedText = iconv.decode(buffer, "win1253");
     const data = JSON.parse(decodedText);
 
-    if (!data.success || !data.result || !Array.isArray(data.result)) {
+    if (!data.success) {
       throw new Error("Invalid response from SoftOne ERP");
+    }
+
+    // Check if there are no updated/new customers
+    if (data.total === 0 || !data.result || data.result.length === 0) {
+      console.log("✅ No new or updated customers to sync");
+      return {
+        success: true,
+        total: 0,
+        processed: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        message: "No new or updated customers to sync",
+        window_start: data.window_start || null,
+        at: data.at || new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+      };
     }
 
     let created = 0;
     let updated = 0;
-    let skipped = 0;
     const errors: any[] = [];
 
-    // Process customers (only those updated since last sync)
+    // Process all customers from the result array (already filtered by ERP)
     for (const customer of data.result) {
       try {
         // Parse update date
         const updateDate = customer.UPDDATE
           ? new Date(customer.UPDDATE)
           : new Date();
-
-        // Skip if customer hasn't been updated since last sync
-        if (lastSyncDate && updateDate <= lastSyncDate) {
-          skipped++;
-          continue;
-        }
 
         // Check if customer exists (by TRDR or AFM)
         const existingCustomer = await prisma.customer.findFirst({
@@ -133,8 +137,10 @@ async function syncCustomers() {
       processed: data.result.length,
       created,
       updated,
-      skipped,
+      skipped: 0,
       errors: errors.length > 0 ? errors : undefined,
+      window_start: data.window_start || null,
+      at: data.at || new Date().toISOString(),
       timestamp: new Date().toISOString(),
     };
   } catch (error) {

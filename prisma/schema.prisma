@@ -104,6 +104,8 @@ model User {
   opportunityStatusChanges OpportunityStatusChange[]
   rfpStatusChanges RFPStatusChange[]
   quoteStatusChanges QuoteStatusChange[]
+  surveysAssignedFrom SiteSurvey[] @relation("SurveyAssignFrom")
+  surveysAssignedTo   SiteSurvey[] @relation("SurveyAssignTo")
 }
 
 model Department {
@@ -156,35 +158,98 @@ model Company {
   emails     EmailThread[]
   orders     Order[]
   quotes     Quote[]
-  surveys    SiteSurvey[]
   supportContracts SupportContract[]
 }
 
 model Contact {
-  id         String   @id @default(cuid())
-  companyId  String?
-  firstName  String?
-  lastName   String?
-  email      String?  @unique
-  phone      String?
-  mobile     String?
-  jobTitle   String?
-  department String?
-  notes      String?
-  isPrimary  Boolean  @default(false)
-  softoneId  String?  @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  title       String?  // Mr, Mrs, Dr, etc.
+  name        String   // Full name
+  mobilePhone String?
+  homePhone   String?
+  workPhone   String?
+  address     String?
+  city        String?
+  zip         String?
+  countryId   String?
+  email       String?
+  notes       String?  @db.Text
+  
+  // Legacy fields for backward compatibility
+  companyId   String?
+  firstName   String?
+  lastName    String?
+  jobTitle    String?
+  department  String?
+  isPrimary   Boolean  @default(false)
+  softoneId   String?  @unique
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  company    Company? @relation(fields: [companyId], references: [id])
-  users      User[]
-  tickets    Ticket[]
-  emails     EmailThread[]
-  quotes     Quote[]
-  orders     Order[]
-  leads      Lead[]   @relation("LeadContact")
-  projects   Project[] @relation("ProjectContact")
-  rfps       RFP[]
+  country     Country? @relation(fields: [countryId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
+  
+  // Many-to-many relations
+  customers   ContactCustomer[]
+  suppliers   ContactSupplier[]
+  contactProjects ContactProject[]
+  
+  // Existing relations
+  users       User[]
+  tickets     Ticket[]
+  emails      EmailThread[]
+  quotes      Quote[]
+  orders      Order[]
+  leads       Lead[]   @relation("LeadContact")
+  projects    Project[] @relation("ProjectContact")
+  rfps        RFP[]
+  siteSurveys SiteSurvey[] @relation("SurveyContact")
+}
+
+// Join table for Contact <-> Customer many-to-many
+model ContactCustomer {
+  id         String   @id @default(cuid())
+  contactId  String
+  customerId String
+  createdAt  DateTime @default(now())
+
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, customerId])
+  @@index([contactId])
+  @@index([customerId])
+}
+
+// Join table for Contact <-> Supplier many-to-many
+model ContactSupplier {
+  id         String   @id @default(cuid())
+  contactId  String
+  supplierId String
+  createdAt  DateTime @default(now())
+
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, supplierId])
+  @@index([contactId])
+  @@index([supplierId])
+}
+
+// Join table for Contact <-> Project many-to-many
+model ContactProject {
+  id         String   @id @default(cuid())
+  contactId  String
+  projectId  String
+  createdAt  DateTime @default(now())
+
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  project    Project  @relation("ContactProjectJoin", fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, projectId])
+  @@index([contactId])
+  @@index([projectId])
 }
 
 model Lead {
@@ -205,7 +270,6 @@ model Lead {
   company    Company? @relation(fields: [companyId], references: [id])
   contact    Contact? @relation("LeadContact", fields: [contactId], references: [id])
   quotes     Quote[]
-  surveys    SiteSurvey[]
   statusChanges LeadStatusChange[]
   emails     EmailThread[]
 }
@@ -223,7 +287,6 @@ model Opportunity {
 
   company    Company @relation(fields: [companyId], references: [id])
   quotes     Quote[]
-  surveys    SiteSurvey[]
   rfps       RFP[]
   statusChanges OpportunityStatusChange[]
 }
@@ -458,6 +521,7 @@ model Project {
   files     FileRef[]
   emails    EmailThread[]
   assignedUsers ProjectAssignment[]
+  projectContacts ContactProject[] @relation("ContactProjectJoin")
 }
 
 model ProjectAssignment {
@@ -507,7 +571,6 @@ model VatRate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products    Product[]
   quotes      QuoteItem[]
 }
 
@@ -558,6 +621,7 @@ model Brand {
   updatedAt   DateTime @updatedAt
 
   products    Product[]
+  services    Service[] @relation("ServiceBrand")
   markupRules MarkupRule[] @relation("BrandMarkupRules")
   translations BrandTranslation[]
 }
@@ -579,8 +643,11 @@ model BrandTranslation {
 
 model Manufacturer {
   id          String   @id @default(cuid())
-  name        String   @unique
-  softoneCode String?  @unique
+  mtrmanfctr  String?  @unique  // SoftOne MTRMANFCTR (manufacturer ID)
+  code        String?  @unique  // SoftOne CODE (same as MTRMANFCTR)
+  name        String   @unique  // SoftOne NAME
+  isActive    Boolean  @default(true)  // SoftOne ISACTIVE
+  softoneCode String?  @unique  // Legacy field (mapped to mtrmanfctr)
   logoId      String?  @unique
   logo        FileRef? @relation(fields: [logoId], references: [id])
   createdAt   DateTime @default(now())
@@ -603,10 +670,11 @@ model Country {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  products     Product[]
   translations CountryTranslation[]
   districts    District[]
   customers    Customer[]
+  suppliers    Supplier[] @relation("SupplierCountry")
+  contacts     Contact[]
 }
 
 model CountryTranslation {
@@ -723,39 +791,33 @@ model UnitTranslation {
 /*** Products, Branches & Inventory ***/
 model Product {
   id               String   @id @default(cuid())
-  sku              String   @unique
-  ean              String?  @unique
-  manufacturerCode String?
-  name             String
-  nameEn           String?
-  descriptionEl    String?
-  descriptionEn    String?
+  
+  // Core fields
+  mtrl             String?  @unique  // ERP Product ID
+  code             String?  @unique  // ERP Code
+  code1            String?  // EAN Code
+  code2            String?  // Manufacturer Code
+  name             String   // Product name
+  mtrmark          String?  // Brand code (relates to Brand.code)
+  mtrmanfctr       String?  // Manufacturer code
+  mtrcategory      String?  // Category code
+  isActive         Boolean  @default(true)
+  
+  // Relations to master data
   brandId          String?
   manufacturerId   String?
   categoryId       String?
   unitId           String?
-  countryOfOriginId String?
-  vatRateId        String?
-
-  // Base pricing (purchase cost)
-  cost             Decimal? @db.Decimal(12,2)
   
-  // Manual pricing (overrides calculated pricing)
-  manualB2BPrice   Decimal? @db.Decimal(12,2)
-  manualRetailPrice Decimal? @db.Decimal(12,2)
+  // Dimensions & weight
+  width            Decimal? @db.Decimal(10,2)  // Width in cm
+  length           Decimal? @db.Decimal(10,2)  // Length in cm
+  height           Decimal? @db.Decimal(10,2)  // Height in cm
+  weight           Decimal? @db.Decimal(10,2)  // Weight in kg
   
-  // Legacy price field (for backward compatibility)
-  price            Decimal? @db.Decimal(12,2)
+  // Data sheet file
+  productDataSheet String?  // BunnyCDN URL for PDF/Word datasheet
   
-  weightGr         Int?
-  widthMm          Int?
-  heightMm         Int?
-  depthMm          Int?
-  isActive         Boolean  @default(true)
-  softoneId        String?  @unique
-  externalSpecs    Json?
-  specsUpdatedAt   DateTime?
-
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -763,14 +825,98 @@ model Product {
   manufacturer     Manufacturer? @relation(fields: [manufacturerId], references: [id])
   category         Category?     @relation(fields: [categoryId], references: [id])
   unit             Unit?         @relation(fields: [unitId], references: [id])
-  countryOfOrigin  Country?      @relation(fields: [countryOfOriginId], references: [id])
-  vatRate          VatRate?      @relation(fields: [vatRateId], references: [id])
 
   inventory        Inventory[]
   media            FileRef[] @relation("ProductMedia")
   orderItems       OrderItem[]
   quoteItems       QuoteItem[]
   pricingHistory   ProductPricingHistory[]
+  translations     ProductTranslation[]
+  images           ProductImage[]
+  specifications   ProductSpec[]
+  stock            ProductStock[]
+}
+
+model ProductTranslation {
+  id               String   @id @default(cuid())
+  productId        String
+  languageCode     String  // "el", "en", etc.
+  name             String?  // Translated product name
+  shortDescription String?  @db.Text // Short description (150-200 chars)
+  description      String?  @db.LongText // Full description
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  language         SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([productId, languageCode])
+}
+
+model ProductImage {
+  id          String   @id @default(cuid())
+  productId   String
+  url         String   // BunnyCDN URL
+  alt         String?  // Alt text from short description
+  isDefault   Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductSpec {
+  id          String   @id @default(cuid())
+  productId   String
+  specKey     String   // Technical key for grouping (e.g., "power_supply", "cpu", "ram")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product      Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  translations ProductSpecTranslation[]
+
+  @@index([productId])
+  @@unique([productId, specKey])
+}
+
+model ProductSpecTranslation {
+  id            String   @id @default(cuid())
+  specId        String
+  languageCode  String   // "el", "en", etc.
+  specName      String   // Translated specification name (e.g., "Power Supply", "Τροφοδοσία")
+  specValue     String   @db.Text // Translated specification value (e.g., "220V AC", "220V AC")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  spec          ProductSpec       @relation(fields: [specId], references: [id], onDelete: Cascade)
+  language      SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([specId, languageCode])
+  @@index([specId])
+}
+
+enum Warehouse {
+  AIC
+  NETCORE
+}
+
+model ProductStock {
+  id          String    @id @default(cuid())
+  productId   String
+  warehouse   Warehouse
+  qty         Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouse])
+  @@index([productId])
+  @@index([warehouse])
 }
 
 model Branch {
@@ -930,45 +1076,568 @@ model QuoteItem {
 }
 
 /*** Site Surveys ***/
-model SiteSurveyType {
-  id         String   @id @default(cuid())
-  name       String
-  schema     Json     // [{ key, label, type, required, options? }, ...]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  surveys    SiteSurvey[]
+enum SurveyType {
+  VOIP
+  CABLING
+  WIFI
+  DIGITAL_SIGNAGE
+  HOTEL_TV
+  NETWORK
+  CCTV
+  IOT
 }
 
 model SiteSurvey {
-  id            String   @id @default(cuid())
-  typeId        String
-  companyId     String?
-  leadId        String?
-  opportunityId String?
-  answers       Json
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String      @id @default(cuid())
+  title         String
+  description   String?     @db.Text
+  type          SurveyType
+  customerId    String
+  contactId     String?
+  arrangedDate  DateTime?
+  assignFromId  String?
+  assignToId    String?
+  address       String?
+  city          String?
+  phone         String?
+  email         String?
+  status        String      @default("Scheduled") // Scheduled, Completed, Cancelled
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  type          SiteSurveyType @relation(fields: [typeId], references: [id])
-  company       Company? @relation(fields: [companyId], references: [id])
-  lead          Lead?    @relation(fields: [leadId], references: [id])
-  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  contact       Contact?    @relation("SurveyContact", fields: [contactId], references: [id])
+  assignFrom    User?       @relation("SurveyAssignFrom", fields: [assignFromId], references: [id])
+  assignTo      User?       @relation("SurveyAssignTo", fields: [assignToId], references: [id])
+  voipSurvey    VoipSurvey?
+  cablingSurvey CablingSurvey?
+  buildings     Building[]
+  pathways      Pathway[]
+  cableRuns     CableRun[]
+  images        ImageAsset[]
+  workRequests  WorkRequest[]
 
-  files         FileRef[]
-  images        SiteSurveyImage[]
+  @@index([customerId])
+  @@index([assignToId])
+  @@index([assignFromId])
+  @@index([contactId])
 }
 
-model SiteSurveyImage {
-  id          String   @id @default(cuid())
-  surveyId    String
-  fileId      String
-  title       String?
-  description String?
-  order       Int      @default(0)
+model VoipSurvey {
+  id                   String   @id @default(cuid())
+  siteSurveyId         String   @unique
+  oldPbxModel          String?
+  oldPbxDescription    String?  @db.Text
+  oldPbxDevices        Json?    // Array of {type, model, number, location}
+  providerName         String?
+  providerLines        Json?    // Array of {type, lines, phoneNumber}
+  internetFeedType     String?
+  internetFeedSpeed    String?
+  networkDevices       Json?    // Array of {type, deviceName, deviceIp}
+  cablingStatus        String?  @db.Text
+  pbxBrand             String?
+  conChannelsNum       String?
+  extensionsNum        String?
+  hotelPms             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  survey      SiteSurvey @relation(fields: [surveyId], references: [id])
-  file        FileRef    @relation(fields: [fileId], references: [id])
+  siteSurvey           SiteSurvey @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+
+  @@index([siteSurveyId])
+}
+
+/*** Cabling Site Survey ***/
+enum SpaceType {
+  ROOM
+  CLOSET
+  CORRIDOR
+  LOBBY
+  OUTDOOR
+  OTHER
+}
+
+enum DeviceType {
+  RACK_EQUIPMENT
+  SWITCH
+  PATCH_PANEL
+  ODF
+  MEDIA_CONVERTER
+  SERVER
+  UPS
+  CAMERA
+  ACCESS_POINT
+  PBX
+  OTHER
+}
+
+enum MediaType {
+  COPPER
+  FIBER
+}
+
+enum CopperCategory {
+  CAT5E
+  CAT6
+  CAT6A
+  CAT7
+  OTHER
+}
+
+enum FiberType {
+  OS2
+  OM3
+  OM4
+  OM5
+  OTHER
+}
+
+enum ConnectorType {
+  RJ45
+  LC
+  SC
+  ST
+  MPO
+  OTHER
+}
+
+enum EndpointSide {
+  A
+  B
+}
+
+enum PathwayType {
+  CONDUIT
+  TRAY
+  DUCT
+  RISER
+  SHAFT
+  UNDERFLOOR
+  OTHER
+}
+
+enum ImageKind {
+  PHOTO
+  BLUEPRINT
+  SCAN
+  MARKUP
+}
+
+enum TestStandard {
+  TIA568
+  ISO11801
+  OTDR
+  FLUKE_DSX
+  OTHER
+}
+
+enum TestResultStatus {
+  PASS
+  FAIL
+  MARGINAL
+}
+
+enum WorkType {
+  NEW_DROP
+  NEW_TRUNK
+  UPGRADE
+  MOVE
+  RELOCATION
+  REPAIR
+}
+
+enum WorkStatus {
+  DRAFT
+  PLANNED
+  APPROVED
+  IN_PROGRESS
+  DONE
+  REJECTED
+}
+
+model CablingSurvey {
+  id                String   @id @default(cuid())
+  siteSurveyId      String   @unique
+  generalNotes      String?  @db.Text
+  projectScope      String?  @db.Text
+  standards         Json?    // Array of standards being followed
+  totalCableRuns    Int?     @default(0)
+  totalOutlets      Int?     @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  siteSurvey        SiteSurvey @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+
+  @@index([siteSurveyId])
+}
+
+enum RackType {
+  CENTRAL
+  FLOOR
+}
+
+enum RoomConnectionType {
+  FLOOR_RACK
+  CENTRAL_RACK
+}
+
+model Building {
+  id            String       @id @default(cuid())
+  siteSurveyId  String
+  siteSurvey    SiteSurvey   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  name          String
+  code          String?
+  address       String?
+  notes         String?      @db.Text
+  floors        Floor[]
+  centralRack   CentralRack?
+  images        ImageAsset[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([siteSurveyId])
+  @@unique([siteSurveyId, name])
+}
+
+model CentralRack {
+  id            String       @id @default(cuid())
+  buildingId    String       @unique
+  building      Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  name          String       @default("Central Rack")
+  code          String?
+  units         Int?
+  location      String?
+  notes         String?      @db.Text
+  
+  // Cable and Fiber terminations stored as JSON
+  cableTerminations Json?    // Array of {type: string, count: number}
+  fiberTerminations Json?    // Array of {type: string, totalStrands: number, terminatedStrands: number}
+
+  devices       Device[]
+  images        ImageAsset[]
+  floorRackConnections FloorRack[]
+  roomConnections Room[]     @relation("RoomToCentralRack")
+  cableRunsFrom CableRun[]   @relation("CableFromCentral")
+  cableRunsTo   CableRun[]   @relation("CableToCentral")
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([buildingId])
+}
+
+model Floor {
+  id            String       @id @default(cuid())
+  buildingId    String
+  building      Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  name          String
+  level         Int?
+  notes         String?      @db.Text
+  
+  // Blueprint management
+  blueprintUrl  String?      // BunnyCDN URL for floor blueprint
+  similarToFloorId String?   // Reference to another floor with similar layout
+  similarToFloor   Floor?    @relation("SimilarFloors", fields: [similarToFloorId], references: [id], onDelete: SetNull)
+  similarFloors    Floor[]   @relation("SimilarFloors")
+  
+  rooms         Room[]
+  floorRacks    FloorRack[]
+  images        ImageAsset[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([buildingId])
+  @@index([similarToFloorId])
+  @@unique([buildingId, name])
+}
+
+model FloorRack {
+  id                  String       @id @default(cuid())
+  floorId             String
+  floor               Floor        @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  centralRackId       String?
+  centralRack         CentralRack? @relation(fields: [centralRackId], references: [id], onDelete: SetNull)
+  name                String
+  code                String?
+  units               Int?
+  location            String?
+  notes               String?      @db.Text
+  
+  // Cable and Fiber terminations stored as JSON
+  cableTerminations   Json?        // Array of {type: string, count: number}
+  fiberTerminations   Json?        // Array of {type: string, totalStrands: number, terminatedStrands: number}
+
+  devices             Device[]
+  images              ImageAsset[]
+  roomConnections     Room[]       @relation("RoomToFloorRack")
+  cableRunsFrom       CableRun[]   @relation("CableFromFloor")
+  cableRunsTo         CableRun[]   @relation("CableToFloor")
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([floorId])
+  @@index([centralRackId])
+}
+
+model Room {
+  id                String              @id @default(cuid())
+  floorId           String
+  floor             Floor               @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  name              String
+  number            String?
+  type              SpaceType
+  
+  // Connection management
+  connectionType    RoomConnectionType  @default(FLOOR_RACK)
+  floorRackId       String?
+  floorRack         FloorRack?          @relation("RoomToFloorRack", fields: [floorRackId], references: [id], onDelete: SetNull)
+  centralRackId     String?
+  centralRack       CentralRack?        @relation("RoomToCentralRack", fields: [centralRackId], references: [id], onDelete: SetNull)
+  
+  // Floor plan for this specific room
+  floorPlanUrl      String?
+  notes             String?             @db.Text
+  
+  outlets           Outlet[]
+  images            ImageAsset[]
+  cableRunsFrom     CableRun[]          @relation("CableFromRoom")
+  cableRunsTo       CableRun[]          @relation("CableToRoom")
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([floorId])
+  @@index([floorRackId])
+  @@index([centralRackId])
+  @@unique([floorId, name])
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  centralRackId   String?
+  centralRack     CentralRack? @relation(fields: [centralRackId], references: [id], onDelete: Cascade)
+  floorRackId     String?
+  floorRack       FloorRack?   @relation(fields: [floorRackId], references: [id], onDelete: Cascade)
+
+  type          DeviceType
+  vendor        String?
+  model         String?
+  label         String?
+  serial        String?
+  mgmtIp        String?
+  notes         String?      @db.Text
+
+  ports         Port[]
+  images        ImageAsset[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([centralRackId])
+  @@index([floorRackId])
+}
+
+model Outlet {
+  id            String       @id @default(cuid())
+  roomId        String
+  room          Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  label         String
+  ports         Int
+  notes         String?      @db.Text
+
+  portPorts     Port[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([roomId])
+  @@unique([roomId, label])
+}
+
+model Port {
+  id            String       @id @default(cuid())
+  deviceId      String?
+  device        Device?      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  outletId      String?
+  outlet        Outlet?      @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  portNumber    Int?
+  media         MediaType
+  copperCat     CopperCategory?
+  fiberType     FiberType?
+  connector     ConnectorType?
+  label         String?
+  notes         String?      @db.Text
+
+  terminations  CableTermination[]
+
+  @@index([deviceId])
+  @@index([outletId])
+}
+
+model Pathway {
+  id            String      @id @default(cuid())
+  siteSurveyId  String
+  siteSurvey    SiteSurvey  @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  type          PathwayType
+  description   String?     @db.Text
+  notes         String?     @db.Text
+  cableRuns     CableRun[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([siteSurveyId])
+}
+
+model CableRun {
+  id            String        @id @default(cuid())
+  siteSurveyId  String
+  siteSurvey    SiteSurvey    @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+
+  code          String?
+  media         MediaType
+  copperCat     CopperCategory?
+  pairCount     Int?
+  fiberType     FiberType?
+  strandCount   Int?
+  lengthMeters  Float?
+  pathwayId     String?
+  pathway       Pathway?      @relation(fields: [pathwayId], references: [id], onDelete: SetNull)
+
+  // Connection endpoints
+  fromCentralRackId  String?
+  fromCentralRack    CentralRack? @relation("CableFromCentral", fields: [fromCentralRackId], references: [id], onDelete: SetNull)
+  toCentralRackId    String?
+  toCentralRack      CentralRack? @relation("CableToCentral", fields: [toCentralRackId], references: [id], onDelete: SetNull)
+  
+  fromFloorRackId    String?
+  fromFloorRack      FloorRack?   @relation("CableFromFloor", fields: [fromFloorRackId], references: [id], onDelete: SetNull)
+  toFloorRackId      String?
+  toFloorRack        FloorRack?   @relation("CableToFloor", fields: [toFloorRackId], references: [id], onDelete: SetNull)
+  
+  fromRoomId         String?
+  fromRoom           Room?        @relation("CableFromRoom", fields: [fromRoomId], references: [id], onDelete: SetNull)
+  toRoomId           String?
+  toRoom             Room?        @relation("CableToRoom", fields: [toRoomId], references: [id], onDelete: SetNull)
+
+  purpose       String?     @db.Text
+  notes         String?     @db.Text
+
+  terminations  CableTermination[]
+  tests         TestRecord[]
+  images        ImageAsset[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([siteSurveyId])
+  @@index([pathwayId])
+  @@index([fromCentralRackId])
+  @@index([toCentralRackId])
+  @@index([fromFloorRackId])
+  @@index([toFloorRackId])
+  @@index([fromRoomId])
+  @@index([toRoomId])
+  @@unique([siteSurveyId, code])
+}
+
+model CableTermination {
+  id            String      @id @default(cuid())
+  cableRunId    String
+  cableRun      CableRun    @relation(fields: [cableRunId], references: [id], onDelete: Cascade)
+
+  side          EndpointSide
+  portId        String
+  port          Port        @relation(fields: [portId], references: [id], onDelete: Restrict)
+  label         String?
+  notes         String?     @db.Text
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([cableRunId, side])
+  @@index([portId])
+}
+
+model TestRecord {
+  id            String           @id @default(cuid())
+  cableRunId    String
+  cableRun      CableRun         @relation(fields: [cableRunId], references: [id], onDelete: Cascade)
+  standard      TestStandard
+  result        TestResultStatus
+  measuredAt    DateTime         @default(now())
+  details       Json?
+  attachmentUrl String?
+  notes         String?          @db.Text
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([cableRunId, result])
+}
+
+model ImageAsset {
+  id              String        @id @default(cuid())
+  kind            ImageKind
+  url             String
+  title           String?
+  description     String?       @db.Text
+  takenAt         DateTime?
+  siteSurveyId    String?
+  siteSurvey      SiteSurvey?   @relation(fields: [siteSurveyId], references: [id], onDelete: SetNull)
+  buildingId      String?
+  building        Building?     @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  centralRackId   String?
+  centralRack     CentralRack?  @relation(fields: [centralRackId], references: [id], onDelete: SetNull)
+  floorId         String?
+  floor           Floor?        @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  floorRackId     String?
+  floorRack       FloorRack?    @relation(fields: [floorRackId], references: [id], onDelete: SetNull)
+  roomId          String?
+  room            Room?         @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  deviceId        String?
+  device          Device?       @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  cableRunId      String?
+  cableRun        CableRun?     @relation(fields: [cableRunId], references: [id], onDelete: SetNull)
+
+  meta            Json?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([siteSurveyId])
+  @@index([buildingId])
+  @@index([centralRackId])
+  @@index([floorId])
+  @@index([floorRackId])
+  @@index([roomId])
+  @@index([deviceId])
+  @@index([cableRunId])
+}
+
+model WorkRequest {
+  id            String      @id @default(cuid())
+  siteSurveyId  String
+  siteSurvey    SiteSurvey  @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  workType      WorkType
+  status        WorkStatus  @default(DRAFT)
+  priority      Int?
+  requestedBy   String?
+  dueDate       DateTime?
+  buildingId    String?
+  floorId       String?
+  spaceId       String?
+  notes         String?     @db.Text
+  estimate      Json?
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([siteSurveyId, status])
 }
 
 /*** Calls, Files, Config ***/
@@ -1010,8 +1679,6 @@ model FileRef {
 
   company    Company? @relation(fields: [companyId], references: [id])
   project    Project? @relation(fields: [projectId], references: [id])
-  siteSurvey SiteSurvey? @relation(fields: [surveyId], references: [id])
-  siteSurveyImages SiteSurveyImage[]
   product    Product? @relation("ProductMedia", fields: [productId], references: [id])
   brandLogos Brand[]
   brandImages Brand[] @relation("BrandImages")
@@ -1084,12 +1751,15 @@ model SupportedLanguage {
   batchSourceLangs TranslationBatch[] @relation("BatchSourceLang")
   batchTargetLangs TranslationBatch[] @relation("BatchTargetLang")
   brandTranslations BrandTranslation[]
+  productSpecTranslations ProductSpecTranslation[]
   categoryTranslations CategoryTranslation[]
   countryTranslations CountryTranslation[]
   districtTranslations DistrictTranslation[]
   unitTranslations UnitTranslation[]
   isoCertTranslations ISOCertTranslation[]
   companyTranslations DefaultCompanyDataTranslation[]
+  productTranslations ProductTranslation[]
+  serviceTranslations ServiceTranslation[]
 }
 
 model DefaultCompanyDataTranslation {
@@ -1188,8 +1858,8 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  group       MenuGroup @relation(fields: [groupId], references: [id])
-  parent      MenuItem? @relation("MenuItemHierarchy", fields: [parentId], references: [id])
+  group       MenuGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  parent      MenuItem? @relation("MenuItemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children    MenuItem[] @relation("MenuItemHierarchy")
   permissions MenuPermission[]
 }
@@ -1203,7 +1873,7 @@ model MenuPermission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  menuItem  MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem  MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@unique([menuItemId, role])
 }
@@ -1417,9 +2087,108 @@ model Customer {
   createdAt   DateTime @default(now())
 
   countryRel  Country? @relation(fields: [country], references: [softoneCode])
+  contacts    ContactCustomer[]
+  siteSurveys SiteSurvey[]
 
   @@index([country])
   @@index([afm])
   @@index([trdr])
   @@index([update])
+}
+
+/*** Suppliers (SoftOne Integration) ***/
+enum SupplierActiveStatus {
+  ACTIVE @map("1")
+  INACTIVE @map("0")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  trdr        Int?     // SoftOne TRDR number
+  code        String?  @unique
+  afm         String?  @unique
+  name        String
+  sotitle     String?
+  jobtypetrd  String?
+  address     String?
+  city        String?
+  zip         String?
+  district    String?
+  country     String?  // References Country.softoneCode
+  isactive    SupplierActiveStatus @default(ACTIVE)
+  erp         Boolean  @default(false) // Synced to SoftOne ERP
+  phone01     String?
+  phone02     String?
+  email       String?
+  emailacc    String?
+  irsdata     String?
+  socurrency  Int?
+  update      DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+
+  countryRel  Country? @relation("SupplierCountry", fields: [country], references: [softoneCode])
+  contacts    ContactSupplier[]
+
+  @@index([country])
+  @@index([afm])
+  @@index([trdr])
+  @@index([update])
+}
+
+/*** Services (SoftOne Integration) ***/
+model Service {
+  id           String   @id @default(cuid())
+  mtrl         String?  @unique  // SoftOne MTRL (service ID)
+  code         String?  @unique  // SoftOne CODE
+  mtrcategory  String?  // SoftOne MTRCATEGORY
+  name         String   // Service name
+  brandId      String?  // Related brand
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brand        Brand?   @relation("ServiceBrand", fields: [brandId], references: [id])
+  translations ServiceTranslation[]
+}
+
+model ServiceTranslation {
+  id           String   @id @default(cuid())
+  serviceId    String
+  languageCode String  // "el", "en", etc.
+  name         String?  // Translated service name
+  description  String?  @db.LongText // Translated description
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  service      Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  language     SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([serviceId, languageCode])
+}
+
+/*** File Management System ***/
+enum FileEntityType {
+  CUSTOMER
+  SUPPLIER
+  PROJECT
+  TASK
+  USER
+  SITESURVEY
+}
+
+model File {
+  id          String         @id @default(cuid())
+  entityId    String         // ID of the related entity
+  type        FileEntityType // Type of entity this file belongs to
+  name        String         // Original filename
+  title       String?        // User-provided title/label for the file
+  filetype    String         // MIME type or extension
+  url         String         // BunnyCDN URL
+  description String?        @db.Text
+  size        Int?           // File size in bytes
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([entityId, type])
+  @@index([type])
 }
