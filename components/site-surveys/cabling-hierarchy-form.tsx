@@ -39,6 +39,7 @@ import {
   Package,
   Hash,
   Euro,
+  CheckCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -213,6 +214,7 @@ export function CablingHierarchyForm({
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment' | 'bom'>('infrastructure');
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [connectionForm, setConnectionForm] = useState({
     toBuilding: "",
     connectionType: "WIRELESS",
@@ -905,7 +907,9 @@ export function CablingHierarchyForm({
       const result = await response.json();
       console.log("Save result:", result);
       
-      toast.success("Cabling survey saved successfully!");
+      toast.success("Infrastructure saved successfully! Now add equipment and services.");
+      setShowSaveSuccess(true);
+      setActiveTab('equipment'); // Switch to equipment tab
       onSuccess?.();
     } catch (error: any) {
       console.error("Error saving cabling survey:", error);
@@ -1837,6 +1841,14 @@ export function CablingHierarchyForm({
           <Button variant="outline" onClick={() => router.back()}>
             CANCEL
           </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setActiveTab('equipment')}
+            className="flex items-center gap-2"
+          >
+            <Server className="h-4 w-4" />
+            ADD EQUIPMENT
+          </Button>
           <Button onClick={handleSave} disabled={loading || buildings.length === 0}>
             <Save className="h-4 w-4 mr-2" />
             {loading ? "SAVING..." : "SAVE STRUCTURE"}
@@ -2714,6 +2726,33 @@ export function CablingHierarchyForm({
         </TabsContent>
 
         <TabsContent value="equipment" className="space-y-6">
+          {showSaveSuccess && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-green-800">Infrastructure Saved!</h3>
+                    <p className="text-sm text-green-700">
+                      Now add equipment and services to complete your survey. 
+                      Use the "ADD EQUIPMENT" button below to select products and services.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSaveSuccess(false)}
+                    className="ml-auto"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

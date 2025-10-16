@@ -278,6 +278,10 @@ export async function saveCablingData(siteSurveyId: string, buildings: any[], bu
   }
 
   // Save buildings and building connections to cabling survey
+  console.log("Saving buildings to generalNotes:", buildings);
+  console.log("Number of buildings to save:", buildings.length);
+  console.log("Building connections to save:", buildingConnections);
+  
   await prisma.cablingSurvey.update({
     where: { siteSurveyId },
     data: {
@@ -285,5 +289,7 @@ export async function saveCablingData(siteSurveyId: string, buildings: any[], bu
       buildingConnections: buildingConnections.length > 0 ? JSON.stringify(buildingConnections) : null,
     },
   });
+  
+  console.log("Buildings saved successfully to generalNotes");
 }
 

@@ -193,9 +193,13 @@ export async function GET(
     if (cablingSurvey.generalNotes) {
       try {
         buildings = JSON.parse(cablingSurvey.generalNotes);
+        console.log("Parsed buildings from generalNotes:", buildings);
+        console.log("Number of buildings:", buildings.length);
       } catch (e) {
         console.error("Error parsing cabling survey generalNotes:", e);
       }
+    } else {
+      console.log("No generalNotes found in cabling survey");
     }
 
     // Parse building connections

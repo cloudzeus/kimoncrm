@@ -111,6 +111,33 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
 };
 
 // Custom Node Components
+const SiteSurveyNode = ({ data }: any) => (
+  <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-4 border-indigo-800 rounded-xl p-6 shadow-2xl w-[250px]">
+    <div className="flex items-center gap-3 mb-3">
+      <NetworkIcon className="h-8 w-8" />
+      <div className="font-bold text-lg">{data.label}</div>
+    </div>
+    <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="bg-white/20 rounded px-2 py-1">
+        <div className="font-semibold">{data.buildings}</div>
+        <div>Buildings</div>
+      </div>
+      <div className="bg-white/20 rounded px-2 py-1">
+        <div className="font-semibold">{data.floors}</div>
+        <div>Floors</div>
+      </div>
+      <div className="bg-white/20 rounded px-2 py-1">
+        <div className="font-semibold">{data.rooms}</div>
+        <div>Rooms</div>
+      </div>
+      <div className="bg-white/20 rounded px-2 py-1">
+        <div className="font-semibold">{data.outlets}</div>
+        <div>Outlets</div>
+      </div>
+    </div>
+  </div>
+);
+
 const BuildingNode = ({ data }: any) => (
   <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-4 border-blue-700 rounded-xl p-4 shadow-2xl w-[220px]">
     <div className="flex items-center gap-2 mb-2">
@@ -188,6 +215,7 @@ const DeviceNode = ({ data }: any) => (
 );
 
 const nodeTypes = {
+  siteSurvey: SiteSurveyNode,
   building: BuildingNode,
   centralRack: CentralRackNode,
   floor: FloorNode,
@@ -207,6 +235,17 @@ const getConnectionColor = (type: string) => {
   }
 };
 
+const getConnectionIcon = (type: string) => {
+  switch (type) {
+    case 'FIBER': return '🔗';
+    case 'WIRELESS': return '📡';
+    case 'COAXIAL': return '📺';
+    case 'ETHERNET': return '🔌';
+    case 'POWERLINE': return '⚡';
+    default: return '🔗';
+  }
+};
+
 const getDeviceIcon = (deviceType: string) => {
   const icons: { [key: string]: string } = {
     'ROUTER': '🌐', 'SWITCH': '🔀', 'ACCESS_POINT': '📡',
@@ -222,19 +261,85 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
   // Debug: Log the received data
   console.log("NetworkDiagramModal - Buildings data:", buildings);
   console.log("NetworkDiagramModal - Building connections:", buildingConnections);
+  console.log("Buildings length:", buildings?.length);
+  console.log("Building connections length:", buildingConnections?.length);
   
   // Generate initial nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
+    // Check if we have buildings data
+    if (!buildings || buildings.length === 0) {
+      console.log("No buildings data available - creating test data");
+      // Create test data for debugging
+      const testNodes = [
+        {
+          id: 'test-site',
+          type: 'siteSurvey',
+          position: { x: 0, y: 0 },
+          data: { label: 'SITE SURVEY', buildings: 1, floors: 1, rooms: 1, outlets: 2 },
+          width: 250,
+          height: 140,
+        },
+        {
+          id: 'test-building',
+          type: 'building',
+          position: { x: 0, y: 0 },
+          data: { label: 'Test Building', floors: 1, rooms: 1, outlets: 2 },
+          width: 220,
+          height: 120,
+        }
+      ];
+      
+      const testEdges = [
+        {
+          id: 'test-edge',
+          source: 'test-site',
+          target: 'test-building',
+          type: 'smoothstep',
+          style: { stroke: '#1E40AF', strokeWidth: 4 },
+          label: 'Test Connection',
+          labelStyle: { fill: '#1E40AF', fontWeight: 700, fontSize: 12 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#1E40AF' },
+        }
+      ];
+      
+      return { initialNodes: testNodes, initialEdges: testEdges };
+    }
+
+    // 0. SITE SURVEY ROOT NODE
+    const siteSurveyId = 'site-survey-root';
+    const totalBuildings = buildings.length;
+    const totalFloors = buildings.reduce((a, b) => a + (b.floors?.length || 0), 0);
+    const totalRooms = buildings.reduce((a, b) => 
+      a + (b.floors?.reduce((f, floor) => f + (floor.rooms?.length || 0), 0) || 0), 0);
+    const totalOutlets = buildings.reduce((a, b) => 
+      a + (b.floors?.reduce((f, floor) => 
+        f + (floor.rooms?.reduce((r, room) => r + room.outlets * (room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1), 0) || 0), 0) || 0), 0);
+
+    nodes.push({
+      id: siteSurveyId,
+      type: 'siteSurvey',
+      position: { x: 0, y: 0 },
+      data: { 
+        label: 'SITE SURVEY', 
+        buildings: totalBuildings, 
+        floors: totalFloors, 
+        rooms: totalRooms, 
+        outlets: totalOutlets 
+      },
+      width: 250,
+      height: 140,
+    });
+
     buildings.forEach((building, bIdx) => {
       const buildingId = `b${bIdx}`;
 
-      // Calculate metrics
-      const totalFloors = building.floors?.length || 0;
-      const totalRooms = building.floors?.reduce((a, f) => a + (f.rooms?.length || 0), 0) || 0;
-      const totalOutlets = building.floors?.reduce((a, f) => 
+      // Calculate metrics for this building
+      const buildingFloors = building.floors?.length || 0;
+      const buildingRooms = building.floors?.reduce((a, f) => a + (f.rooms?.length || 0), 0) || 0;
+      const buildingOutlets = building.floors?.reduce((a, f) => 
         a + (f.rooms?.reduce((r, room) => r + room.outlets * (room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1), 0) || 0), 0) || 0;
 
       // 1. BUILDING NODE
@@ -242,9 +347,23 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
         id: buildingId,
         type: 'building',
         position: { x: 0, y: 0 }, // Dagre will calculate position
-        data: { label: building.name, code: building.code, floors: totalFloors, rooms: totalRooms, outlets: totalOutlets },
+        data: { label: building.name, code: building.code, floors: buildingFloors, rooms: buildingRooms, outlets: buildingOutlets },
         width: 220,
         height: 120,
+      });
+
+      // Site Survey → Building
+      edges.push({
+        id: `${siteSurveyId}-${buildingId}-edge`,
+        source: siteSurveyId,
+        target: buildingId,
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#1E40AF', strokeWidth: 4 },
+        label: `Building ${bIdx + 1}`,
+        labelStyle: { fill: '#1E40AF', fontWeight: 700, fontSize: 12 },
+        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#1E40AF' },
       });
 
       // 2. CENTRAL RACK
@@ -464,31 +583,51 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
 
     // 6. BUILDING INTERCONNECTIONS
     buildingConnections.forEach((conn) => {
-      const label = `${conn.connectionType}${conn.distance ? ` - ${conn.distance}m` : ''}${conn.description ? `\n${conn.description}` : ''}`;
+      const connectionIcon = getConnectionIcon(conn.connectionType);
+      const label = `${connectionIcon} ${conn.connectionType}${conn.distance ? ` - ${conn.distance}m` : ''}${conn.description ? `\n${conn.description}` : ''}`;
       
       edges.push({
         id: `conn-${conn.id}`,
         source: `b${conn.fromBuilding}`,
         target: `b${conn.toBuilding}`,
-        type: 'default',
+        type: 'smoothstep',
         animated: conn.connectionType === 'WIRELESS',
         style: {
           stroke: getConnectionColor(conn.connectionType),
-          strokeWidth: 5,
-          strokeDasharray: conn.connectionType === 'WIRELESS' ? '10,5' : undefined,
+          strokeWidth: 6,
+          strokeDasharray: '15,8', // Always dashed for building connections
         },
         label,
         labelStyle: { 
           fill: getConnectionColor(conn.connectionType), 
-          fontWeight: 700,
-          fontSize: 13,
+          fontWeight: 800,
+          fontSize: 12,
         },
-        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: getConnectionColor(conn.connectionType), width: 30, height: 30 },
-        markerStart: { type: MarkerType.ArrowClosed, color: getConnectionColor(conn.connectionType), width: 30, height: 30 },
+        labelBgStyle: { 
+          fill: '#ffffff', 
+          fillOpacity: 0.98,
+          stroke: getConnectionColor(conn.connectionType),
+          strokeWidth: 1,
+        },
+        markerEnd: { 
+          type: MarkerType.ArrowClosed, 
+          color: getConnectionColor(conn.connectionType), 
+          width: 25, 
+          height: 25 
+        },
+        markerStart: { 
+          type: MarkerType.ArrowClosed, 
+          color: getConnectionColor(conn.connectionType), 
+          width: 25, 
+          height: 25 
+        },
       });
     });
 
+    console.log("Generated nodes:", nodes.length);
+    console.log("Generated edges:", edges.length);
+    console.log("Edge details:", edges.map(e => ({ id: e.id, source: e.source, target: e.target, style: e.style })));
+    
     return { initialNodes: nodes, initialEdges: edges };
   }, [buildings, buildingConnections]);
 
@@ -514,7 +653,7 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[80vw] max-h-[80vh] h-[80vh] p-0">
+      <DialogContent className="max-w-[80vw] max-h-[80vh] h-[80vh] p-0 z-[9999]">
         <DialogHeader className="p-6 pb-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2 text-xl">
@@ -542,6 +681,10 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
             nodesConnectable={false}
             elementsSelectable={true}
             proOptions={{ hideAttribution: true }}
+            defaultEdgeOptions={{
+              style: { strokeWidth: 2 },
+              type: 'smoothstep',
+            }}
           >
             <Background 
               variant={BackgroundVariant.Dots}
@@ -572,8 +715,12 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
                 <h3 className="font-bold text-xs mb-2 text-gray-800">HIERARCHY</h3>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded border-2 border-blue-700"></div>
-                    <span className="font-semibold">Buildings</span>
+                    <div className="w-4 h-4 bg-gradient-to-br from-indigo-600 to-purple-700 rounded border-2 border-indigo-800"></div>
+                    <span className="font-semibold">Site Survey</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <div className="w-3.5 h-3.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded border-2 border-blue-700"></div>
+                    <span>Buildings</span>
                   </div>
                   <div className="flex items-center gap-2 ml-2">
                     <div className="w-3 h-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded border-2 border-orange-700"></div>
@@ -628,6 +775,10 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
                 <h3 className="font-bold text-xs text-gray-800">CONNECTION TYPES</h3>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center gap-2">
+                    <div className="w-10 h-1 rounded bg-indigo-600"></div>
+                    <span>Site Survey → Buildings</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <div className="w-10 h-1 rounded bg-orange-500"></div>
                     <span>📡 Main Distribution</span>
                   </div>
@@ -650,6 +801,10 @@ export function NetworkDiagramModal({ open, onClose, buildings, buildingConnecti
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-1 rounded bg-cyan-600"></div>
                     <span>Device Links</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-0.5 border-t-2 border-dashed border-green-500"></div>
+                    <span>🔗 Building Connections</span>
                   </div>
                 </div>
                 
