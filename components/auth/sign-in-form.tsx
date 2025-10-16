@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn, getProviders } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,12 +40,8 @@ export function SignInForm() {
     }
   };
 
-  const handleSocialSignIn = async (provider: "c03bef53-43af-4d5e-be22-da859317086c" | "google") => {
-    try {
-      await signIn(provider, { callbackUrl: "/dashboard" });
-    } catch (error) {
-      toast.error(`An error occurred with ${provider} sign in. Please try again.`);
-    }
+  const handleSocialSignIn = async (provider: string) => {
+    await signIn(provider, { callbackUrl: "/dashboard" });
   };
 
   return (
