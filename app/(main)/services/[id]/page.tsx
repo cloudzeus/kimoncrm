@@ -68,9 +68,16 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
     notFound();
   }
 
+  // Serialize dates for client component
+  const serializedService = {
+    ...service,
+    createdAt: service.createdAt.toISOString(),
+    updatedAt: service.updatedAt.toISOString(),
+  };
+
   return (
     <Suspense fallback={<ServiceDetailSkeleton />}>
-      <ServiceDetailClient service={service} />
+      <ServiceDetailClient service={serializedService} />
     </Suspense>
   );
 }
