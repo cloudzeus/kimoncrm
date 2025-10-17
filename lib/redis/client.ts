@@ -3,14 +3,25 @@ import { Queue, Worker, QueueEvents } from 'bullmq';
 import IORedis from 'ioredis';
 
 // Parse Redis URL to extract base connection info
-const redisUrl = process.env.REDIS_URL!;
-const urlParts = new URL(redisUrl);
-const baseUrl = `${urlParts.protocol}//${urlParts.host}`;
-const password = urlParts.password;
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+let baseUrl: string;
+let password: string | undefined;
+
+try {
+  const urlParts = new URL(redisUrl);
+  baseUrl = `${urlParts.protocol}//${urlParts.host}`;
+  password = urlParts.password;
+} catch (error) {
+  // Fallback for build time when REDIS_URL might not be available
+  console.warn('Redis URL parsing failed, using defaults for build time');
+  baseUrl = 'redis://localhost:6379';
+  password = undefined;
+}
 
 // Create base IORedis connection for BullMQ
-const connection = new IORedis(process.env.REDIS_URL!, {
+const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+  lazyConnect: true, // Don't connect at module load time
 });
 
 // Redis clients for different databases
