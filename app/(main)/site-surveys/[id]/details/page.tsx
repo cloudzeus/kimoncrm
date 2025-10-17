@@ -32,7 +32,6 @@ import {
   PhoneCall,
   FileImage,
   ExternalLink,
-  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilesList } from "@/components/files/files-list";

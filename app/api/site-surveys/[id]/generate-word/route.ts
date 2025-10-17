@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/db/prisma';
 import { generateSiteSurveyWordDocument } from '@/lib/word/site-survey-doc';
 
 export const dynamic = 'force-dynamic';

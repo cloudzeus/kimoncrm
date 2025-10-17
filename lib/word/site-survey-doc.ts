@@ -876,6 +876,6 @@ function createAppendices(surveyData: SiteSurveyData) {
         }),
       ],
       spacing: { after: 200 },
-    },
+    }),
   ];
 }
