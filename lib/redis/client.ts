@@ -2,26 +2,28 @@ import { createClient } from 'redis';
 import { Queue, Worker, QueueEvents } from 'bullmq';
 import IORedis from 'ioredis';
 
+// Skip Redis initialization during Next.js build phase
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+
 // Parse Redis URL to extract base connection info
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-let baseUrl: string;
+let baseUrl: string = 'redis://localhost:6379';
 let password: string | undefined;
 
-try {
-  const urlParts = new URL(redisUrl);
-  baseUrl = `${urlParts.protocol}//${urlParts.host}`;
-  password = urlParts.password;
-} catch (error) {
-  // Fallback for build time when REDIS_URL might not be available
-  console.warn('Redis URL parsing failed, using defaults for build time');
-  baseUrl = 'redis://localhost:6379';
-  password = undefined;
+if (!isBuildTime) {
+  try {
+    const urlParts = new URL(redisUrl);
+    baseUrl = `${urlParts.protocol}//${urlParts.host}`;
+    password = urlParts.password;
+  } catch (error) {
+    console.warn('Redis URL parsing failed, using defaults');
+  }
 }
 
-// Create base IORedis connection for BullMQ
+// Create base IORedis connection for BullMQ (lazy connect during build)
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
-  lazyConnect: true, // Don't connect at module load time
+  lazyConnect: isBuildTime, // Don't connect during build
 });
 
 // Redis clients for different databases
@@ -55,15 +57,17 @@ export const redis = redisCache;
   });
 });
 
-// Connect all clients
-Promise.all([
-  redisSessions.connect(),
-  redisCache.connect(),
-  redisRateLimit.connect(),
-  redisEmailCache.connect(),
-]).catch(err => {
-  console.error('Failed to connect to Redis:', err);
-});
+// Connect all clients (skip during build time)
+if (!isBuildTime) {
+  Promise.all([
+    redisSessions.connect(),
+    redisCache.connect(),
+    redisRateLimit.connect(),
+    redisEmailCache.connect(),
+  ]).catch(err => {
+    console.error('Failed to connect to Redis:', err);
+  });
+}
 
 // Queue instances
 export const softoneFullQueue = new Queue('softone-full', { connection });
