@@ -57,6 +57,8 @@ interface BOMManagerProps {
   equipment: EquipmentItem[];
   onUpdateEquipment: (equipment: EquipmentItem[]) => void;
   siteSurveyData?: any;
+  buildings?: any[];
+  files?: any[];
   onGenerateBOM?: () => void;
 }
 
@@ -64,6 +66,8 @@ export function BOMManager({
   equipment,
   onUpdateEquipment,
   siteSurveyData,
+  buildings,
+  files,
   onGenerateBOM
 }: BOMManagerProps) {
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
@@ -157,7 +161,11 @@ export function BOMManager({
         },
         body: JSON.stringify({
           equipment,
-          siteSurveyData,
+          siteSurveyData: {
+            ...siteSurveyData,
+            files: files || []
+          },
+          buildings,
         }),
       });
 

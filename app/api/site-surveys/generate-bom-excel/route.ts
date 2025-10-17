@@ -43,6 +43,82 @@ interface SiteSurveyData {
   };
   createdAt: string;
   updatedAt: string;
+  description?: string;
+  files?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    filetype: string;
+    description?: string;
+  }>;
+}
+
+interface Building {
+  id?: string;
+  name: string;
+  code?: string;
+  address?: string;
+  notes?: string;
+  centralRack?: CentralRack;
+  floors: Floor[];
+  images?: string[];
+}
+
+interface CentralRack {
+  id?: string;
+  name: string;
+  code?: string;
+  units?: number;
+  location?: string;
+  notes?: string;
+  images?: string[];
+  devices?: DeviceWithEquipment[];
+}
+
+interface Floor {
+  id?: string;
+  name: string;
+  level?: number;
+  floorRacks?: FloorRack[];
+  rooms?: Room[];
+  expanded?: boolean;
+}
+
+interface FloorRack {
+  id?: string;
+  name: string;
+  code?: string;
+  units?: number;
+  location?: string;
+  notes?: string;
+  images?: string[];
+  devices?: DeviceWithEquipment[];
+}
+
+interface Room {
+  id?: string;
+  name: string;
+  type: string;
+  outlets: number;
+  connectionType: string;
+  isTypicalRoom?: boolean;
+  notes?: string;
+  devices?: DeviceWithEquipment[];
+  identicalRoomsCount?: number;
+}
+
+interface DeviceWithEquipment {
+  id?: string;
+  type: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  quantity?: number;
+  notes?: string;
+  itemType?: 'product' | 'service';
+  equipmentId?: string;
+  ipAddress?: string;
+  phoneNumber?: string;
 }
 
 // Helper function to format placement information
@@ -129,9 +205,10 @@ function consolidateEquipment(equipment: EquipmentItem[]): ConsolidatedItem[] {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { equipment, siteSurveyData }: { 
+    const { equipment, siteSurveyData, buildings }: { 
       equipment: EquipmentItem[], 
-      siteSurveyData?: SiteSurveyData 
+      siteSurveyData?: SiteSurveyData,
+      buildings?: Building[]
     } = body;
 
     if (!equipment || equipment.length === 0) {
@@ -149,6 +226,17 @@ export async function POST(request: NextRequest) {
     workbook.created = new Date();
     workbook.modified = new Date();
 
+    // Create Project Information Sheet (first)
+    await createProjectInfoSheet(workbook, siteSurveyData);
+    
+    // Create Site Structure Sheet (second)
+    if (buildings && buildings.length > 0) {
+      await createSiteStructureSheet(workbook, buildings, siteSurveyData);
+    }
+    
+    // Create File Links Sheet (third)
+    await createFileLinksSheet(workbook, siteSurveyData);
+    
     // Create BOM Summary Sheet
     await createBOMSummarySheet(workbook, equipment, siteSurveyData);
     
@@ -163,9 +251,6 @@ export async function POST(request: NextRequest) {
     
     // Create Cost Analysis Sheet
     await createCostAnalysisSheet(workbook, equipment);
-    
-    // Create Project Information Sheet
-    await createProjectInfoSheet(workbook, siteSurveyData);
 
     const buffer = await workbook.xlsx.writeBuffer();
     
@@ -571,5 +656,308 @@ async function createProjectInfoSheet(workbook: ExcelJS.Workbook, siteSurveyData
   worksheet.columns = [
     { width: 20 },
     { width: 30 },
+  ];
+}
+
+async function createSiteStructureSheet(
+  workbook: ExcelJS.Workbook, 
+  buildings: Building[], 
+  siteSurveyData?: SiteSurveyData
+) {
+  const worksheet = workbook.addWorksheet('Site Structure', {
+    pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
+  });
+
+  // Header
+  worksheet.mergeCells('A1:H1');
+  worksheet.getCell('A1').value = 'SITE STRUCTURE HIERARCHY';
+  worksheet.getCell('A1').font = { size: 18, bold: true };
+  worksheet.getCell('A1').alignment = { horizontal: 'center' };
+  worksheet.getCell('A1').fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4472C4' }
+  };
+  worksheet.getCell('A1').font = { color: { argb: 'FFFFFFFF' } };
+
+  // Project info
+  if (siteSurveyData) {
+    worksheet.getCell('A3').value = 'Project:';
+    worksheet.getCell('B3').value = siteSurveyData.title;
+    worksheet.getCell('A3').font = { bold: true };
+
+    if (siteSurveyData.description) {
+      worksheet.getCell('A4').value = 'Description:';
+      worksheet.getCell('B4').value = siteSurveyData.description;
+      worksheet.getCell('A4').font = { bold: true };
+      worksheet.getCell('B4').alignment = { wrapText: true };
+    }
+
+    worksheet.getCell('A5').value = 'Generated:';
+    worksheet.getCell('B5').value = new Date().toLocaleDateString();
+    worksheet.getCell('A5').font = { bold: true };
+  }
+
+  // Headers for structure table
+  const headers = ['Level', 'Type', 'Name', 'Code', 'Location/Details', 'Devices', 'Notes'];
+  headers.forEach((header, index) => {
+    const cell = worksheet.getCell(7, index + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF70AD47' }
+    };
+    cell.alignment = { horizontal: 'center' };
+  });
+
+  let row = 8;
+
+  // Process each building
+  buildings.forEach((building, buildingIndex) => {
+    // Building row
+    worksheet.getCell(row, 1).value = '1';
+    worksheet.getCell(row, 2).value = 'Building';
+    worksheet.getCell(row, 3).value = building.name;
+    worksheet.getCell(row, 4).value = building.code || '';
+    worksheet.getCell(row, 5).value = building.address || '';
+    worksheet.getCell(row, 6).value = '';
+    worksheet.getCell(row, 7).value = building.notes || '';
+    
+    // Style building row
+    for (let col = 1; col <= 7; col++) {
+      const cell = worksheet.getCell(row, col);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF2F2F2' }
+      };
+      cell.font = { bold: true };
+    }
+    row++;
+
+    // Central Rack
+    if (building.centralRack) {
+      worksheet.getCell(row, 1).value = '2';
+      worksheet.getCell(row, 2).value = 'Central Rack';
+      worksheet.getCell(row, 3).value = building.centralRack.name;
+      worksheet.getCell(row, 4).value = building.centralRack.code || '';
+      worksheet.getCell(row, 5).value = building.centralRack.location || '';
+      worksheet.getCell(row, 6).value = building.centralRack.devices?.length || 0;
+      worksheet.getCell(row, 7).value = building.centralRack.notes || '';
+      
+      // Style central rack row
+      for (let col = 1; col <= 7; col++) {
+        const cell = worksheet.getCell(row, col);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE7F3FF' }
+        };
+      }
+      row++;
+
+      // Central Rack Devices
+      if (building.centralRack.devices && building.centralRack.devices.length > 0) {
+        building.centralRack.devices.forEach((device) => {
+          worksheet.getCell(row, 1).value = '3';
+          worksheet.getCell(row, 2).value = 'Device';
+          worksheet.getCell(row, 3).value = device.name;
+          worksheet.getCell(row, 4).value = device.model || '';
+          worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
+          worksheet.getCell(row, 6).value = device.quantity || 1;
+          worksheet.getCell(row, 7).value = device.notes || '';
+          row++;
+        });
+      }
+    }
+
+    // Process floors
+    building.floors.forEach((floor, floorIndex) => {
+      worksheet.getCell(row, 1).value = '2';
+      worksheet.getCell(row, 2).value = 'Floor';
+      worksheet.getCell(row, 3).value = floor.name;
+      worksheet.getCell(row, 4).value = floor.level?.toString() || '';
+      worksheet.getCell(row, 5).value = `Level ${floor.level || floorIndex + 1}`;
+      worksheet.getCell(row, 6).value = '';
+      worksheet.getCell(row, 7).value = '';
+      
+      // Style floor row
+      for (let col = 1; col <= 7; col++) {
+        const cell = worksheet.getCell(row, col);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE7F3FF' }
+        };
+      }
+      row++;
+
+      // Floor Racks
+      if (floor.floorRacks) {
+        floor.floorRacks.forEach((rack, rackIndex) => {
+          worksheet.getCell(row, 1).value = '3';
+          worksheet.getCell(row, 2).value = 'Floor Rack';
+          worksheet.getCell(row, 3).value = rack.name;
+          worksheet.getCell(row, 4).value = rack.code || '';
+          worksheet.getCell(row, 5).value = rack.location || '';
+          worksheet.getCell(row, 6).value = rack.devices?.length || 0;
+          worksheet.getCell(row, 7).value = rack.notes || '';
+          row++;
+
+          // Floor Rack Devices
+          if (rack.devices && rack.devices.length > 0) {
+            rack.devices.forEach((device) => {
+              worksheet.getCell(row, 1).value = '4';
+              worksheet.getCell(row, 2).value = 'Device';
+              worksheet.getCell(row, 3).value = device.name;
+              worksheet.getCell(row, 4).value = device.model || '';
+              worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
+              worksheet.getCell(row, 6).value = device.quantity || 1;
+              worksheet.getCell(row, 7).value = device.notes || '';
+              row++;
+            });
+          }
+        });
+      }
+
+      // Rooms
+      if (floor.rooms) {
+        floor.rooms.forEach((room, roomIndex) => {
+          worksheet.getCell(row, 1).value = '3';
+          worksheet.getCell(row, 2).value = 'Room';
+          worksheet.getCell(row, 3).value = room.name;
+          worksheet.getCell(row, 4).value = room.type;
+          worksheet.getCell(row, 5).value = `${room.outlets} outlets, ${room.connectionType}${room.identicalRoomsCount ? ` (×${room.identicalRoomsCount})` : ''}`;
+          worksheet.getCell(row, 6).value = room.devices?.length || 0;
+          worksheet.getCell(row, 7).value = room.notes || '';
+          row++;
+
+          // Room Devices
+          if (room.devices && room.devices.length > 0) {
+            room.devices.forEach((device) => {
+              worksheet.getCell(row, 1).value = '4';
+              worksheet.getCell(row, 2).value = 'Device';
+              worksheet.getCell(row, 3).value = device.name;
+              worksheet.getCell(row, 4).value = device.model || '';
+              worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
+              worksheet.getCell(row, 6).value = device.quantity || 1;
+              worksheet.getCell(row, 7).value = device.notes || '';
+              row++;
+            });
+          }
+        });
+      }
+    });
+
+    // Add spacing between buildings
+    row++;
+  });
+
+  // Add borders to all cells
+  for (let r = 7; r < row; r++) {
+    for (let c = 1; c <= 7; c++) {
+      const cell = worksheet.getCell(r, c);
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    }
+  }
+
+  // Set column widths
+  worksheet.columns = [
+    { width: 8 },   // Level
+    { width: 15 },  // Type
+    { width: 25 },  // Name
+    { width: 15 },  // Code
+    { width: 30 },  // Location/Details
+    { width: 10 },  // Devices
+    { width: 25 },  // Notes
+  ];
+}
+
+async function createFileLinksSheet(
+  workbook: ExcelJS.Workbook, 
+  siteSurveyData?: SiteSurveyData
+) {
+  if (!siteSurveyData?.files || siteSurveyData.files.length === 0) {
+    return;
+  }
+
+  const worksheet = workbook.addWorksheet('File Links', {
+    pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
+  });
+
+  // Header
+  worksheet.mergeCells('A1:D1');
+  worksheet.getCell('A1').value = 'ATTACHED FILES & BLUEPRINTS';
+  worksheet.getCell('A1').font = { size: 18, bold: true };
+  worksheet.getCell('A1').alignment = { horizontal: 'center' };
+  worksheet.getCell('A1').fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4472C4' }
+  };
+  worksheet.getCell('A1').font = { color: { argb: 'FFFFFFFF' } };
+
+  // Project info
+  worksheet.getCell('A3').value = 'Project:';
+  worksheet.getCell('B3').value = siteSurveyData.title;
+  worksheet.getCell('A3').font = { bold: true };
+
+  worksheet.getCell('A4').value = 'Generated:';
+  worksheet.getCell('B4').value = new Date().toLocaleDateString();
+  worksheet.getCell('A4').font = { bold: true };
+
+  // Headers for file table
+  const headers = ['File Name', 'Type', 'Description', 'Download Link'];
+  headers.forEach((header, index) => {
+    const cell = worksheet.getCell(6, index + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF70AD47' }
+    };
+    cell.alignment = { horizontal: 'center' };
+  });
+
+  // File data rows
+  siteSurveyData.files.forEach((file, index) => {
+    const row = index + 7;
+    worksheet.getCell(row, 1).value = file.name;
+    worksheet.getCell(row, 2).value = file.filetype.toUpperCase();
+    worksheet.getCell(row, 3).value = file.description || '';
+    worksheet.getCell(row, 4).value = file.url;
+    
+    // Make the URL clickable
+    worksheet.getCell(row, 4).font = { 
+      color: { argb: 'FF0000FF' },
+      underline: true 
+    };
+    
+    // Add borders
+    for (let col = 1; col <= 4; col++) {
+      const cell = worksheet.getCell(row, col);
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    }
+  });
+
+  // Set column widths
+  worksheet.columns = [
+    { width: 30 },  // File Name
+    { width: 15 },  // Type
+    { width: 40 },  // Description
+    { width: 50 },  // Download Link
   ];
 }

@@ -38,6 +38,7 @@ import {
   Mail,
   Phone,
   Network,
+  Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -472,6 +473,10 @@ export default function SiteSurveysPage() {
                         <DropdownMenuItem onClick={() => handleNotifyPeople(survey)}>
                           <Mail className="h-4 w-4 mr-2" />
                           NOTIFY PEOPLE
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/site-surveys/${survey.id}/details`)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          VIEW DETAILS
                         </DropdownMenuItem>
                         {survey.type === "VOIP" && (
                           <>

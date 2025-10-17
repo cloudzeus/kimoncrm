@@ -3102,6 +3102,8 @@ export function CablingHierarchyForm({
           <BOMManager
             equipment={equipment}
             onUpdateEquipment={setEquipment}
+            buildings={buildings}
+            files={[]} // TODO: Get files from site survey data
             siteSurveyData={{
               title: `Site Survey ${siteSurveyId}`,
               customer: { name: 'Customer Name' }, // This would come from site survey data
