@@ -377,7 +377,7 @@ export async function insertProductToERP(
     
     return {
       success: result.success,
-      message: result.success ? 'Product inserted to ERP successfully' : result.error,
+      message: result.success ? 'Product inserted to ERP successfully' : (result.error || 'Failed to insert product to ERP'),
       mtrl: result.mtrl,
     };
   } catch (error) {
