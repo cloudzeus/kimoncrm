@@ -177,7 +177,7 @@ export function EquipmentSelection({
     }
   };
 
-  const addEquipment = (item: Product | Service, type: 'product' | 'service') => {
+  const addEquipment = (item: Product | Service, type: 'product' | 'service', qty: number = 1) => {
     const equipmentItem: EquipmentItem = {
       id: `${type}-${item.id}-${Date.now()}`,
       type,
@@ -186,13 +186,13 @@ export function EquipmentSelection({
       brand: 'brand' in item ? item.brand?.name : undefined,
       category: item.category?.name || 'Uncategorized',
       unit: item.unit?.name || 'Each',
-      quantity: 1,
+      quantity: qty,
       price: item.price || 0,
-      totalPrice: item.price || 0,
+      totalPrice: (item.price || 0) * qty,
     };
 
     setEquipment([...equipment, equipmentItem]);
-    toast.success(`${type === 'product' ? 'Product' : 'Service'} added to equipment list`);
+    toast.success(`${type === 'product' ? 'Product' : 'Service'} added to BOM`);
   };
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -273,259 +273,279 @@ export function EquipmentSelection({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
-          {/* Left Panel - Search & Selection */}
-          <div className="w-2/3 border-r flex flex-col">
-            {/* Search and Filters */}
-            <div className="p-4 border-b space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search products and services..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedBrands([]);
-                    setSelectedCategories([]);
-                  }}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Clear
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-[250px]">
-                  <MultiSelect
-                    options={availableBrands}
-                    selected={selectedBrands}
-                    onChange={setSelectedBrands}
-                    placeholder="Filter by brands..."
-                  />
-                </div>
-                <div className="w-[250px]">
-                  <MultiSelect
-                    options={availableCategories}
-                    selected={selectedCategories}
-                    onChange={setSelectedCategories}
-                    placeholder="Filter by categories..."
-                  />
-                </div>
-              </div>
+        {/* Search and Filters */}
+        <div className="p-4 border-b space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products and services..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
             </div>
-
-            {/* Products and Services Tabs */}
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'products' | 'services')} className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
-                <TabsTrigger value="products" className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  PRODUCTS ({products.length})
-                </TabsTrigger>
-                <TabsTrigger value="services" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  SERVICES ({services.length})
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="products" className="flex-1 overflow-auto p-4">
-                <div className="space-y-2">
-                  {products.map((product) => (
-                    <Card key={product.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold">{product.name}</h4>
-                              {product.brand && (
-                                <Badge variant="secondary">{product.brand.name}</Badge>
-                              )}
-                              {product.category && (
-                                <Badge variant="outline">{product.category.name}</Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              {product.code && <div>Code: {product.code}</div>}
-                              {product.manufacturer && <div>Manufacturer: {product.manufacturer.name}</div>}
-                              {product.price && <div>Price: €{product.price.toFixed(2)}</div>}
-                              {product.stock !== null && <div>Stock: {product.stock}</div>}
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => addEquipment(product, 'product')}
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {products.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No products found matching your criteria.
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="services" className="flex-1 overflow-auto p-4">
-                <div className="space-y-2">
-                  {services.map((service) => (
-                    <Card key={service.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold">{service.name}</h4>
-                              {service.category && (
-                                <Badge variant="outline">{service.category.name}</Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              {service.description && <div>{service.description}</div>}
-                              {service.price && <div>Price: €{service.price.toFixed(2)}</div>}
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => addEquipment(service, 'service')}
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {services.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No services found matching your criteria.
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedBrands([]);
+                setSelectedCategories([]);
+              }}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
           </div>
 
-          {/* Right Panel - Equipment List */}
-          <div className="w-1/3 flex flex-col">
-            <div className="p-4 border-b">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold">EQUIPMENT LIST</h3>
-                <Badge variant="secondary">{equipment.length} items</Badge>
-              </div>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div>Total Quantity: {getTotalQuantity()}</div>
-                <div className="font-semibold text-foreground">
-                  Total Price: €{getTotalPrice().toFixed(2)}
-                </div>
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="w-[250px]">
+              <MultiSelect
+                options={availableBrands}
+                selected={selectedBrands}
+                onChange={setSelectedBrands}
+                placeholder="Filter by brands..."
+              />
             </div>
+            <div className="w-[250px]">
+              <MultiSelect
+                options={availableCategories}
+                selected={selectedCategories}
+                onChange={setSelectedCategories}
+                placeholder="Filter by categories..."
+              />
+            </div>
+          </div>
+        </div>
 
-            <div className="flex-1 overflow-auto p-4">
-              {equipment.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No equipment selected</p>
-                  <p className="text-xs">Add products and services from the left panel</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {equipment.map((item) => (
-                    <Card key={item.id} className="border-l-4 border-l-blue-500">
-                      <CardContent className="p-3">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-sm">{item.name}</h4>
-                                <Badge variant="outline" className="text-xs">
-                                  {item.type}
-                                </Badge>
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {item.brand && <span>{item.brand} • </span>}
-                                {item.category}
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeEquipment(item.id)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+        {/* Products and Services Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'products' | 'services')} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
+            <TabsTrigger value="products" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              PRODUCTS ({products.length})
+            </TabsTrigger>
+            <TabsTrigger value="services" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              SERVICES ({services.length})
+            </TabsTrigger>
+          </TabsList>
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                              className="h-6 w-12 text-center text-xs"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-xs text-muted-foreground ml-2">
-                              €{item.totalPrice.toFixed(2)}
-                            </span>
-                          </div>
-
+          <TabsContent value="products" className="flex-1 overflow-auto p-4 mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product Name</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-center w-[120px]">Quantity</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => {
+                  const existingItem = equipment.find(eq => eq.itemId === product.id && eq.type === 'product');
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{product.code || '-'}</TableCell>
+                      <TableCell className="text-sm">{product.brand?.name || '-'}</TableCell>
+                      <TableCell className="text-sm">{product.category?.name || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => existingItem && updateQuantity(existingItem.id, existingItem.quantity - 1)}
+                            className="h-7 w-7 p-0"
+                            disabled={!existingItem}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
                           <Input
-                            placeholder="Notes (optional)"
-                            value={item.notes || ''}
-                            onChange={(e) => updateNotes(item.id, e.target.value)}
-                            className="h-6 text-xs"
+                            type="number"
+                            min="0"
+                            value={existingItem?.quantity || 0}
+                            onChange={(e) => {
+                              const qty = parseInt(e.target.value) || 0;
+                              if (qty === 0 && existingItem) {
+                                removeEquipment(existingItem.id);
+                              } else if (qty > 0) {
+                                if (existingItem) {
+                                  updateQuantity(existingItem.id, qty);
+                                } else {
+                                  addEquipment(product, 'product', qty);
+                                }
+                              }
+                            }}
+                            className="h-7 w-14 text-center text-sm"
                           />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (existingItem) {
+                                updateQuantity(existingItem.id, existingItem.quantity + 1);
+                              } else {
+                                addEquipment(product, 'product');
+                              }
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t">
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSave}
-                  className="flex-1"
-                  disabled={equipment.length === 0}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Save Equipment List
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                >
-                  Cancel
-                </Button>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Add notes..."
+                          value={existingItem?.notes || ''}
+                          onChange={(e) => existingItem && updateNotes(existingItem.id, e.target.value)}
+                          disabled={!existingItem}
+                          className="h-7 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {existingItem && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeEquipment(existingItem.id)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {products.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No products found matching your criteria.
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="services" className="flex-1 overflow-auto p-4 mt-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Service Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-center w-[120px]">Quantity</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {services.map((service) => {
+                  const existingItem = equipment.find(eq => eq.itemId === service.id && eq.type === 'service');
+                  return (
+                    <TableRow key={service.id}>
+                      <TableCell className="font-medium">{service.name}</TableCell>
+                      <TableCell className="text-sm">{service.category?.name || '-'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{service.description || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => existingItem && updateQuantity(existingItem.id, existingItem.quantity - 1)}
+                            className="h-7 w-7 p-0"
+                            disabled={!existingItem}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={existingItem?.quantity || 0}
+                            onChange={(e) => {
+                              const qty = parseInt(e.target.value) || 0;
+                              if (qty === 0 && existingItem) {
+                                removeEquipment(existingItem.id);
+                              } else if (qty > 0) {
+                                if (existingItem) {
+                                  updateQuantity(existingItem.id, qty);
+                                } else {
+                                  addEquipment(service, 'service', qty);
+                                }
+                              }
+                            }}
+                            className="h-7 w-14 text-center text-sm"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (existingItem) {
+                                updateQuantity(existingItem.id, existingItem.quantity + 1);
+                              } else {
+                                addEquipment(service, 'service');
+                              }
+                            }}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Add notes..."
+                          value={existingItem?.notes || ''}
+                          onChange={(e) => existingItem && updateNotes(existingItem.id, e.target.value)}
+                          disabled={!existingItem}
+                          className="h-7 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {existingItem && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeEquipment(existingItem.id)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {services.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No services found matching your criteria.
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Footer with summary and actions */}
+        <div className="p-4 border-t">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">{equipment.length} items selected</span>
+              <span className="mx-2">•</span>
+              <span>Total Quantity: {getTotalQuantity()}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={equipment.length === 0}>
+                <FileText className="h-4 w-4 mr-2" />
+                Save BOM ({equipment.length} items)
+              </Button>
             </div>
           </div>
         </div>

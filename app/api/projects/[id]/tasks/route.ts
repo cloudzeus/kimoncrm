@@ -162,7 +162,7 @@ export async function POST(
     });
 
     // Send email notification to assignee if assigned
-    if (task.assigneeId) {
+    if (task.assigneeId && task.assignee) {
       try {
         await sendTaskNotification({
           type: 'task_assigned',
