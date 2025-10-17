@@ -2817,22 +2817,49 @@ export function CablingHierarchyForm({
                           ADD RACK EQUIPMENT
                         </Button>
                       </div>
-                      {/* Show existing devices */}
+                      {/* Show existing devices/equipment */}
                       {building.centralRack.devices && building.centralRack.devices.length > 0 && (
-                        <div className="space-y-1">
+                        <div className="space-y-1 mt-2">
+                          <div className="text-xs font-semibold text-orange-700 mb-1">EQUIPMENT & SERVICES:</div>
                           {building.centralRack.devices.map((device, deviceIndex) => (
-                            <div key={deviceIndex} className="text-sm text-orange-700 bg-orange-100 px-2 py-1 rounded flex items-center justify-between">
-                              <span>{device.name} ({device.type})</span>
+                            <div key={deviceIndex} className="text-sm text-orange-700 bg-orange-100 px-3 py-2 rounded flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium flex items-center gap-2">
+                                  {device.itemType === 'product' ? (
+                                    <Package className="h-3 w-3 text-blue-600" />
+                                  ) : (
+                                    <Settings className="h-3 w-3 text-green-600" />
+                                  )}
+                                  {device.name}
+                                  {device.quantity && device.quantity > 1 && (
+                                    <span className="text-xs bg-orange-200 px-2 py-0.5 rounded-full">Qty: {device.quantity}</span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-orange-600 mt-0.5">
+                                  {device.brand && <span>Brand: {device.brand}</span>}
+                                  {device.brand && device.model && <span> • </span>}
+                                  {device.model && <span>Model: {device.model}</span>}
+                                </div>
+                                {device.notes && (
+                                  <div className="text-xs text-orange-600 mt-1 italic">{device.notes}</div>
+                                )}
+                              </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  // Remove device
+                                  // Remove device and from equipment BOM
                                   const newBuildings = [...buildings];
                                   if (newBuildings[buildingIndex].centralRack?.devices) {
+                                    const removedDevice = newBuildings[buildingIndex].centralRack!.devices![deviceIndex];
                                     newBuildings[buildingIndex].centralRack!.devices = 
                                       newBuildings[buildingIndex].centralRack!.devices!.filter((_, i) => i !== deviceIndex);
                                     setBuildings(newBuildings);
+                                    
+                                    // Also remove from equipment BOM if equipmentId exists
+                                    if (removedDevice.equipmentId) {
+                                      setEquipment(equipment.filter(eq => eq.id !== removedDevice.equipmentId));
+                                    }
                                   }
                                 }}
                               >
@@ -2889,22 +2916,49 @@ export function CablingHierarchyForm({
                               ADD RACK EQUIPMENT
                             </Button>
                           </div>
-                          {/* Show existing devices */}
+                          {/* Show existing devices/equipment */}
                           {rack.devices && rack.devices.length > 0 && (
-                            <div className="space-y-1">
+                            <div className="space-y-1 mt-2">
+                              <div className="text-xs font-semibold text-purple-700 mb-1">EQUIPMENT & SERVICES:</div>
                               {rack.devices.map((device, deviceIndex) => (
-                                <div key={deviceIndex} className="text-sm text-purple-700 bg-purple-100 px-2 py-1 rounded flex items-center justify-between">
-                                  <span>{device.name} ({device.type})</span>
+                                <div key={deviceIndex} className="text-sm text-purple-700 bg-purple-100 px-3 py-2 rounded flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium flex items-center gap-2">
+                                      {device.itemType === 'product' ? (
+                                        <Package className="h-3 w-3 text-blue-600" />
+                                      ) : (
+                                        <Settings className="h-3 w-3 text-green-600" />
+                                      )}
+                                      {device.name}
+                                      {device.quantity && device.quantity > 1 && (
+                                        <span className="text-xs bg-purple-200 px-2 py-0.5 rounded-full">Qty: {device.quantity}</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-purple-600 mt-0.5">
+                                      {device.brand && <span>Brand: {device.brand}</span>}
+                                      {device.brand && device.model && <span> • </span>}
+                                      {device.model && <span>Model: {device.model}</span>}
+                                    </div>
+                                    {device.notes && (
+                                      <div className="text-xs text-purple-600 mt-1 italic">{device.notes}</div>
+                                    )}
+                                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => {
-                                      // Remove device
+                                      // Remove device and from equipment BOM
                                       const newBuildings = [...buildings];
                                       if (newBuildings[buildingIndex].floors[floorIndex].floorRacks?.[rackIndex]?.devices) {
+                                        const removedDevice = newBuildings[buildingIndex].floors[floorIndex].floorRacks![rackIndex].devices![deviceIndex];
                                         newBuildings[buildingIndex].floors[floorIndex].floorRacks![rackIndex].devices = 
                                           newBuildings[buildingIndex].floors[floorIndex].floorRacks![rackIndex].devices!.filter((_, i) => i !== deviceIndex);
                                         setBuildings(newBuildings);
+                                        
+                                        // Also remove from equipment BOM if equipmentId exists
+                                        if (removedDevice.equipmentId) {
+                                          setEquipment(equipment.filter(eq => eq.id !== removedDevice.equipmentId));
+                                        }
                                       }
                                     }}
                                   >
@@ -2939,22 +2993,49 @@ export function CablingHierarchyForm({
                               ADD ROOM EQUIPMENT
                             </Button>
                           </div>
-                          {/* Show existing devices */}
+                          {/* Show existing devices/equipment */}
                           {room.devices && room.devices.length > 0 && (
-                            <div className="space-y-1">
+                            <div className="space-y-1 mt-2">
+                              <div className="text-xs font-semibold text-gray-700 mb-1">EQUIPMENT & SERVICES:</div>
                               {room.devices.map((device, deviceIndex) => (
-                                <div key={deviceIndex} className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded flex items-center justify-between">
-                                  <span>{device.name} ({device.type})</span>
+                                <div key={deviceIndex} className="text-sm text-gray-700 bg-gray-100 px-3 py-2 rounded flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium flex items-center gap-2">
+                                      {device.itemType === 'product' ? (
+                                        <Package className="h-3 w-3 text-blue-600" />
+                                      ) : (
+                                        <Settings className="h-3 w-3 text-green-600" />
+                                      )}
+                                      {device.name}
+                                      {device.quantity && device.quantity > 1 && (
+                                        <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full">Qty: {device.quantity}</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-0.5">
+                                      {device.brand && <span>Brand: {device.brand}</span>}
+                                      {device.brand && device.model && <span> • </span>}
+                                      {device.model && <span>Model: {device.model}</span>}
+                                    </div>
+                                    {device.notes && (
+                                      <div className="text-xs text-gray-600 mt-1 italic">{device.notes}</div>
+                                    )}
+                                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => {
-                                      // Remove device
+                                      // Remove device and from equipment BOM
                                       const newBuildings = [...buildings];
                                       if (newBuildings[buildingIndex].floors[floorIndex].rooms?.[roomIndex]?.devices) {
+                                        const removedDevice = newBuildings[buildingIndex].floors[floorIndex].rooms![roomIndex].devices![deviceIndex];
                                         newBuildings[buildingIndex].floors[floorIndex].rooms![roomIndex].devices = 
                                           newBuildings[buildingIndex].floors[floorIndex].rooms![roomIndex].devices!.filter((_, i) => i !== deviceIndex);
                                         setBuildings(newBuildings);
+                                        
+                                        // Also remove from equipment BOM if equipmentId exists
+                                        if (removedDevice.equipmentId) {
+                                          setEquipment(equipment.filter(eq => eq.id !== removedDevice.equipmentId));
+                                        }
                                       }
                                     }}
                                   >
@@ -3037,22 +3118,33 @@ export function CablingHierarchyForm({
           setSelectedElement(null);
         }}
         onSave={(newEquipment) => {
-          // Add equipment to the selected element
+          // Add equipment to the selected element and BOM
           if (selectedElement) {
             const newBuildings = [...buildings];
             
-            // Add devices to the selected element
+            // Add equipment items to the BOM
+            const updatedEquipment = [...equipment, ...newEquipment];
+            setEquipment(updatedEquipment);
+            
+            // Add devices to the selected element for display in hierarchy
             newEquipment.forEach(item => {
               const device = {
                 name: item.name,
                 type: item.type,
                 brand: item.brand,
                 model: item.model,
+                quantity: item.quantity,
+                notes: item.notes,
+                itemType: item.type, // 'product' or 'service'
+                equipmentId: item.id, // Store reference to equipment item
               };
               
               switch (selectedElement.type) {
                 case 'building':
                   // Add to building level (could be general building equipment)
+                  if (!newBuildings[selectedElement.buildingIndex!].centralRack) {
+                    // If no central rack, we can store it at building level (would need to add equipment array)
+                  }
                   break;
                 case 'centralRack':
                   if (newBuildings[selectedElement.buildingIndex!].centralRack) {
@@ -3090,6 +3182,7 @@ export function CablingHierarchyForm({
           setEquipmentSelectionOpen(false);
           setSelectedElement(null);
           setActiveTab('bom'); // Switch to BOM tab after adding equipment
+          toast.success(`Added ${newEquipment.length} item(s) to BOM`);
         }}
         existingEquipment={equipment}
         selectedElement={selectedElement}

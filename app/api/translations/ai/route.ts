@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create batch if batchName is provided
-    let batch;
+    let batch: any = null;
     if (batchName) {
       batch = await prisma.translationBatch.create({
         data: {
