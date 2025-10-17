@@ -55,8 +55,8 @@ export function EquipmentSelection({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [availableBrands, setAvailableBrands] = useState<{value: string, label: string}[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<{value: string, label: string}[]>([]);
+  const [availableBrands, setAvailableBrands] = useState<{id: string, name: string}[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<{id: string, name: string}[]>([]);
   const [equipment, setEquipment] = useState<EquipmentItem[]>(existingEquipment);
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
 
@@ -155,8 +155,8 @@ export function EquipmentSelection({
       const brandsData = await brandsResponse.json();
       setAvailableBrands(
         brandsData.brands?.map((brand: any) => ({
-          value: brand.id,
-          label: brand.name
+          id: brand.id,
+          name: brand.name
         })) || []
       );
 
@@ -168,8 +168,8 @@ export function EquipmentSelection({
       const categoriesData = await categoriesResponse.json();
       setAvailableCategories(
         categoriesData.categories?.map((category: any) => ({
-          value: category.id,
-          label: category.name
+          id: category.id,
+          name: category.name
         })) || []
       );
     } catch (error) {
@@ -241,8 +241,14 @@ export function EquipmentSelection({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10000]">
+    <>
+      {/* Custom overlay with higher z-index */}
+      {open && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 animate-in fade-in-0" />
+      )}
+      
+      <Dialog open={open} onOpenChange={onClose} modal={false}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10000]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-6 w-6 text-blue-600" />
@@ -525,5 +531,6 @@ export function EquipmentSelection({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
