@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search') || '';
     const isActive = searchParams.get('isActive');
+    const serviceCategoryCode = searchParams.get('serviceCategoryCode');
     
     const skip = (page - 1) * limit;
 
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
     
     if (isActive !== null && isActive !== undefined && isActive !== '') {
       where.isActive = isActive === 'true';
+    }
+
+    if (serviceCategoryCode) {
+      where.serviceCategoryCode = serviceCategoryCode;
     }
 
     // Get total count

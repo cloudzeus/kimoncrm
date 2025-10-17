@@ -57,6 +57,8 @@ export function EquipmentSelection({
   const [services, setServices] = useState<Service[]>([]);
   const [availableBrands, setAvailableBrands] = useState<{id: string, name: string}[]>([]);
   const [availableCategories, setAvailableCategories] = useState<{id: string, name: string}[]>([]);
+  const [availableServiceCategories, setAvailableServiceCategories] = useState<{code: string, name: string}[]>([]);
+  const [selectedServiceCategories, setSelectedServiceCategories] = useState<string[]>([]);
   const [equipment, setEquipment] = useState<EquipmentItem[]>(existingEquipment);
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
 
@@ -69,15 +71,15 @@ export function EquipmentSelection({
 
   // Load products and services only when searching or filtering
   useEffect(() => {
-    if (open && (searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0)) {
+    if (open && (searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0 || selectedServiceCategories.length > 0)) {
       fetchProducts();
       fetchServices();
-    } else if (open && !searchTerm && selectedBrands.length === 0 && selectedCategories.length === 0) {
+    } else if (open && !searchTerm && selectedBrands.length === 0 && selectedCategories.length === 0 && selectedServiceCategories.length === 0) {
       // Clear results when no search/filters
       setProducts([]);
       setServices([]);
     }
-  }, [open, searchTerm, selectedBrands, selectedCategories]);
+  }, [open, searchTerm, selectedBrands, selectedCategories, selectedServiceCategories]);
 
   const fetchProducts = async () => {
     try {
@@ -126,11 +128,13 @@ export function EquipmentSelection({
       const params = new URLSearchParams({
         search: searchTerm,
         limit: '100',
+        isActive: 'true',
       });
 
-      if (selectedCategories.length > 0) {
-        selectedCategories.forEach(categoryId => {
-          params.append('categoryIds', categoryId);
+      if (selectedServiceCategories.length > 0) {
+        // Service categories filter by code
+        selectedServiceCategories.forEach(code => {
+          params.append('serviceCategoryCode', code);
         });
       }
 
@@ -170,7 +174,7 @@ export function EquipmentSelection({
         })) || []
       );
 
-      // Fetch categories
+      // Fetch product categories
       const categoriesResponse = await fetch('/api/master-data/categories');
       if (!categoriesResponse.ok) {
         throw new Error(`HTTP error! status: ${categoriesResponse.status}`);
@@ -182,6 +186,20 @@ export function EquipmentSelection({
           name: category.name
         })) || []
       );
+
+      // Fetch service categories from SoftOne
+      const serviceCategoriesResponse = await fetch('/api/services/categories');
+      if (serviceCategoriesResponse.ok) {
+        const serviceCategoriesData = await serviceCategoriesResponse.json();
+        if (serviceCategoriesData.success) {
+          setAvailableServiceCategories(
+            serviceCategoriesData.data?.map((cat: any) => ({
+              code: cat.code,
+              name: cat.name
+            })) || []
+          );
+        }
+      }
     } catch (error) {
       console.error('Error fetching filter options:', error);
     }
@@ -300,6 +318,7 @@ export function EquipmentSelection({
                 setSearchTerm('');
                 setSelectedBrands([]);
                 setSelectedCategories([]);
+                setSelectedServiceCategories([]);
               }}
             >
               <X className="h-4 w-4 mr-2" />
@@ -321,10 +340,24 @@ export function EquipmentSelection({
                 options={availableCategories}
                 selected={selectedCategories}
                 onChange={setSelectedCategories}
-                placeholder="Filter by categories..."
+                placeholder="Filter by product categories..."
               />
             </div>
           </div>
+
+          {/* Service Categories Filter - Only visible when on services tab */}
+          {activeTab === 'services' && (
+            <div className="flex items-center gap-4">
+              <div className="w-[250px]">
+                <MultiSelect
+                  options={availableServiceCategories.map(cat => ({ id: cat.code, name: cat.name }))}
+                  selected={selectedServiceCategories}
+                  onChange={setSelectedServiceCategories}
+                  placeholder="Filter by service categories..."
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Products and Services Tabs */}

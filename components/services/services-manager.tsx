@@ -68,6 +68,7 @@ interface Service {
   mtrl: string | null;
   code: string | null;
   mtrcategory: string | null;
+  serviceCategoryCode: string | null;
   name: string;
   brandId: string | null;
   isActive: boolean;
@@ -88,6 +89,8 @@ export default function ServicesManager() {
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState<string>('all');
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>('all');
+  const [serviceCategories, setServiceCategories] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
@@ -119,6 +122,10 @@ export default function ServicesManager() {
         params.append('isActive', isActiveFilter);
       }
 
+      if (serviceCategoryFilter !== 'all') {
+        params.append('serviceCategoryCode', serviceCategoryFilter);
+      }
+
       const response = await fetch(`/api/services?${params.toString()}`);
       const data = await response.json();
 
@@ -141,9 +148,26 @@ export default function ServicesManager() {
     }
   };
 
+  // Fetch service categories
+  const fetchServiceCategories = async () => {
+    try {
+      const response = await fetch('/api/services/categories');
+      const data = await response.json();
+      if (data.success) {
+        setServiceCategories(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching service categories:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchServiceCategories();
+  }, []);
+
   useEffect(() => {
     fetchServices();
-  }, [page, pageSize, searchTerm, isActiveFilter]);
+  }, [page, pageSize, searchTerm, isActiveFilter, serviceCategoryFilter]);
 
   // Handle service selection
   const toggleServiceSelection = (serviceId: string) => {
@@ -274,6 +298,20 @@ export default function ServicesManager() {
         </div>
 
         <div className="flex gap-2">
+          <Select value={serviceCategoryFilter} onValueChange={setServiceCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="CATEGORY" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ALL CATEGORIES</SelectItem>
+              {serviceCategories.map((cat) => (
+                <SelectItem key={cat.code} value={cat.code}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={isActiveFilter} onValueChange={setIsActiveFilter}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="STATUS" />
@@ -386,7 +424,9 @@ export default function ServicesManager() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {service.mtrcategory || '-'}
+                    {service.serviceCategoryCode ? (
+                      serviceCategories.find(cat => cat.code === service.serviceCategoryCode)?.name || service.serviceCategoryCode
+                    ) : '-'}
                   </TableCell>
                   <TableCell>
                     {service.translations.length > 0 ? (

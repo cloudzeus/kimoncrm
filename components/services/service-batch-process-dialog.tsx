@@ -39,6 +39,12 @@ interface Language {
   nativeName: string;
 }
 
+interface ServiceCategory {
+  code: string;
+  name: string;
+  mtrcategory: string;
+}
+
 interface ServiceBatchProcessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,17 +62,21 @@ export default function ServiceBatchProcessDialog({
   const [loading, setLoading] = useState(false);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingLanguages, setLoadingLanguages] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedCategoryCode, setSelectedCategoryCode] = useState<string>('');
 
-  // Fetch brands and languages
+  // Fetch brands, languages, and categories
   useEffect(() => {
     if (open) {
       fetchBrands();
       fetchLanguages();
+      fetchServiceCategories();
     }
   }, [open]);
 
@@ -111,6 +121,27 @@ export default function ServiceBatchProcessDialog({
       });
     } finally {
       setLoadingLanguages(false);
+    }
+  };
+
+  const fetchServiceCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const response = await fetch('/api/services/categories');
+      const data = await response.json();
+      
+      if (data.success) {
+        setServiceCategories(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching service categories:', error);
+      toast({
+        title: 'ERROR',
+        description: 'Failed to fetch service categories',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
@@ -257,9 +288,54 @@ export default function ServiceBatchProcessDialog({
     }
   };
 
+  const handleUpdateCategory = async () => {
+    try {
+      setLoading(true);
+
+      toast({
+        title: 'UPDATING',
+        description: `Updating category for ${selectedServiceIds.length} service(s)...`,
+      });
+
+      const response = await fetch('/api/services/bulk-assign-category', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serviceIds: selectedServiceIds,
+          serviceCategoryCode: selectedCategoryCode || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'BATCH UPDATE COMPLETE',
+          description: data.message || `Updated ${data.count} service(s)`,
+        });
+        onSuccess();
+        handleClose();
+      } else {
+        throw new Error(data.error || 'Failed to update category');
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: 'ERROR',
+        description: error instanceof Error ? error.message : 'Failed to update category',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClose = () => {
     setSelectedBrandId('');
     setSelectedLanguages([]);
+    setSelectedCategoryCode('');
     onOpenChange(false);
   };
 
@@ -276,11 +352,61 @@ export default function ServiceBatchProcessDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="brand" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="category" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="category">UPDATE CATEGORY</TabsTrigger>
             <TabsTrigger value="brand">UPDATE BRAND</TabsTrigger>
             <TabsTrigger value="translate">TRANSLATE</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="category" className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="category" className="uppercase">SELECT SERVICE CATEGORY</Label>
+              {loadingCategories ? (
+                <div className="flex items-center justify-center h-10 border rounded-md">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              ) : (
+                <Select
+                  value={selectedCategoryCode}
+                  onValueChange={setSelectedCategoryCode}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="SELECT CATEGORY" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-category">NO CATEGORY</SelectItem>
+                    {serviceCategories.map((category) => (
+                      <SelectItem key={category.code} value={category.code}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-sm text-muted-foreground">
+                This will update the service category for all {selectedServiceIds.length} selected service(s)
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={loading}
+              >
+                CANCEL
+              </Button>
+              <Button
+                onClick={handleUpdateCategory}
+                disabled={loading || !selectedCategoryCode}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                UPDATE CATEGORY
+              </Button>
+            </div>
+          </TabsContent>
 
           <TabsContent value="brand" className="space-y-4 py-4">
             <div className="space-y-2">

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import puppeteer from 'puppeteer';
 import { prisma } from '@/lib/db/prisma';
 

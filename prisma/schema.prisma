@@ -1955,19 +1955,21 @@ model Supplier {
 
 /// ** Services (SoftOne Integration) **
 model Service {
-  id           String               @id @default(cuid())
-  mtrl         String?              @unique
-  code         String?              @unique
-  mtrcategory  String?
-  name         String
-  isActive     Boolean              @default(true)
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  brandId      String?
-  brand        Brand?               @relation("ServiceBrand", fields: [brandId], references: [id])
-  translations ServiceTranslation[]
+  id                   String               @id @default(cuid())
+  mtrl                 String?              @unique
+  code                 String?              @unique
+  mtrcategory          String?
+  serviceCategoryCode  String?
+  name                 String
+  isActive             Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  brandId              String?
+  brand                Brand?               @relation("ServiceBrand", fields: [brandId], references: [id])
+  translations         ServiceTranslation[]
 
   @@index([brandId], map: "Service_brandId_fkey")
+  @@index([serviceCategoryCode])
 }
 
 model ServiceTranslation {
