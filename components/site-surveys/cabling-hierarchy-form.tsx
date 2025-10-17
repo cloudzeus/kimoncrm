@@ -74,6 +74,8 @@ interface DeviceWithEquipment {
   notes?: string;
   itemType?: string; // 'product' or 'service'
   equipmentId?: string; // Reference to equipment item
+  ipAddress?: string; // For network devices
+  phoneNumber?: string; // For phones
 }
 
 interface Building {
