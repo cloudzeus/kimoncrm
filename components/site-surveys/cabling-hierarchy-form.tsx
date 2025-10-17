@@ -64,6 +64,18 @@ interface CablingHierarchyFormProps {
   onSuccess?: () => void;
 }
 
+// Extended Device interface to include equipment properties
+interface DeviceWithEquipment {
+  name: string;
+  type: string;
+  brand?: string;
+  model?: string;
+  quantity?: number;
+  notes?: string;
+  itemType?: string; // 'product' or 'service'
+  equipmentId?: string; // Reference to equipment item
+}
+
 interface Building {
   id?: string;
   name: string;
@@ -96,7 +108,7 @@ interface CentralRack {
   images?: string[];
   cableTerminations?: CableTermination[];
   fiberTerminations?: FiberTermination[];
-  devices?: Device[];
+  devices?: DeviceWithEquipment[];
 }
 
 interface Floor {
@@ -122,7 +134,7 @@ interface FloorRack {
   images?: string[];
   cableTerminations?: CableTermination[];
   fiberTerminations?: FiberTermination[];
-  devices?: Device[];
+  devices?: DeviceWithEquipment[];
 }
 
 interface Device {
@@ -136,19 +148,7 @@ interface Device {
   notes?: string;
 }
 
-interface EquipmentItem {
-  id: string;
-  type: 'product' | 'service';
-  itemId: string;
-  name: string;
-  brand?: string;
-  category: string;
-  unit: string;
-  quantity: number;
-  price: number;
-  totalPrice: number;
-  notes?: string;
-}
+// Local EquipmentItem was removed - using the one from @/types/equipment-selection
 
 interface Room {
   id?: string;
@@ -161,7 +161,7 @@ interface Room {
   notes?: string;
   outlets: number;
   images?: string[];
-  devices?: Device[];
+  devices?: DeviceWithEquipment[];
   isTypicalRoom?: boolean;
   identicalRoomsCount?: number;
 }
@@ -3128,7 +3128,7 @@ export function CablingHierarchyForm({
             
             // Add devices to the selected element for display in hierarchy
             newEquipment.forEach(item => {
-              const device = {
+              const device: DeviceWithEquipment = {
                 name: item.name,
                 type: item.type,
                 brand: item.brand,

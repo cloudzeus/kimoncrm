@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Upload, 
   Plus, 
-  Image, 
+  Image as ImageIcon, 
   Video, 
   File, 
   Edit, 
@@ -280,7 +280,7 @@ export function ProductMediaManager({
               size="sm"
               onClick={() => setViewMode("grid")}
             >
-              <Image className="h-4 w-4" />
+              <ImageIcon className="h-4 w-4" />
             </Button>
             <Button
               variant={viewMode === "table" ? "default" : "outline"}

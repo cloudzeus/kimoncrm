@@ -195,7 +195,7 @@ export function EquipmentSelection({
       name: item.name,
       brand: 'brand' in item ? item.brand?.name : undefined,
       category: item.category?.name || 'Uncategorized',
-      unit: item.unit?.name || 'Each',
+      unit: 'unit' in item ? (item.unit?.name || 'Each') : 'Each',
       quantity: qty,
       price: item.price || 0,
       totalPrice: (item.price || 0) * qty,

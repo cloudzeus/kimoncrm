@@ -22,10 +22,13 @@ export interface SelectedElement {
 
 export interface EquipmentItem {
   id: string;
+  itemId: string; // The original product or service ID
   name: string;
   type: string;
   brand?: string;
   model?: string;
+  category: string;
+  unit: string;
   quantity: number;
   price: number;
   totalPrice: number;
