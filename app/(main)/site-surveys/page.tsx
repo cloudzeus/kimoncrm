@@ -40,6 +40,7 @@ import {
   Network,
   Eye,
   FileText,
+  Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -306,6 +307,149 @@ export default function SiteSurveysPage() {
     }
   };
 
+  const handleDownloadBOM = async (surveyId: string, surveyTitle: string) => {
+    try {
+      // First, fetch the site survey to get equipment and buildings data
+      const surveyResponse = await fetch(`/api/site-surveys/${surveyId}`);
+      if (!surveyResponse.ok) {
+        throw new Error("Failed to fetch survey data");
+      }
+      const surveyData = await surveyResponse.json();
+
+      // Fetch cabling survey data if it's a cabling type
+      let buildings = [];
+      if (surveyData.type === 'CABLING') {
+        const cablingResponse = await fetch(`/api/site-surveys/${surveyId}/cabling`);
+        if (cablingResponse.ok) {
+          const cablingData = await cablingResponse.json();
+          buildings = cablingData.data?.buildings || [];
+        }
+      }
+
+      // Extract equipment from buildings
+      const equipment: any[] = [];
+      buildings.forEach((building: any) => {
+        if (building.centralRacks) {
+          building.centralRacks.forEach((rack: any) => {
+            if (rack.devices) {
+              rack.devices.forEach((device: any) => {
+                equipment.push({
+                  itemId: device.equipmentId || device.id,
+                  name: device.name,
+                  type: device.itemType || device.type,
+                  brand: device.brand,
+                  model: device.model,
+                  category: '',
+                  unit: 'Each',
+                  quantity: device.quantity || 1,
+                  price: 0,
+                  totalPrice: 0,
+                  notes: device.notes,
+                  infrastructureElement: {
+                    type: 'centralRack',
+                    name: rack.name,
+                    buildingName: building.name,
+                  },
+                });
+              });
+            }
+          });
+        }
+        if (building.floors) {
+          building.floors.forEach((floor: any) => {
+            if (floor.rooms) {
+              floor.rooms.forEach((room: any) => {
+                if (room.devices) {
+                  room.devices.forEach((device: any) => {
+                    equipment.push({
+                      itemId: device.equipmentId || device.id,
+                      name: device.name,
+                      type: device.itemType || device.type,
+                      brand: device.brand,
+                      model: device.model,
+                      category: '',
+                      unit: 'Each',
+                      quantity: device.quantity || 1,
+                      price: 0,
+                      totalPrice: 0,
+                      notes: device.notes,
+                      infrastructureElement: {
+                        type: 'room',
+                        name: room.name,
+                        floorName: floor.name,
+                        buildingName: building.name,
+                      },
+                    });
+                  });
+                }
+              });
+            }
+            if (floor.floorRacks) {
+              floor.floorRacks.forEach((rack: any) => {
+                if (rack.devices) {
+                  rack.devices.forEach((device: any) => {
+                    equipment.push({
+                      itemId: device.equipmentId || device.id,
+                      name: device.name,
+                      type: device.itemType || device.type,
+                      brand: device.brand,
+                      model: device.model,
+                      category: '',
+                      unit: 'Each',
+                      quantity: device.quantity || 1,
+                      price: 0,
+                      totalPrice: 0,
+                      notes: device.notes,
+                      infrastructureElement: {
+                        type: 'floorRack',
+                        name: rack.name,
+                        floorName: floor.name,
+                        buildingName: building.name,
+                      },
+                    });
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // Generate BOM Excel
+      const bomResponse = await fetch('/api/site-surveys/generate-bom-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipment,
+          buildings,
+          siteSurveyId: surveyId,
+          title: surveyTitle,
+          description: surveyData.description,
+          files: surveyData.files || [],
+        }),
+      });
+
+      if (!bomResponse.ok) {
+        throw new Error("Failed to generate BOM Excel");
+      }
+      
+      const blob = await bomResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BOM-${surveyTitle.replace(/[^a-zA-Z0-9]/g, '-')}-${surveyId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("BOM Excel downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading BOM:", error);
+      toast.error("Failed to download BOM Excel");
+    }
+  };
+
   const handleDialogClose = (refresh = false) => {
     setIsDialogOpen(false);
     setEditingSurvey(null);
@@ -491,10 +635,17 @@ export default function SiteSurveysPage() {
                           <Eye className="h-4 w-4 mr-2" />
                           VIEW DETAILS
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>DOWNLOADS</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleGenerateWord(survey.id, survey.title)}>
                           <FileText className="h-4 w-4 mr-2" />
-                          GENERATE WORD DOC
+                          DOWNLOAD WORD DOC
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadBOM(survey.id, survey.title)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          DOWNLOAD BOM
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleEdit(survey)}>
                           <Edit className="h-4 w-4 mr-2" />
                           EDIT

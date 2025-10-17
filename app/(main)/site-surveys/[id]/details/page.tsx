@@ -145,6 +145,7 @@ export default function SiteSurveyDetailsPage() {
   const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
   const [generatingWord, setGeneratingWord] = useState(false);
+  const [downloadingBOM, setDownloadingBOM] = useState(false);
 
   useEffect(() => {
     fetchSurveyDetails();
@@ -174,6 +175,148 @@ export default function SiteSurveyDetailsPage() {
       toast.error("Failed to generate Word document");
     } finally {
       setGeneratingWord(false);
+    }
+  };
+
+  const downloadBOM = async () => {
+    if (!survey) return;
+    
+    try {
+      setDownloadingBOM(true);
+
+      // Fetch cabling survey data if it's a cabling type
+      let buildings = [];
+      if (survey.type === 'CABLING') {
+        const cablingResponse = await fetch(`/api/site-surveys/${id}/cabling`);
+        if (cablingResponse.ok) {
+          const cablingData = await cablingResponse.json();
+          buildings = cablingData.data?.buildings || [];
+        }
+      }
+
+      // Extract equipment from buildings
+      const equipment: any[] = [];
+      buildings.forEach((building: any) => {
+        if (building.centralRacks) {
+          building.centralRacks.forEach((rack: any) => {
+            if (rack.devices) {
+              rack.devices.forEach((device: any) => {
+                equipment.push({
+                  itemId: device.equipmentId || device.id,
+                  name: device.name,
+                  type: device.itemType || device.type,
+                  brand: device.brand,
+                  model: device.model,
+                  category: '',
+                  unit: 'Each',
+                  quantity: device.quantity || 1,
+                  price: 0,
+                  totalPrice: 0,
+                  notes: device.notes,
+                  infrastructureElement: {
+                    type: 'centralRack',
+                    name: rack.name,
+                    buildingName: building.name,
+                  },
+                });
+              });
+            }
+          });
+        }
+        if (building.floors) {
+          building.floors.forEach((floor: any) => {
+            if (floor.rooms) {
+              floor.rooms.forEach((room: any) => {
+                if (room.devices) {
+                  room.devices.forEach((device: any) => {
+                    equipment.push({
+                      itemId: device.equipmentId || device.id,
+                      name: device.name,
+                      type: device.itemType || device.type,
+                      brand: device.brand,
+                      model: device.model,
+                      category: '',
+                      unit: 'Each',
+                      quantity: device.quantity || 1,
+                      price: 0,
+                      totalPrice: 0,
+                      notes: device.notes,
+                      infrastructureElement: {
+                        type: 'room',
+                        name: room.name,
+                        floorName: floor.name,
+                        buildingName: building.name,
+                      },
+                    });
+                  });
+                }
+              });
+            }
+            if (floor.floorRacks) {
+              floor.floorRacks.forEach((rack: any) => {
+                if (rack.devices) {
+                  rack.devices.forEach((device: any) => {
+                    equipment.push({
+                      itemId: device.equipmentId || device.id,
+                      name: device.name,
+                      type: device.itemType || device.type,
+                      brand: device.brand,
+                      model: device.model,
+                      category: '',
+                      unit: 'Each',
+                      quantity: device.quantity || 1,
+                      price: 0,
+                      totalPrice: 0,
+                      notes: device.notes,
+                      infrastructureElement: {
+                        type: 'floorRack',
+                        name: rack.name,
+                        floorName: floor.name,
+                        buildingName: building.name,
+                      },
+                    });
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // Generate BOM Excel
+      const bomResponse = await fetch('/api/site-surveys/generate-bom-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipment,
+          buildings,
+          siteSurveyId: id,
+          title: survey.title,
+          description: survey.description,
+          files: survey.files || [],
+        }),
+      });
+
+      if (!bomResponse.ok) {
+        throw new Error("Failed to generate BOM Excel");
+      }
+      
+      const blob = await bomResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BOM-${survey.title.replace(/[^a-zA-Z0-9]/g, '-')}-${id}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("BOM Excel downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading BOM:", error);
+      toast.error("Failed to download BOM Excel");
+    } finally {
+      setDownloadingBOM(false);
     }
   };
 
@@ -287,7 +430,15 @@ export default function SiteSurveyDetailsPage() {
                 disabled={generatingWord}
               >
                 <FileText className="h-4 w-4 mr-2" />
-                {generatingWord ? "GENERATING..." : "GENERATE WORD DOC"}
+                {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={downloadBOM}
+                disabled={downloadingBOM}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
               </Button>
               <Button
                 variant="outline"
