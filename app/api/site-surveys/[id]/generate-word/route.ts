@@ -60,6 +60,7 @@ export async function GET(
             createdAt: true,
           },
         },
+        buildings: true,
         cablingSurvey: true,
         voipSurvey: true,
       },
@@ -89,7 +90,7 @@ export async function GET(
 
     // Fetch equipment data if available
     let equipment = [];
-    if (siteSurvey.cablingSurvey?.buildings) {
+    if (siteSurvey.buildings && siteSurvey.buildings.length > 0) {
       // Extract equipment from buildings structure
       const extractEquipment = (buildings: any[]) => {
         const items: any[] = [];
@@ -153,7 +154,7 @@ export async function GET(
         return items;
       };
       
-      equipment = extractEquipment(siteSurvey.cablingSurvey.buildings);
+      equipment = extractEquipment(siteSurvey.buildings);
     }
 
     // Prepare survey data
@@ -190,7 +191,7 @@ export async function GET(
         filetype: image.kind,
         description: image.description,
       })),
-      buildings: siteSurvey.cablingSurvey?.buildings || [],
+      buildings: siteSurvey.buildings || [],
       voipSurvey: siteSurvey.voipSurvey,
       cablingSurvey: siteSurvey.cablingSurvey,
     };
