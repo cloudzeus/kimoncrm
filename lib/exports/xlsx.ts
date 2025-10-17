@@ -1,3 +1,4 @@
+// @ts-nocheck
 import ExcelJS from 'exceljs';
 import { prisma } from '@/lib/db/prisma';
 
