@@ -8,6 +8,9 @@ import {
   RedisClients
 } from '@/lib/redis/utils';
 
+// Force dynamic rendering - this route requires authentication
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/redis - Get Redis database information and health
  */
