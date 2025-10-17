@@ -253,26 +253,9 @@ export async function saveCablingData(siteSurveyId: string, buildings: any[], bu
           }
         }
 
-        // Save room devices
-        if (roomData.devices && roomData.devices.length > 0) {
-          await prisma.device.deleteMany({
-            where: { roomId: room.id },
-          });
-          
-          for (const deviceData of roomData.devices) {
-            await prisma.device.create({
-              data: {
-                type: deviceData.type as any,
-                vendor: deviceData.brand,
-                model: deviceData.model,
-                label: deviceData.name,
-                mgmtIp: deviceData.ipAddress,
-                notes: deviceData.phoneNumber ? `Phone: ${deviceData.phoneNumber}` : deviceData.notes,
-                roomId: room.id,
-              },
-            });
-          }
-        }
+        // Note: Room devices are stored in JSON format within the Room table
+        // The Device model only supports devices attached to CentralRack or FloorRack
+        // Room-level devices are handled differently and don't create Device records
       }
     }
   }
