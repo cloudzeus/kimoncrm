@@ -52,7 +52,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       id: "c03bef53-43af-4d5e-be22-da859317086c",
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
-      tenantId: process.env.TENANT_ID!,
       issuer: `https://login.microsoftonline.com/${process.env.TENANT_ID}/v2.0`,
       // Link OAuth account to existing user by email (controlled tenant)
       allowDangerousEmailAccountLinking: true,
