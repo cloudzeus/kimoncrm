@@ -104,7 +104,7 @@ export function EquipmentSelection({
       }
       
       const data = await response.json();
-      setProducts(data.products || []);
+      setProducts(data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products: ' + (error as Error).message);
@@ -138,7 +138,7 @@ export function EquipmentSelection({
       }
       
       const data = await response.json();
-      setServices(data.services || []);
+      setServices(data.data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
       toast.error('Failed to load services: ' + (error as Error).message);
@@ -154,7 +154,7 @@ export function EquipmentSelection({
       }
       const brandsData = await brandsResponse.json();
       setAvailableBrands(
-        brandsData.brands?.map((brand: any) => ({
+        brandsData.data?.map((brand: any) => ({
           id: brand.id,
           name: brand.name
         })) || []
