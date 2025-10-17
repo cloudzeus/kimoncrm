@@ -264,7 +264,7 @@ async function createDetailedBOMSheet(
   ];
 
   // Add borders
-  const range = worksheet.getCell(1, 1, equipment.length + 1, headers.length);
+  const range = worksheet.getRange(1, 1, equipment.length + 1, headers.length);
   range.border = {
     top: { style: 'thin' },
     left: { style: 'thin' },

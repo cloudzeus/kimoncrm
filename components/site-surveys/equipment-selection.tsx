@@ -60,12 +60,22 @@ export function EquipmentSelection({
   const [equipment, setEquipment] = useState<EquipmentItem[]>(existingEquipment);
   const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
 
-  // Load products and services
+  // Load filter options when modal opens
   useEffect(() => {
     if (open) {
+      fetchFilterOptions();
+    }
+  }, [open]);
+
+  // Load products and services only when searching or filtering
+  useEffect(() => {
+    if (open && (searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0)) {
       fetchProducts();
       fetchServices();
-      fetchFilterOptions();
+    } else if (open && !searchTerm && selectedBrands.length === 0 && selectedCategories.length === 0) {
+      // Clear results when no search/filters
+      setProducts([]);
+      setServices([]);
     }
   }, [open, searchTerm, selectedBrands, selectedCategories]);
 
@@ -255,23 +265,21 @@ export function EquipmentSelection({
             EQUIPMENT & SERVICES SELECTION
           </DialogTitle>
           <DialogDescription>
-            {selectedElement ? (
-              <div className="mt-2">
-                <div className="font-semibold text-blue-800">
-                  Adding to: {getElementDisplayName(selectedElement)}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {getElementContextPath(selectedElement)}
-                </div>
-                <div className="text-sm text-gray-500 mt-1">
-                  Select products and services for this infrastructure element.
-                </div>
-              </div>
-            ) : (
-              "Select products and services for your cabling survey. This will generate your Bill of Materials (BOM)."
-            )}
+            {selectedElement 
+              ? `Adding to: ${getElementDisplayName(selectedElement)}. Select products and services for this infrastructure element.`
+              : "Select products and services for your cabling survey. This will generate your Bill of Materials (BOM)."
+            }
           </DialogDescription>
         </DialogHeader>
+
+        {/* Element Info */}
+        {selectedElement && (
+          <div className="px-6 pb-2">
+            <div className="text-sm text-gray-600">
+              {getElementContextPath(selectedElement)}
+            </div>
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="p-4 border-b space-y-4">
@@ -426,7 +434,10 @@ export function EquipmentSelection({
             </Table>
             {products.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No products found matching your criteria.
+                {searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0
+                  ? "No products found matching your criteria."
+                  : "Search for products above to see results."
+                }
               </div>
             )}
           </TabsContent>
@@ -524,7 +535,10 @@ export function EquipmentSelection({
             </Table>
             {services.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No services found matching your criteria.
+                {searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0
+                  ? "No services found matching your criteria."
+                  : "Search for services above to see results."
+                }
               </div>
             )}
           </TabsContent>
