@@ -370,6 +370,7 @@ export function MarkupRulesManager({ className }: MarkupRulesManagerProps) {
               setIsEditDialogOpen(false);
               setSelectedRule(null);
             }
+            return success;
           }}
         />
       )}
