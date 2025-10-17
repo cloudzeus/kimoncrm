@@ -415,6 +415,29 @@ export default function SiteSurveysPage() {
         }
       });
 
+      // Prepare site survey data
+      const siteSurveyData = {
+        title: surveyTitle,
+        description: surveyData.description,
+        customer: surveyData.customer ? {
+          name: surveyData.customer.name,
+          email: surveyData.customer.email || undefined,
+          phone: surveyData.customer.phone01 || undefined,
+        } : undefined,
+        contact: surveyData.contact ? {
+          name: surveyData.contact.name,
+          email: surveyData.contact.email || undefined,
+          phone: surveyData.contact.mobilePhone || surveyData.contact.workPhone || undefined,
+        } : undefined,
+        assignTo: surveyData.assignTo ? {
+          name: surveyData.assignTo.name,
+          email: surveyData.assignTo.email || undefined,
+        } : undefined,
+        createdAt: surveyData.createdAt,
+        updatedAt: surveyData.updatedAt,
+        files: [], // Files will be fetched separately if needed
+      };
+
       // Generate BOM Excel
       const bomResponse = await fetch('/api/site-surveys/generate-bom-excel', {
         method: 'POST',
@@ -422,10 +445,7 @@ export default function SiteSurveysPage() {
         body: JSON.stringify({
           equipment,
           buildings,
-          siteSurveyId: surveyId,
-          title: surveyTitle,
-          description: surveyData.description,
-          files: surveyData.files || [],
+          siteSurveyData,
         }),
       });
 
