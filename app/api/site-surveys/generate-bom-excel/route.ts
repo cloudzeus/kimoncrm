@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 
+interface SelectedElement {
+  type: string;
+  buildingIndex?: number;
+  floorIndex?: number;
+  rackIndex?: number;
+  roomIndex?: number;
+  connectionIndex?: number;
+}
+
 interface EquipmentItem {
   id: string;
   type: 'product' | 'service';
@@ -13,6 +22,7 @@ interface EquipmentItem {
   price: number;
   totalPrice: number;
   notes?: string;
+  infrastructureElement?: SelectedElement;
 }
 
 interface SiteSurveyData {
@@ -33,6 +43,87 @@ interface SiteSurveyData {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+// Helper function to format placement information
+function getPlacementString(element?: SelectedElement): string {
+  if (!element) return 'General';
+  
+  const parts: string[] = [];
+  
+  if (element.buildingIndex !== undefined) {
+    parts.push(`Building ${element.buildingIndex + 1}`);
+  }
+  
+  if (element.floorIndex !== undefined) {
+    parts.push(`Floor ${element.floorIndex + 1}`);
+  }
+  
+  if (element.type === 'centralRack') {
+    parts.push('Central Rack');
+  } else if (element.type === 'floorRack' && element.rackIndex !== undefined) {
+    parts.push(`Rack ${element.rackIndex + 1}`);
+  } else if (element.type === 'room' && element.roomIndex !== undefined) {
+    parts.push(`Room ${element.roomIndex + 1}`);
+  } else if (element.type === 'buildingConnection' && element.connectionIndex !== undefined) {
+    parts.push(`Connection ${element.connectionIndex + 1}`);
+  }
+  
+  return parts.length > 0 ? parts.join(' → ') : 'General';
+}
+
+// Helper function to consolidate duplicate equipment items
+interface ConsolidatedItem {
+  itemId: string;
+  type: 'product' | 'service';
+  name: string;
+  brand?: string;
+  category: string;
+  unit: string;
+  totalQuantity: number;
+  price: number;
+  totalPrice: number;
+  placements: string[];
+  notes: string[];
+}
+
+function consolidateEquipment(equipment: EquipmentItem[]): ConsolidatedItem[] {
+  const consolidated = new Map<string, ConsolidatedItem>();
+
+  equipment.forEach(item => {
+    const key = `${item.type}-${item.itemId}-${item.name}-${item.price}`;
+    
+    if (consolidated.has(key)) {
+      const existing = consolidated.get(key)!;
+      existing.totalQuantity += item.quantity;
+      existing.totalPrice += item.totalPrice;
+      
+      const placement = getPlacementString(item.infrastructureElement);
+      if (!existing.placements.includes(placement)) {
+        existing.placements.push(placement);
+      }
+      
+      if (item.notes && !existing.notes.includes(item.notes)) {
+        existing.notes.push(item.notes);
+      }
+    } else {
+      consolidated.set(key, {
+        itemId: item.itemId,
+        type: item.type,
+        name: item.name,
+        brand: item.brand,
+        category: item.category,
+        unit: item.unit,
+        totalQuantity: item.quantity,
+        price: item.price,
+        totalPrice: item.totalPrice,
+        placements: [getPlacementString(item.infrastructureElement)],
+        notes: item.notes ? [item.notes] : [],
+      });
+    }
+  });
+
+  return Array.from(consolidated.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function POST(request: NextRequest) {
@@ -103,8 +194,11 @@ async function createBOMSummarySheet(
     pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
   });
 
+  // Consolidate equipment
+  const consolidatedEquipment = consolidateEquipment(equipment);
+
   // Header with project info
-  worksheet.mergeCells('A1:F1');
+  worksheet.mergeCells('A1:H1');
   worksheet.getCell('A1').value = 'BILL OF MATERIALS SUMMARY';
   worksheet.getCell('A1').font = { size: 18, bold: true };
   worksheet.getCell('A1').alignment = { horizontal: 'center' };
@@ -204,10 +298,13 @@ async function createDetailedBOMSheet(
     pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
   });
 
+  // Consolidate equipment for detailed view
+  const consolidatedEquipment = consolidateEquipment(equipment);
+  
   // Headers
   const headers = [
     'Item #', 'Type', 'Name', 'Brand', 'Category', 'Unit', 
-    'Unit Price', 'Quantity', 'Total Price', 'Notes'
+    'Unit Price', 'Quantity', 'Total Price', 'Placement', 'Notes'
   ];
 
   headers.forEach((header, index) => {
@@ -222,8 +319,8 @@ async function createDetailedBOMSheet(
     cell.alignment = { horizontal: 'center' };
   });
 
-  // Data rows
-  equipment.forEach((item, index) => {
+  // Data rows with consolidated items
+  consolidatedEquipment.forEach((item, index) => {
     const row = index + 2;
     worksheet.getCell(row, 1).value = index + 1;
     worksheet.getCell(row, 2).value = item.type.toUpperCase();
@@ -232,39 +329,45 @@ async function createDetailedBOMSheet(
     worksheet.getCell(row, 5).value = item.category;
     worksheet.getCell(row, 6).value = item.unit;
     worksheet.getCell(row, 7).value = item.price;
-    worksheet.getCell(row, 8).value = item.quantity;
+    worksheet.getCell(row, 8).value = item.totalQuantity;
     worksheet.getCell(row, 9).value = item.totalPrice;
-    worksheet.getCell(row, 10).value = item.notes || '';
+    worksheet.getCell(row, 10).value = item.placements.join(', ');
+    worksheet.getCell(row, 11).value = item.notes.join('; ') || '';
 
     // Format currency cells
     worksheet.getCell(row, 7).numFmt = '€#,##0.00';
     worksheet.getCell(row, 9).numFmt = '€#,##0.00';
+    
+    // Wrap text for placement and notes
+    worksheet.getCell(row, 10).alignment = { wrapText: true, vertical: 'top' };
+    worksheet.getCell(row, 11).alignment = { wrapText: true, vertical: 'top' };
   });
 
   // Add totals row
-  const totalRow = equipment.length + 3;
+  const totalRow = consolidatedEquipment.length + 3;
   worksheet.getCell(totalRow, 8).value = 'TOTAL:';
   worksheet.getCell(totalRow, 8).font = { bold: true };
-  worksheet.getCell(totalRow, 9).value = equipment.reduce((sum, item) => sum + item.totalPrice, 0);
+  worksheet.getCell(totalRow, 9).value = consolidatedEquipment.reduce((sum, item) => sum + item.totalPrice, 0);
   worksheet.getCell(totalRow, 9).font = { bold: true };
   worksheet.getCell(totalRow, 9).numFmt = '€#,##0.00';
 
   // Style the worksheet
   worksheet.columns = [
-    { width: 8 },
-    { width: 12 },
-    { width: 30 },
-    { width: 15 },
-    { width: 15 },
-    { width: 10 },
-    { width: 12 },
-    { width: 10 },
-    { width: 12 },
-    { width: 25 },
+    { width: 8 },   // Item #
+    { width: 12 },  // Type
+    { width: 30 },  // Name
+    { width: 15 },  // Brand
+    { width: 15 },  // Category
+    { width: 10 },  // Unit
+    { width: 12 },  // Unit Price
+    { width: 10 },  // Quantity
+    { width: 12 },  // Total Price
+    { width: 30 },  // Placement
+    { width: 25 },  // Notes
   ];
 
   // Add borders to all cells - fixed for ExcelJS compatibility
-  for (let row = 1; row <= equipment.length + 1; row++) {
+  for (let row = 1; row <= consolidatedEquipment.length + 1; row++) {
     for (let col = 1; col <= headers.length; col++) {
       const cell = worksheet.getCell(row, col);
       cell.border = {

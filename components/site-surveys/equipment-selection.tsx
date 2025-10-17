@@ -199,6 +199,7 @@ export function EquipmentSelection({
       quantity: qty,
       price: item.price || 0,
       totalPrice: (item.price || 0) * qty,
+      infrastructureElement: selectedElement || undefined, // Include placement info
     };
 
     setEquipment([...equipment, equipmentItem]);

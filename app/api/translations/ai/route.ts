@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
               translationKeyId_languageCode_pluralForm: {
                 translationKeyId: translationKey.id,
                 languageCode: targetLang,
-                pluralForm: sourceTranslation.pluralForm,
+                pluralForm: sourceTranslation.pluralForm || '',
               },
             },
             update: {
