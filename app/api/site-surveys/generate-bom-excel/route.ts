@@ -263,7 +263,7 @@ async function createDetailedBOMSheet(
     { width: 25 },
   ];
 
-  // Add borders to all cells
+  // Add borders to all cells - fixed for ExcelJS compatibility
   for (let row = 1; row <= equipment.length + 1; row++) {
     for (let col = 1; col <= headers.length; col++) {
       const cell = worksheet.getCell(row, col);
