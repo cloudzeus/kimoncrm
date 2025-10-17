@@ -69,17 +69,23 @@ export function EquipmentSelection({
     }
   }, [open]);
 
-  // Load products and services only when searching or filtering
+  // Load products when searching/filtering or when on products tab
   useEffect(() => {
-    if (open && (searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0 || selectedServiceCategories.length > 0)) {
+    if (open && activeTab === 'products' && (searchTerm || selectedBrands.length > 0 || selectedCategories.length > 0)) {
       fetchProducts();
-      fetchServices();
-    } else if (open && !searchTerm && selectedBrands.length === 0 && selectedCategories.length === 0 && selectedServiceCategories.length === 0) {
-      // Clear results when no search/filters
+    } else if (open && activeTab === 'products' && !searchTerm && selectedBrands.length === 0 && selectedCategories.length === 0) {
       setProducts([]);
+    }
+  }, [open, activeTab, searchTerm, selectedBrands, selectedCategories]);
+
+  // Load services when searching/filtering or when on services tab
+  useEffect(() => {
+    if (open && activeTab === 'services' && (searchTerm || selectedServiceCategories.length > 0)) {
+      fetchServices();
+    } else if (open && activeTab === 'services' && !searchTerm && selectedServiceCategories.length === 0) {
       setServices([]);
     }
-  }, [open, searchTerm, selectedBrands, selectedCategories, selectedServiceCategories]);
+  }, [open, activeTab, searchTerm, selectedServiceCategories]);
 
   const fetchProducts = async () => {
     try {
@@ -377,13 +383,8 @@ export function EquipmentSelection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Brand</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-center w-[120px]">Quantity</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead className="w-[60%]">Product Name</TableHead>
+                  <TableHead className="text-center w-[40%]">Quantity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -391,20 +392,26 @@ export function EquipmentSelection({
                   const existingItem = equipment.find(eq => eq.itemId === product.id && eq.type === 'product');
                   return (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{product.code || '-'}</TableCell>
-                      <TableCell className="text-sm">{product.brand?.name || '-'}</TableCell>
-                      <TableCell className="text-sm">{product.category?.name || '-'}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{product.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {product.brand?.name && `${product.brand.name}`}
+                            {product.brand?.name && product.category?.name && ' • '}
+                            {product.category?.name}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 justify-center">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => existingItem && updateQuantity(existingItem.id, existingItem.quantity - 1)}
-                            className="h-7 w-7 p-0"
+                            className="h-8 w-8 p-0"
                             disabled={!existingItem}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </Button>
                           <Input
                             type="number"
@@ -422,7 +429,7 @@ export function EquipmentSelection({
                                 }
                               }
                             }}
-                            className="h-7 w-14 text-center text-sm"
+                            className="h-8 w-16 text-center"
                           />
                           <Button
                             variant="outline"
@@ -434,32 +441,11 @@ export function EquipmentSelection({
                                 addEquipment(product, 'product');
                               }
                             }}
-                            className="h-7 w-7 p-0"
+                            className="h-8 w-8 p-0"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </Button>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          placeholder="Add notes..."
-                          value={existingItem?.notes || ''}
-                          onChange={(e) => existingItem && updateNotes(existingItem.id, e.target.value)}
-                          disabled={!existingItem}
-                          className="h-7 text-sm"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {existingItem && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeEquipment(existingItem.id)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -480,12 +466,8 @@ export function EquipmentSelection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Service Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-center w-[120px]">Quantity</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead className="w-[60%]">Service Name</TableHead>
+                  <TableHead className="text-center w-[40%]">Quantity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -493,19 +475,25 @@ export function EquipmentSelection({
                   const existingItem = equipment.find(eq => eq.itemId === service.id && eq.type === 'service');
                   return (
                     <TableRow key={service.id}>
-                      <TableCell className="font-medium">{service.name}</TableCell>
-                      <TableCell className="text-sm">{service.category?.name || '-'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{service.description || '-'}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{service.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {service.category?.name || 'Uncategorized'}
+                            {service.description && ` • ${service.description.substring(0, 50)}${service.description.length > 50 ? '...' : ''}`}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 justify-center">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => existingItem && updateQuantity(existingItem.id, existingItem.quantity - 1)}
-                            className="h-7 w-7 p-0"
+                            className="h-8 w-8 p-0"
                             disabled={!existingItem}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </Button>
                           <Input
                             type="number"
@@ -523,7 +511,7 @@ export function EquipmentSelection({
                                 }
                               }
                             }}
-                            className="h-7 w-14 text-center text-sm"
+                            className="h-8 w-16 text-center"
                           />
                           <Button
                             variant="outline"
@@ -535,32 +523,11 @@ export function EquipmentSelection({
                                 addEquipment(service, 'service');
                               }
                             }}
-                            className="h-7 w-7 p-0"
+                            className="h-8 w-8 p-0"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </Button>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          placeholder="Add notes..."
-                          value={existingItem?.notes || ''}
-                          onChange={(e) => existingItem && updateNotes(existingItem.id, e.target.value)}
-                          disabled={!existingItem}
-                          className="h-7 text-sm"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {existingItem && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeEquipment(existingItem.id)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   );

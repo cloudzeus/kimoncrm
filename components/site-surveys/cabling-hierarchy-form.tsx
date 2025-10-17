@@ -3183,7 +3183,7 @@ export function CablingHierarchyForm({
           
           setEquipmentSelectionOpen(false);
           setSelectedElement(null);
-          setActiveTab('bom'); // Switch to BOM tab after adding equipment
+          // Don't switch tabs - let user continue adding equipment
           toast.success(`Added ${newEquipment.length} item(s) to BOM`);
         }}
         existingEquipment={equipment}
