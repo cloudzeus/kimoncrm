@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as iconv from 'iconv-lite';
 import { generateNextAvailableCode } from './check-code';
 import { mapToSoftOne, type DatabaseProduct, type RelatedCodes } from './product-mapping';

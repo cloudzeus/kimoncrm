@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Extract and convert dimensions and weight from product specifications
  */

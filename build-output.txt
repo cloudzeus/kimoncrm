@@ -1,0 +1,147 @@
+
+> aic-crm-v5@1.0.2 build
+> next build
+
+   ▲ Next.js 15.5.4
+   - Environments: .env
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (241kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled successfully in 5.2min
+   Linting and checking validity of types ...
+
+./components/brands/brands-table.tsx
+126:6  Warning: React Hook useEffect has a missing dependency: 'loadBrands'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/contacts/add-contact-dialog.tsx
+89:6  Warning: React Hook useEffect has a missing dependency: 'fetchContacts'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/contacts/contact-detail-view.tsx
+105:6  Warning: React Hook useEffect has a missing dependency: 'fetchContact'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/contacts/contacts-manager.tsx
+146:6  Warning: React Hook useEffect has a missing dependency: 'fetchContacts'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/contacts/multi-select-customers.tsx
+36:6  Warning: React Hook useEffect has a missing dependency: 'fetchCustomers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/contacts/multi-select-suppliers.tsx
+36:6  Warning: React Hook useEffect has a missing dependency: 'fetchSuppliers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/currencies/currencies-manager.tsx
+300:6  Warning: React Hook useEffect has a missing dependency: 'loadCurrencies'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/customers/customer-detail-view.tsx
+150:6  Warning: React Hook useEffect has a missing dependency: 'fetchCustomer'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+175:6  Warning: React Hook useEffect has a missing dependency: 'fetchSiteSurveys'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/customers/customers-manager.tsx
+213:6  Warning: React Hook useEffect has missing dependencies: 'defaultColumnWidths' and 'defaultVisibleColumns'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+245:6  Warning: React Hook useEffect has missing dependencies: 'searchField' and 'searchTerm'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/emails/email-client.tsx
+71:6  Warning: React Hook useEffect has a missing dependency: 'fetchFolders'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+78:6  Warning: React Hook useEffect has a missing dependency: 'fetchEmails'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/files/file-upload.tsx
+67:5  Warning: React Hook useCallback has a missing dependency: 'addFiles'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+77:5  Warning: React Hook useCallback has a missing dependency: 'addFiles'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/files/files-list.tsx
+79:6  Warning: React Hook useEffect has a missing dependency: 'fetchFiles'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/files/files-manager.tsx
+100:6  Warning: React Hook useEffect has a missing dependency: 'fetchAllFiles'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/irs-data/irs-data-manager.tsx
+298:6  Warning: React Hook useEffect has a missing dependency: 'loadIrsData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/layout/responsive-sidebar.tsx
+133:6  Warning: React Hook useEffect has a missing dependency: 'loadMenuData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/manufacturers/manufacturers-manager.tsx
+200:6  Warning: React Hook useEffect has a missing dependency: 'fetchManufacturers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/payment-types/payment-types-manager.tsx
+301:6  Warning: React Hook useEffect has a missing dependency: 'loadPaymentTypes'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/products/product-images-dialog.tsx
+92:6  Warning: React Hook useEffect has a missing dependency: 'fetchImages'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+203:6  Warning: React Hook useEffect has a missing dependency: 'drawCanvas'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/products/product-specifications-dialog.tsx
+62:6  Warning: React Hook useEffect has a missing dependency: 'fetchSpecifications'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/products/product-translations-dialog-new.tsx
+61:6  Warning: React Hook useEffect has a missing dependency: 'loadExistingTranslations'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/products/product-translations-dialog.tsx
+59:6  Warning: React Hook useEffect has a missing dependency: 'loadExistingTranslations'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/products/products-manager.tsx
+247:6  Warning: React Hook useEffect has missing dependencies: 'defaultColumnWidths' and 'defaultVisibleColumns'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+523:6  Warning: React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/projects/task-kanban.tsx
+84:6  Warning: React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/services/service-batch-process-dialog.tsx
+81:6  Warning: React Hook useEffect has missing dependencies: 'fetchBrands', 'fetchLanguages', and 'fetchServiceCategories'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/services/service-edit-dialog.tsx
+74:6  Warning: React Hook useEffect has a missing dependency: 'fetchBrands'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/services/service-translate-dialog.tsx
+58:6  Warning: React Hook useEffect has a missing dependency: 'fetchLanguages'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/services/services-manager.tsx
+170:6  Warning: React Hook useEffect has a missing dependency: 'fetchServices'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/shared/status-manager.tsx
+224:6  Warning: React Hook useEffect has a missing dependency: 'fetchStatusHistory'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/site-surveys/equipment-selection.tsx
+82:6  Warning: React Hook useEffect has missing dependencies: 'fetchProducts' and 'fetchServices'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/site-surveys/site-survey-form-dialog.tsx
+132:6  Warning: React Hook useEffect has a missing dependency: 'form'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+132:7  Warning: React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
+171:6  Warning: React Hook useEffect has a missing dependency: 'form'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/site-surveys/voip-survey-form.tsx
+132:6  Warning: React Hook useEffect has a missing dependency: 'fetchVoipSurvey'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/softone-presales-people/softone-presales-people-manager.tsx
+133:6  Warning: React Hook useEffect has a missing dependency: 'loadPresalesPeople'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/suppliers/supplier-detail-view.tsx
+133:6  Warning: React Hook useEffect has a missing dependency: 'fetchSupplier'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/suppliers/suppliers-manager.tsx
+213:6  Warning: React Hook useEffect has missing dependencies: 'defaultColumnWidths' and 'defaultVisibleColumns'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+260:6  Warning: React Hook useEffect has missing dependencies: 'searchField' and 'searchTerm'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/translations/translation-manager.tsx
+156:6  Warning: React Hook useEffect has a missing dependency: 'loadTranslations'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/ui/data-table.tsx
+233:6  Warning: React Hook useCallback has a missing dependency: 'getRowId'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+245:6  Warning: React Hook useCallback has a missing dependency: 'getRowId'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/ui/multi-user-select.tsx
+51:6  Warning: React Hook useEffect has a missing dependency: 'fetchUsers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+Failed to compile.
+
+./lib/google/gmail.ts:121:56
+Type error: 'error' is of type 'unknown'.
+
+  119 |     } catch (error) {
+  120 |       console.error('Error fetching Gmail labels:', error);
+> 121 |       throw new Error(`Failed to fetch Gmail labels: ${error.message}`);
+      |                                                        ^
+  122 |     }
+  123 |   }
+  124 |
+Next.js build worker exited with code: 1 and signal: null
