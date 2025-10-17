@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, Column } from '@/components/ui/data-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Settings, 
@@ -205,73 +205,84 @@ export function MarkupRulesManager({ className }: MarkupRulesManagerProps) {
     }
   };
 
-  const columns = [
+  const columns: Column<MarkupRule>[] = [
     {
-      accessorKey: 'name',
-      header: 'Rule Name',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
+      key: 'name',
+      label: 'Rule Name',
+      sortable: true,
+      width: 250,
+      render: (value, row) => (
         <div className="flex items-center space-x-2">
-          <span className="text-lg">{getTypeIcon(row.original.type)}</span>
+          <span className="text-lg">{getTypeIcon(row.type)}</span>
           <div>
-            <p className="font-medium">{row.original.name}</p>
+            <p className="font-medium">{row.name}</p>
             <p className="text-sm text-muted-foreground">
-              {row.original.type} • {row.original.targetName}
+              {row.type} • {row.targetName}
             </p>
           </div>
         </div>
       ),
     },
     {
-      accessorKey: 'b2bMarkupPercent',
-      header: 'B2B Markup',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
+      key: 'b2bMarkupPercent',
+      label: 'B2B Markup',
+      sortable: true,
+      width: 120,
+      render: (value, row) => (
         <div className="flex items-center space-x-2">
           <Percent className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{row.original.b2bMarkupPercent}%</span>
+          <span className="font-medium">{row.b2bMarkupPercent}%</span>
         </div>
       ),
     },
     {
-      accessorKey: 'retailMarkupPercent',
-      header: 'Retail Markup',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
+      key: 'retailMarkupPercent',
+      label: 'Retail Markup',
+      sortable: true,
+      width: 120,
+      render: (value, row) => (
         <div className="flex items-center space-x-2">
           <Percent className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{row.original.retailMarkupPercent}%</span>
+          <span className="font-medium">{row.retailMarkupPercent}%</span>
         </div>
       ),
     },
     {
-      accessorKey: 'priority',
-      header: 'Priority',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
+      key: 'priority',
+      label: 'Priority',
+      sortable: true,
+      width: 100,
+      render: (value, row) => (
         <div className="flex items-center space-x-2">
-          <Badge variant="outline">{row.original.priority}</Badge>
-          {row.original.priority > 5 && (
+          <Badge variant="outline">{row.priority}</Badge>
+          {row.priority > 5 && (
             <ArrowUp className="h-4 w-4 text-green-600" />
           )}
         </div>
       ),
     },
     {
-      accessorKey: 'isActive',
-      header: 'Status',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
-        <Badge variant={row.original.isActive ? 'default' : 'secondary'}>
-          {row.original.isActive ? 'Active' : 'Inactive'}
+      key: 'isActive',
+      label: 'Status',
+      sortable: true,
+      width: 100,
+      render: (value, row) => (
+        <Badge variant={row.isActive ? 'default' : 'secondary'}>
+          {row.isActive ? 'Active' : 'Inactive'}
         </Badge>
       ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }: { row: { original: MarkupRule } }) => (
+      key: 'actions',
+      label: 'Actions',
+      width: 120,
+      render: (value, row) => (
         <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              setSelectedRule(row.original);
+              setSelectedRule(row);
               setIsEditDialogOpen(true);
             }}
           >
@@ -280,7 +291,7 @@ export function MarkupRulesManager({ className }: MarkupRulesManagerProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDeleteRule(row.original.id)}
+            onClick={() => handleDeleteRule(row.id)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
