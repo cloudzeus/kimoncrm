@@ -40,6 +40,7 @@ export interface EquipmentItem {
 export interface Product {
   id: string;
   mtrl: string | null;
+  code: string | null;
   name: string;
   description: string | null;
   brand: {
