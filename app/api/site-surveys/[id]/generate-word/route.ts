@@ -50,13 +50,13 @@ export async function GET(
             phone: true,
           },
         },
-        files: {
+        images: {
           select: {
             id: true,
-            name: true,
             url: true,
-            filetype: true,
+            title: true,
             description: true,
+            kind: true,
             createdAt: true,
           },
         },
@@ -184,11 +184,11 @@ export async function GET(
       } : undefined,
       createdAt: siteSurvey.createdAt.toISOString(),
       updatedAt: siteSurvey.updatedAt.toISOString(),
-      files: siteSurvey.files.map(file => ({
-        name: file.name,
-        url: file.url,
-        filetype: file.filetype,
-        description: file.description,
+      files: siteSurvey.images.map(image => ({
+        name: image.title || 'Untitled',
+        url: image.url,
+        filetype: image.kind,
+        description: image.description,
       })),
       buildings: siteSurvey.cablingSurvey?.buildings || [],
       voipSurvey: siteSurvey.voipSurvey,
