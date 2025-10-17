@@ -61,7 +61,7 @@ const body = await request.json();
               description: task.description,
               priority: task.priority,
               estimatedHours: task.estimatedHours,
-              projectId: null, // Template tasks don't belong to a project
+              projectId: undefined, // Template tasks don't belong to a project
               createdBy: session.user.id,
               templateId: template.id,
               order: task.order,
