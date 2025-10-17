@@ -73,18 +73,18 @@ export async function GET(
     }
 
     // Fetch company details from settings
-    const companySettings = await prisma.companyDetails.findFirst();
+    const companySettings = await prisma.defaultCompanyData.findFirst();
     
     const companyDetails = {
-      name: companySettings?.name || 'Your Company Name',
-      logo: companySettings?.logo || undefined,
+      name: companySettings?.companyName || 'Your Company Name',
+      logo: undefined, // Logo URL would need to be fetched from FileRef if needed
       address: companySettings?.address || undefined,
       city: companySettings?.city || undefined,
-      phone: companySettings?.phone || undefined,
+      phone: companySettings?.phone1 || undefined,
       email: companySettings?.email || undefined,
       website: companySettings?.website || undefined,
-      vatNumber: companySettings?.vatNumber || undefined,
-      registrationNumber: companySettings?.registrationNumber || undefined,
+      vatNumber: undefined,
+      registrationNumber: undefined,
     };
 
     // Fetch equipment data if available
