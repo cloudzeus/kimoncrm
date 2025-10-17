@@ -242,8 +242,8 @@ export function EquipmentSelection({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] h-[90vh] p-0 z-[10000]">
-        <DialogHeader className="p-6 pb-4 border-b">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10000]">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-6 w-6 text-blue-600" />
             EQUIPMENT & SERVICES SELECTION
@@ -267,7 +267,7 @@ export function EquipmentSelection({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
           {/* Left Panel - Search & Selection */}
           <div className="w-2/3 border-r flex flex-col">
             {/* Search and Filters */}

@@ -48,7 +48,7 @@ export function MultiSelect({
 
   const selectedItems = options.filter((option) => selected.includes(option.id));
   const filteredOptions = options.filter((option) =>
-    option.name.toLowerCase().includes(searchTerm.toLowerCase())
+    option.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
