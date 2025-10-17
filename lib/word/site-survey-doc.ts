@@ -846,7 +846,7 @@ function createAppendices(surveyData: SiteSurveyData) {
         }),
       ],
       spacing: { after: 200 },
-    },
+    }),
     
     new Paragraph({
       children: [
@@ -856,7 +856,7 @@ function createAppendices(surveyData: SiteSurveyData) {
         }),
       ],
       spacing: { after: 200 },
-    },
+    }),
     
     new Paragraph({
       children: [
@@ -866,7 +866,7 @@ function createAppendices(surveyData: SiteSurveyData) {
         }),
       ],
       spacing: { after: 200 },
-    },
+    }),
     
     new Paragraph({
       children: [
