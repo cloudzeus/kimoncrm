@@ -24,7 +24,7 @@ export interface EquipmentItem {
   id: string;
   itemId: string; // The original product or service ID
   name: string;
-  type: string;
+  type: 'product' | 'service';
   brand?: string;
   model?: string;
   category: string;
