@@ -37,7 +37,7 @@ export async function exportInventoryToXLSX(branchId?: string): Promise<Buffer> 
   // Add data rows
   inventory.forEach((item) => {
     worksheet.addRow({
-      sku: item.product.sku,
+      sku: item.product.code || '',
       name: item.product.name,
       brand: item.product.brand?.name || '',
       category: item.product.category?.name || '',
@@ -92,7 +92,7 @@ export async function exportProductsToXLSX(): Promise<Buffer> {
 
   products.forEach((product) => {
     worksheet.addRow({
-      sku: product.sku,
+      sku: product.code || '',
       ean: product.ean || '',
       name: product.name,
       nameEn: product.nameEn || '',
