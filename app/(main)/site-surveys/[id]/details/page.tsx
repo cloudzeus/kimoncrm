@@ -38,6 +38,7 @@ import { FilesList } from "@/components/files/files-list";
 import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarchy-form";
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
+import { EquipmentDisplay } from "@/components/site-surveys/equipment-display";
 
 interface SiteSurveyDetail {
   id: string;
@@ -145,6 +146,7 @@ export default function SiteSurveyDetailsPage() {
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
   const [generatingWord, setGeneratingWord] = useState(false);
   const [downloadingBOM, setDownloadingBOM] = useState(false);
+  const [buildings, setBuildings] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSurveyDetails();
@@ -328,6 +330,19 @@ export default function SiteSurveyDetailsPage() {
       }
       const data = await response.json();
       setSurvey(data);
+
+      // Fetch cabling data if it's a cabling survey
+      if (data.type === 'CABLING') {
+        try {
+          const cablingResponse = await fetch(`/api/site-surveys/${id}/cabling`);
+          if (cablingResponse.ok) {
+            const cablingData = await cablingResponse.json();
+            setBuildings(cablingData.data?.buildings || []);
+          }
+        } catch (cablingError) {
+          console.error('Error fetching cabling data:', cablingError);
+        }
+      }
     } catch (error) {
       console.error("Error fetching survey details:", error);
       toast.error("Failed to load survey details");
@@ -669,12 +684,21 @@ export default function SiteSurveyDetailsPage() {
 
           {/* Equipment Tab */}
           <TabsContent value="equipment" className="space-y-6">
-            <Card>
-              <CardContent className="py-8 text-center">
-                <Server className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Equipment management will be available here.</p>
-              </CardContent>
-            </Card>
+            {survey.type === 'CABLING' && buildings.length > 0 ? (
+              <EquipmentDisplay buildings={buildings} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <Server className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    {survey.type === 'CABLING' 
+                      ? 'No equipment added yet. Add equipment to the site survey infrastructure.'
+                      : 'Equipment management is only available for cabling surveys.'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Files Tab */}
