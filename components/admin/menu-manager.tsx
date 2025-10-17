@@ -331,7 +331,7 @@ export function MenuManager() {
       label: "Name",
       sortable: true,
       render: (value, group) => {
-        const IconComponent = getIconComponent(group.icon);
+        const IconComponent = getIconComponent(group.icon || 'Folder');
         return (
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 flex items-center justify-center" style={{ color: group.iconColor }}>
