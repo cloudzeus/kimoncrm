@@ -263,14 +263,18 @@ async function createDetailedBOMSheet(
     { width: 25 },
   ];
 
-  // Add borders
-  const range = worksheet.getRange(1, 1, equipment.length + 1, headers.length);
-  range.border = {
-    top: { style: 'thin' },
-    left: { style: 'thin' },
-    bottom: { style: 'thin' },
-    right: { style: 'thin' }
-  };
+  // Add borders to all cells
+  for (let row = 1; row <= equipment.length + 1; row++) {
+    for (let col = 1; col <= headers.length; col++) {
+      const cell = worksheet.getCell(row, col);
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    }
+  }
 }
 
 async function createProductsSheet(workbook: ExcelJS.Workbook, equipment: EquipmentItem[]) {
