@@ -32,6 +32,7 @@ import {
   PhoneCall,
   FileImage,
   ExternalLink,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilesList } from "@/components/files/files-list";
@@ -143,10 +144,38 @@ export default function SiteSurveyDetailsPage() {
   const [cablingDialogOpen, setCablingDialogOpen] = useState(false);
   const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
+  const [generatingWord, setGeneratingWord] = useState(false);
 
   useEffect(() => {
     fetchSurveyDetails();
   }, [id]);
+
+  const generateWordDocument = async () => {
+    try {
+      setGeneratingWord(true);
+      const response = await fetch(`/api/site-surveys/${id}/generate-word`);
+      if (!response.ok) {
+        throw new Error("Failed to generate Word document");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Site-Survey-${survey?.title.replace(/[^a-zA-Z0-9]/g, '-')}-${id}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("Word document generated successfully!");
+    } catch (error) {
+      console.error("Error generating Word document:", error);
+      toast.error("Failed to generate Word document");
+    } finally {
+      setGeneratingWord(false);
+    }
+  };
 
   const fetchSurveyDetails = async () => {
     try {
@@ -254,10 +283,11 @@ export default function SiteSurveyDetailsPage() {
               )}
               <Button
                 variant="outline"
-                onClick={handleGenerateWord}
+                onClick={generateWordDocument}
+                disabled={generatingWord}
               >
                 <FileText className="h-4 w-4 mr-2" />
-                GENERATE WORD DOC
+                {generatingWord ? "GENERATING..." : "GENERATE WORD DOC"}
               </Button>
               <Button
                 variant="outline"

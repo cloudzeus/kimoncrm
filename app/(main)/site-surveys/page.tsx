@@ -39,6 +39,7 @@ import {
   Phone,
   Network,
   Eye,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -281,6 +282,30 @@ export default function SiteSurveysPage() {
     }
   };
 
+  const handleGenerateWord = async (surveyId: string, surveyTitle: string) => {
+    try {
+      const response = await fetch(`/api/site-surveys/${surveyId}/generate-word`);
+      if (!response.ok) {
+        throw new Error("Failed to generate Word document");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Site-Survey-${surveyTitle.replace(/[^a-zA-Z0-9]/g, '-')}-${surveyId}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("Word document generated successfully!");
+    } catch (error) {
+      console.error("Error generating Word document:", error);
+      toast.error("Failed to generate Word document");
+    }
+  };
+
   const handleDialogClose = (refresh = false) => {
     setIsDialogOpen(false);
     setEditingSurvey(null);
@@ -462,9 +487,13 @@ export default function SiteSurveysPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>ACTIONS</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleView(survey.id)}>
-                          <ExternalLink className="h-4 w-4 mr-2" />
+                        <DropdownMenuItem onClick={() => router.push(`/site-surveys/${survey.id}/details`)}>
+                          <Eye className="h-4 w-4 mr-2" />
                           VIEW DETAILS
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleGenerateWord(survey.id, survey.title)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          GENERATE WORD DOC
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEdit(survey)}>
                           <Edit className="h-4 w-4 mr-2" />
@@ -473,10 +502,6 @@ export default function SiteSurveysPage() {
                         <DropdownMenuItem onClick={() => handleNotifyPeople(survey)}>
                           <Mail className="h-4 w-4 mr-2" />
                           NOTIFY PEOPLE
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/site-surveys/${survey.id}/details`)}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          VIEW DETAILS
                         </DropdownMenuItem>
                         {survey.type === "VOIP" && (
                           <>
