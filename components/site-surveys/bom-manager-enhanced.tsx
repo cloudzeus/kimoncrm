@@ -82,6 +82,9 @@ export function BOMManagerEnhanced({
   files = [],
   onSave
 }: BOMManagerEnhancedProps) {
+  console.log('BOMManagerEnhanced received equipment:', equipment);
+  console.log('Equipment count:', equipment.length);
+  
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [editQuantity, setEditQuantity] = useState(1);
   const [editNotes, setEditNotes] = useState('');
@@ -103,15 +106,17 @@ export function BOMManagerEnhanced({
   const [selectedLocation, setSelectedLocation] = useState<SelectedElement | undefined>();
 
   // Separate products and services
-  const products = useMemo(() => 
-    equipment.filter(item => item.type === 'product'),
-    [equipment]
-  );
+  const products = useMemo(() => {
+    const filtered = equipment.filter(item => item.type === 'product');
+    console.log('Products in BOM:', filtered);
+    return filtered;
+  }, [equipment]);
 
-  const services = useMemo(() => 
-    equipment.filter(item => item.type === 'service'),
-    [equipment]
-  );
+  const services = useMemo(() => {
+    const filtered = equipment.filter(item => item.type === 'service');
+    console.log('Services in BOM:', filtered);
+    return filtered;
+  }, [equipment]);
 
   // Generate location options from buildings
   const locationOptions = useMemo(() => {

@@ -3381,7 +3381,10 @@ export function CablingHierarchyForm({
         }}
         onSave={(newEquipment) => {
           // Add to equipment list only (not to infrastructure)
+          console.log('Adding equipment to BOM:', newEquipment);
+          console.log('Current equipment count:', equipment.length);
           setEquipment([...equipment, ...newEquipment]);
+          console.log('New equipment count:', equipment.length + newEquipment.length);
           setEquipmentSelectionOpen(false);
           setSelectedElement(null);
           toast.success(`Added ${newEquipment.length} item(s) to equipment requirements`);
