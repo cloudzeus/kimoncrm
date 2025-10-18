@@ -411,76 +411,30 @@ export default function SiteSurveyDetailsPage() {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => router.back()}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <div className="flex items-center gap-3">
-                  {getTypeIcon(survey.type)}
-                  <h1 className="text-[14px] font-bold uppercase tracking-tight w-full">
-                    {survey.title}
-                  </h1>
-                  <Badge className={getTypeBadgeColor(survey.type)}>
-                    {survey.type}
-                  </Badge>
-                  <Badge variant={survey.status === "Completed" ? "default" : "secondary"}>
-                    {survey.status}
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Site Survey ID: SS-{survey.id}
-                </p>
+          <div className="flex items-center gap-4 py-6">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                {getTypeIcon(survey.type)}
+                <h1 className="text-[14px] font-bold uppercase tracking-tight">
+                  {survey.title}
+                </h1>
+                <Badge className={getTypeBadgeColor(survey.type)}>
+                  {survey.type}
+                </Badge>
+                <Badge variant={survey.status === "Completed" ? "default" : "secondary"}>
+                  {survey.status}
+                </Badge>
               </div>
-            </div>
-
-            <div className="flex gap-2">
-              {survey.type === "VOIP" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setVoipDialogOpen(true)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  EDIT VOIP DETAILS
-                </Button>
-              )}
-              {survey.type === "CABLING" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setCablingDialogOpen(true)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  EDIT CABLING DETAILS
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                onClick={generateWordDocument}
-                disabled={generatingWord}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={downloadBOM}
-                disabled={downloadingBOM}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setNetworkDiagramOpen(true)}
-              >
-                <Network className="h-4 w-4 mr-2" />
-                NETWORK DIAGRAM
-              </Button>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Site Survey ID: SS-{survey.id}
+              </p>
             </div>
           </div>
         </div>
@@ -497,6 +451,51 @@ export default function SiteSurveyDetailsPage() {
             <TabsTrigger value="files">FILES</TabsTrigger>
             <TabsTrigger value="history">HISTORY</TabsTrigger>
           </TabsList>
+
+          {/* Action Buttons Row */}
+          <div className="flex gap-2 justify-end">
+            {survey.type === "VOIP" && (
+              <Button
+                variant="outline"
+                onClick={() => setVoipDialogOpen(true)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                EDIT VOIP DETAILS
+              </Button>
+            )}
+            {survey.type === "CABLING" && (
+              <Button
+                variant="outline"
+                onClick={() => setCablingDialogOpen(true)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                EDIT CABLING DETAILS
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={generateWordDocument}
+              disabled={generatingWord}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={downloadBOM}
+              disabled={downloadingBOM}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setNetworkDiagramOpen(true)}
+            >
+              <Network className="h-4 w-4 mr-2" />
+              NETWORK DIAGRAM
+            </Button>
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">

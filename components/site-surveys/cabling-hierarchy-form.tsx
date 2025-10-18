@@ -2920,7 +2920,11 @@ export function CablingHierarchyForm({
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setSelectedElement({ type: 'building', buildingIndex: bIdx });
+                          setSelectedElement({ 
+                            type: 'building', 
+                            buildingIndex: bIdx,
+                            buildingName: building.name
+                          });
                           setEquipmentSelectionOpen(true);
                         }}
                         className="text-blue-600 border-blue-300 hover:bg-blue-100"
@@ -2971,18 +2975,42 @@ export function CablingHierarchyForm({
                             <Server className="h-4 w-4" />
                             {building.centralRack.name}
                           </h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedElement({ type: 'centralRack', buildingIndex: bIdx });
-                              setEquipmentSelectionOpen(true);
-                            }}
-                            className="text-orange-600 border-orange-300 hover:bg-orange-100"
-                          >
-                            <Package className="h-3 w-3 mr-1" />
-                            ADD EQUIPMENT
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedElement({ 
+                                  type: 'centralRack', 
+                                  buildingIndex: bIdx,
+                                  buildingName: building.name,
+                                  rackName: building.centralRack?.name || 'Central Rack'
+                                });
+                                setEquipmentSelectionOpen(true);
+                              }}
+                              className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                            >
+                              <Package className="h-3 w-3 mr-1" />
+                              ADD EQUIPMENT
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedProposedContext({ 
+                                  buildingIndex: bIdx, 
+                                  floorIndex: -1,
+                                  buildingName: building.name,
+                                  floorName: 'Building'
+                                });
+                                setProposedRackDialog(true);
+                              }}
+                              className="text-green-600 border-green-300 hover:bg-green-100"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              ADD RACK
+                            </Button>
+                          </div>
                         </div>
                         {/* Show equipment assigned to central rack */}
                         {equipment.filter(eq => 
@@ -3024,18 +3052,43 @@ export function CablingHierarchyForm({
                             <Layers3 className="h-4 w-4" />
                             {floor.name}
                           </h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedElement({ type: 'floor', buildingIndex: bIdx, floorIndex: fIdx });
-                              setEquipmentSelectionOpen(true);
-                            }}
-                            className="text-green-600 border-green-300 hover:bg-green-100"
-                          >
-                            <Package className="h-3 w-3 mr-1" />
-                            ADD EQUIPMENT
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedElement({ 
+                                  type: 'floor', 
+                                  buildingIndex: bIdx, 
+                                  floorIndex: fIdx,
+                                  buildingName: building.name,
+                                  floorName: floor.name
+                                });
+                                setEquipmentSelectionOpen(true);
+                              }}
+                              className="text-green-600 border-green-300 hover:bg-green-100"
+                            >
+                              <Package className="h-3 w-3 mr-1" />
+                              ADD EQUIPMENT
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedProposedContext({ 
+                                  buildingIndex: bIdx, 
+                                  floorIndex: fIdx,
+                                  buildingName: building.name,
+                                  floorName: floor.name
+                                });
+                                setProposedRoomDialog(true);
+                              }}
+                              className="text-purple-600 border-purple-300 hover:bg-purple-100"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              ADD ROOM
+                            </Button>
+                          </div>
                         </div>
                         {/* Show equipment assigned to floor */}
                         {equipment.filter(eq => 
@@ -3077,18 +3130,45 @@ export function CablingHierarchyForm({
                                 <Server className="h-3 w-3" />
                                 {rack.name}
                               </h5>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedElement({ type: 'floorRack', buildingIndex: bIdx, floorIndex: fIdx, rackIndex: rIdx });
-                                  setEquipmentSelectionOpen(true);
-                                }}
-                                className="text-purple-600 border-purple-300 hover:bg-purple-100 h-6"
-                              >
-                                <Package className="h-3 w-3 mr-1" />
-                                ADD
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedElement({ 
+                                      type: 'floorRack', 
+                                      buildingIndex: bIdx, 
+                                      floorIndex: fIdx, 
+                                      rackIndex: rIdx,
+                                      buildingName: building.name,
+                                      floorName: floor.name,
+                                      rackName: rack.name
+                                    });
+                                    setEquipmentSelectionOpen(true);
+                                  }}
+                                  className="text-purple-600 border-purple-300 hover:bg-purple-100 h-6"
+                                >
+                                  <Package className="h-3 w-3 mr-1" />
+                                  ADD EQUIPMENT
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedProposedContext({ 
+                                      buildingIndex: bIdx, 
+                                      floorIndex: fIdx,
+                                      buildingName: building.name,
+                                      floorName: floor.name
+                                    });
+                                    setProposedRackDialog(true);
+                                  }}
+                                  className="text-green-600 border-green-300 hover:bg-green-100 h-6"
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  ADD RACK
+                                </Button>
+                              </div>
                             </div>
                             {/* Show equipment assigned to floor rack */}
                             {equipment.filter(eq => 
@@ -3138,18 +3218,45 @@ export function CablingHierarchyForm({
                                   </Badge>
                                 )}
                               </h5>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedElement({ type: 'room', buildingIndex: bIdx, floorIndex: fIdx, roomIndex: rIdx });
-                                  setEquipmentSelectionOpen(true);
-                                }}
-                                className="text-gray-600 border-gray-300 hover:bg-gray-100 h-6"
-                              >
-                                <Package className="h-3 w-3 mr-1" />
-                                ADD
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedElement({ 
+                                      type: 'room', 
+                                      buildingIndex: bIdx, 
+                                      floorIndex: fIdx, 
+                                      roomIndex: rIdx,
+                                      buildingName: building.name,
+                                      floorName: floor.name,
+                                      roomName: room.name
+                                    });
+                                    setEquipmentSelectionOpen(true);
+                                  }}
+                                  className="text-gray-600 border-gray-300 hover:bg-gray-100 h-6"
+                                >
+                                  <Package className="h-3 w-3 mr-1" />
+                                  ADD EQUIPMENT
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedProposedContext({ 
+                                      buildingIndex: bIdx, 
+                                      floorIndex: fIdx,
+                                      buildingName: building.name,
+                                      floorName: floor.name
+                                    });
+                                    setProposedRoomDialog(true);
+                                  }}
+                                  className="text-purple-600 border-purple-300 hover:bg-purple-100 h-6"
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  ADD ROOM
+                                </Button>
+                              </div>
                             </div>
                             {/* Show equipment assigned to room */}
                             {equipment.filter(eq => 
@@ -3217,7 +3324,11 @@ export function CablingHierarchyForm({
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setSelectedElement({ type: 'buildingConnection', connectionIndex: cIdx });
+                            setSelectedElement({ 
+                              type: 'buildingConnection', 
+                              connectionIndex: cIdx,
+                              connectionName: `Connection ${cIdx + 1}`
+                            });
                             setEquipmentSelectionOpen(true);
                           }}
                           className="text-green-600 border-green-300 hover:bg-green-100"
@@ -3277,6 +3388,90 @@ export function CablingHierarchyForm({
         }}
         existingEquipment={equipment}
         selectedElement={selectedElement}
+      />
+
+      {/* Proposed Infrastructure Dialogs */}
+      <ProposedRackDialog
+        open={proposedRackDialog}
+        onOpenChange={setProposedRackDialog}
+        buildingIndex={selectedProposedContext?.buildingIndex || 0}
+        floorIndex={selectedProposedContext?.floorIndex || 0}
+        buildingName={buildings[selectedProposedContext?.buildingIndex || 0]?.name || 'Building'}
+        floorName={selectedProposedContext?.floorIndex && selectedProposedContext.floorIndex >= 0 ? buildings[selectedProposedContext?.buildingIndex || 0]?.floors[selectedProposedContext?.floorIndex || 0]?.name || 'Floor' : 'Building'}
+        onAdd={(rack) => {
+          // Add to proposed infrastructure
+          setProposedInfrastructure(prev => ({
+            ...prev,
+            proposedFloorRacks: [...prev.proposedFloorRacks, rack]
+          }));
+          toast.success('Proposed rack added');
+        }}
+      />
+
+      <ProposedRoomDialog
+        open={proposedRoomDialog}
+        onOpenChange={setProposedRoomDialog}
+        buildingIndex={selectedProposedContext?.buildingIndex || 0}
+        floorIndex={selectedProposedContext?.floorIndex || 0}
+        buildingName={buildings[selectedProposedContext?.buildingIndex || 0]?.name || 'Building'}
+        floorName={buildings[selectedProposedContext?.buildingIndex || 0]?.floors[selectedProposedContext?.floorIndex || 0]?.name || 'Floor'}
+        onAdd={(room) => {
+          // Add to proposed infrastructure
+          setProposedInfrastructure(prev => ({
+            ...prev,
+            proposedRooms: [...prev.proposedRooms, room]
+          }));
+          toast.success('Proposed room added');
+        }}
+      />
+
+      <ProposedOutletDialog
+        open={proposedOutletDialog}
+        onOpenChange={setProposedOutletDialog}
+        roomName="Selected Room"
+        onAdd={(outlet) => {
+          // Add outlet to the first proposed room or create a new room
+          setProposedInfrastructure(prev => {
+            const updatedRooms = [...prev.proposedRooms];
+            if (updatedRooms.length > 0) {
+              updatedRooms[0] = {
+                ...updatedRooms[0],
+                proposedOutlets: [...updatedRooms[0].proposedOutlets, outlet]
+              };
+            } else {
+              // Create a new room with this outlet
+              updatedRooms.push({
+                id: `proposed-room-${Date.now()}`,
+                name: 'New Room',
+                type: 'OFFICE',
+                isNew: true,
+                notes: '',
+                proposedOutlets: [outlet],
+                proposedDevices: [],
+                buildingIndex: selectedProposedContext?.buildingIndex || 0,
+                floorIndex: selectedProposedContext?.floorIndex || 0,
+              });
+            }
+            return {
+              ...prev,
+              proposedRooms: updatedRooms
+            };
+          });
+          toast.success('Proposed outlet added');
+        }}
+        onSelectProducts={(outlet) => {
+          // Open equipment selection for this outlet
+          setSelectedElement({
+            type: 'room',
+            buildingIndex: selectedProposedContext?.buildingIndex || 0,
+            floorIndex: selectedProposedContext?.floorIndex || 0,
+            roomIndex: 0,
+            buildingName: buildings[selectedProposedContext?.buildingIndex || 0]?.name || 'Building',
+            floorName: buildings[selectedProposedContext?.buildingIndex || 0]?.floors[selectedProposedContext?.floorIndex || 0]?.name || 'Floor',
+            roomName: outlet.name
+          });
+          setEquipmentSelectionOpen(true);
+        }}
       />
 
       {/* Network Diagram Modal */}

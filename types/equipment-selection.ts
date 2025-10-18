@@ -18,6 +18,12 @@ export interface SelectedElement {
   rackIndex?: number;
   roomIndex?: number;
   connectionIndex?: number;
+  // Actual names for display
+  buildingName?: string;
+  floorName?: string;
+  rackName?: string;
+  roomName?: string;
+  connectionName?: string;
 }
 
 export interface EquipmentItem {
@@ -109,17 +115,17 @@ export const isConnectionElement = (element: SelectedElement): boolean =>
 export const getElementDisplayName = (element: SelectedElement): string => {
   switch (element.type) {
     case 'building':
-      return 'Building';
+      return element.buildingName || 'Building';
     case 'centralRack':
-      return 'Central Rack';
+      return element.rackName || 'Central Rack';
     case 'floor':
-      return 'Floor';
+      return element.floorName || 'Floor';
     case 'floorRack':
-      return 'Floor Rack';
+      return element.rackName || 'Floor Rack';
     case 'room':
-      return 'Room';
+      return element.roomName || 'Room';
     case 'buildingConnection':
-      return 'Building Connection';
+      return element.connectionName || 'Building Connection';
     default:
       return 'Unknown Element';
   }
@@ -129,23 +135,33 @@ export const getElementDisplayName = (element: SelectedElement): string => {
 export const getElementContextPath = (element: SelectedElement): string => {
   const parts: string[] = [];
   
-  if (element.buildingIndex !== undefined) {
+  if (element.buildingName) {
+    parts.push(element.buildingName);
+  } else if (element.buildingIndex !== undefined) {
     parts.push(`Building ${element.buildingIndex + 1}`);
   }
   
-  if (element.floorIndex !== undefined) {
+  if (element.floorName) {
+    parts.push(element.floorName);
+  } else if (element.floorIndex !== undefined) {
     parts.push(`Floor ${element.floorIndex + 1}`);
   }
   
-  if (element.rackIndex !== undefined) {
+  if (element.rackName) {
+    parts.push(element.rackName);
+  } else if (element.rackIndex !== undefined) {
     parts.push(`Rack ${element.rackIndex + 1}`);
   }
   
-  if (element.roomIndex !== undefined) {
+  if (element.roomName) {
+    parts.push(element.roomName);
+  } else if (element.roomIndex !== undefined) {
     parts.push(`Room ${element.roomIndex + 1}`);
   }
   
-  if (element.connectionIndex !== undefined) {
+  if (element.connectionName) {
+    parts.push(element.connectionName);
+  } else if (element.connectionIndex !== undefined) {
     parts.push(`Connection ${element.connectionIndex + 1}`);
   }
   
