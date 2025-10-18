@@ -2835,7 +2835,7 @@ export function CablingHierarchyForm({
                   <div>
                     <h3 className="font-semibold text-green-800">Infrastructure Complete!</h3>
                     <p className="text-sm text-green-700">
-                      Now define the future requirements - add products and services needed for this project.
+                      Now assign future equipment requirements to each infrastructure element below.
                     </p>
                   </div>
                   <Button
@@ -2851,81 +2851,351 @@ export function CablingHierarchyForm({
             </Card>
           )}
 
-          {/* Equipment Selection */}
-          <Card>
+          <Card className="bg-blue-50 border-blue-200">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-blue-600" />
-                  FUTURE REQUIREMENTS - EQUIPMENT & SERVICES
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedElement(null);
-                      setEquipmentSelectionOpen(true);
-                    }}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-100"
-                  >
-                    <Package className="h-4 w-4 mr-1" />
-                    ADD PRODUCTS & SERVICES
-                  </Button>
-                </div>
-              </div>
+              <CardTitle className="text-blue-900">FUTURE REQUIREMENTS - ASSIGN TO INFRASTRUCTURE</CardTitle>
+              <p className="text-sm text-blue-700">
+                Review your infrastructure and add products/services to specific locations for installation.
+              </p>
             </CardHeader>
-            <CardContent>
-              {equipment.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Package className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                  <p className="text-lg font-medium">No equipment requirements defined yet</p>
-                  <p className="text-sm">Click "ADD PRODUCTS & SERVICES" to specify what needs to be installed</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    {equipment.length} item(s) in equipment requirements. Go to BOM tab to manage and assign locations.
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {equipment.map((item) => (
-                      <div key={item.id} className={`p-3 rounded-lg border ${
-                        item.type === 'product' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
-                      }`}>
-                        <div className="flex items-start gap-2">
-                          {item.type === 'product' ? (
-                            <Package className="h-4 w-4 text-blue-600 mt-1" />
-                          ) : (
-                            <Settings className="h-4 w-4 text-green-600 mt-1" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.brand && `${item.brand} • `}
-                              {item.category} • Qty: {item.quantity}
-                            </p>
-                            {item.notes && (
-                              <p className="text-xs text-amber-600 mt-1 truncate" title={item.notes}>
-                                📝 {item.notes}
-                              </p>
-                            )}
-                          </div>
+          </Card>
+
+          {/* Infrastructure View with Equipment Assignment */}
+          <div className="space-y-4">
+            {buildings.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Building2 className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                  <p className="text-lg font-medium">No infrastructure defined</p>
+                  <p className="text-sm">Go to Infrastructure tab to add buildings first</p>
+                </CardContent>
+              </Card>
+            ) : (
+              buildings.map((building, bIdx) => (
+                <Card key={bIdx} className="border-2 border-blue-200">
+                  <CardHeader className="bg-blue-50">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-blue-800">
+                        <Building2 className="h-5 w-5" />
+                        {building.name}
+                        {building.code && <span className="text-sm text-blue-600">({building.code})</span>}
+                      </CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedElement({ type: 'building', buildingIndex: bIdx });
+                          setEquipmentSelectionOpen(true);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                      >
+                        <Package className="h-4 w-4 mr-1" />
+                        ADD EQUIPMENT
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {/* Show equipment assigned to building */}
+                    {equipment.filter(eq => 
+                      eq.infrastructureElement?.type === 'building' && 
+                      eq.infrastructureElement?.buildingIndex === bIdx
+                    ).length > 0 && (
+                      <div className="mb-3 p-2 bg-blue-100 rounded border border-blue-200">
+                        <p className="text-xs font-semibold text-blue-700 mb-2">ASSIGNED EQUIPMENT:</p>
+                        <div className="space-y-1">
+                          {equipment.filter(eq => 
+                            eq.infrastructureElement?.type === 'building' && 
+                            eq.infrastructureElement?.buildingIndex === bIdx
+                          ).map(item => (
+                            <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
+                                <span className="font-medium">{item.name}</span>
+                                <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
+                                className="h-5 w-5 p-0"
+                              >
+                                <X className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Central Rack */}
+                    {building.centralRack && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-sm text-orange-800 flex items-center gap-2">
+                            <Server className="h-4 w-4" />
+                            {building.centralRack.name}
+                          </h4>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
-                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setSelectedElement({ type: 'centralRack', buildingIndex: bIdx });
+                              setEquipmentSelectionOpen(true);
+                            }}
+                            className="text-orange-600 border-orange-300 hover:bg-orange-100"
                           >
-                            <X className="h-3 w-3 text-destructive" />
+                            <Package className="h-3 w-3 mr-1" />
+                            ADD EQUIPMENT
                           </Button>
                         </div>
+                        {/* Show equipment assigned to central rack */}
+                        {equipment.filter(eq => 
+                          eq.infrastructureElement?.type === 'centralRack' && 
+                          eq.infrastructureElement?.buildingIndex === bIdx
+                        ).length > 0 && (
+                          <div className="space-y-1 mt-2">
+                            <p className="text-xs font-semibold text-orange-700">ASSIGNED EQUIPMENT:</p>
+                            {equipment.filter(eq => 
+                              eq.infrastructureElement?.type === 'centralRack' && 
+                              eq.infrastructureElement?.buildingIndex === bIdx
+                            ).map(item => (
+                              <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <X className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Floors */}
+                    {building.floors && building.floors.map((floor, fIdx) => (
+                      <div key={fIdx} className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-sm text-green-800 flex items-center gap-2">
+                            <Layers3 className="h-4 w-4" />
+                            {floor.name}
+                          </h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedElement({ type: 'floor', buildingIndex: bIdx, floorIndex: fIdx });
+                              setEquipmentSelectionOpen(true);
+                            }}
+                            className="text-green-600 border-green-300 hover:bg-green-100"
+                          >
+                            <Package className="h-3 w-3 mr-1" />
+                            ADD EQUIPMENT
+                          </Button>
+                        </div>
+                        {/* Show equipment assigned to floor */}
+                        {equipment.filter(eq => 
+                          eq.infrastructureElement?.type === 'floor' && 
+                          eq.infrastructureElement?.buildingIndex === bIdx &&
+                          eq.infrastructureElement?.floorIndex === fIdx
+                        ).length > 0 && (
+                          <div className="space-y-1 mb-3">
+                            <p className="text-xs font-semibold text-green-700">ASSIGNED EQUIPMENT:</p>
+                            {equipment.filter(eq => 
+                              eq.infrastructureElement?.type === 'floor' && 
+                              eq.infrastructureElement?.buildingIndex === bIdx &&
+                              eq.infrastructureElement?.floorIndex === fIdx
+                            ).map(item => (
+                              <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
+                                  <span className="font-medium">{item.name}</span>
+                                  <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <X className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Floor Racks */}
+                        {floor.floorRacks && floor.floorRacks.map((rack, rIdx) => (
+                          <div key={rIdx} className="ml-4 mb-2 p-2 bg-purple-50 border border-purple-200 rounded">
+                            <div className="flex items-center justify-between mb-1">
+                              <h5 className="font-medium text-xs text-purple-800 flex items-center gap-1">
+                                <Server className="h-3 w-3" />
+                                {rack.name}
+                              </h5>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedElement({ type: 'floorRack', buildingIndex: bIdx, floorIndex: fIdx, rackIndex: rIdx });
+                                  setEquipmentSelectionOpen(true);
+                                }}
+                                className="text-purple-600 border-purple-300 hover:bg-purple-100 h-6"
+                              >
+                                <Package className="h-3 w-3 mr-1" />
+                                ADD
+                              </Button>
+                            </div>
+                            {/* Show equipment assigned to floor rack */}
+                            {equipment.filter(eq => 
+                              eq.infrastructureElement?.type === 'floorRack' && 
+                              eq.infrastructureElement?.buildingIndex === bIdx &&
+                              eq.infrastructureElement?.floorIndex === fIdx &&
+                              eq.infrastructureElement?.rackIndex === rIdx
+                            ).length > 0 && (
+                              <div className="space-y-1 mt-1">
+                                {equipment.filter(eq => 
+                                  eq.infrastructureElement?.type === 'floorRack' && 
+                                  eq.infrastructureElement?.buildingIndex === bIdx &&
+                                  eq.infrastructureElement?.floorIndex === fIdx &&
+                                  eq.infrastructureElement?.rackIndex === rIdx
+                                ).map(item => (
+                                  <div key={item.id} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
+                                      <span className="font-medium">{item.name}</span>
+                                      <span className="text-muted-foreground">×{item.quantity}</span>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
+                                      className="h-4 w-4 p-0"
+                                    >
+                                      <X className="h-2.5 w-2.5 text-destructive" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Rooms */}
+                        {floor.rooms && floor.rooms.map((room, rIdx) => (
+                          <div key={rIdx} className="ml-4 mb-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                            <div className="flex items-center justify-between mb-1">
+                              <h5 className="font-medium text-xs text-gray-800 flex items-center gap-1">
+                                <Home className="h-3 w-3" />
+                                {room.name}
+                                {room.isTypicalRoom && room.identicalRoomsCount && room.identicalRoomsCount > 1 && (
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-blue-100 text-blue-700">
+                                    ×{room.identicalRoomsCount}
+                                  </Badge>
+                                )}
+                              </h5>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedElement({ type: 'room', buildingIndex: bIdx, floorIndex: fIdx, roomIndex: rIdx });
+                                  setEquipmentSelectionOpen(true);
+                                }}
+                                className="text-gray-600 border-gray-300 hover:bg-gray-100 h-6"
+                              >
+                                <Package className="h-3 w-3 mr-1" />
+                                ADD
+                              </Button>
+                            </div>
+                            {/* Show equipment assigned to room */}
+                            {equipment.filter(eq => 
+                              eq.infrastructureElement?.type === 'room' && 
+                              eq.infrastructureElement?.buildingIndex === bIdx &&
+                              eq.infrastructureElement?.floorIndex === fIdx &&
+                              eq.infrastructureElement?.roomIndex === rIdx
+                            ).length > 0 && (
+                              <div className="space-y-1 mt-1">
+                                {equipment.filter(eq => 
+                                  eq.infrastructureElement?.type === 'room' && 
+                                  eq.infrastructureElement?.buildingIndex === bIdx &&
+                                  eq.infrastructureElement?.floorIndex === fIdx &&
+                                  eq.infrastructureElement?.roomIndex === rIdx
+                                ).map(item => (
+                                  <div key={item.id} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
+                                      <span className="font-medium">{item.name}</span>
+                                      <span className="text-muted-foreground">×{item.quantity}</span>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
+                                      className="h-4 w-4 p-0"
+                                    >
+                                      <X className="h-2.5 w-2.5 text-destructive" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+
+            {/* Building Connections */}
+            {buildingConnections.length > 0 && (
+              <Card className="border-2 border-green-200">
+                <CardHeader className="bg-green-50">
+                  <CardTitle className="flex items-center gap-2 text-green-800 text-sm">
+                    <Link2 className="h-4 w-4" />
+                    BUILDING CONNECTIONS
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    {buildingConnections.map((connection, cIdx) => (
+                      <div key={cIdx} className="flex items-center justify-between p-2 bg-green-100 rounded">
+                        <div className="text-sm">
+                          <span className="font-medium">
+                            {buildings[connection.fromBuilding]?.name || `Building ${connection.fromBuilding}`} ↔ {buildings[connection.toBuilding]?.name || `Building ${connection.toBuilding}`}
+                          </span>
+                          <span className="text-xs text-green-700 ml-2">
+                            ({connection.connectionType})
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedElement({ type: 'buildingConnection', connectionIndex: cIdx });
+                            setEquipmentSelectionOpen(true);
+                          }}
+                          className="text-green-600 border-green-300 hover:bg-green-100"
+                        >
+                          <Package className="h-3 w-3 mr-1" />
+                          ADD
+                        </Button>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="bom" className="space-y-6">
