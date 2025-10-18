@@ -120,6 +120,7 @@ export function DataTable<T extends Record<string, any>>({
 
   // Helper functions
   const getNestedValue = (obj: any, path: string) => {
+    if (!path) return undefined;
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
