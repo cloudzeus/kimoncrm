@@ -832,7 +832,6 @@ export default function SiteSurveyDetailsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {console.log('BOM Tab - Equipment count:', equipment.length, 'Equipment:', equipment)}
                 {equipment.length > 0 ? (
                   <div className="space-y-6">
                     {/* Products Table */}

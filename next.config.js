@@ -2,7 +2,6 @@
 const nextConfig = {
   // Optimize production builds
   reactStrictMode: true,
-  swcMinify: true,
   
   // Production optimizations
   compiler: {
