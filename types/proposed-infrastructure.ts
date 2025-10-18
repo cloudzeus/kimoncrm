@@ -22,16 +22,22 @@ export interface ProposedOutlet {
 }
 
 export interface ProposedDevice {
-  id: string;
+  id?: string;
   type: string;
   name: string;
   brand?: string;
   model?: string;
   quantity: number;
   notes?: string;
-  // Associated product/service from catalog
-  associatedProduct?: EquipmentItem;
-  associatedService?: EquipmentItem;
+  // Location context
+  buildingIndex: number;
+  floorIndex: number;
+  rackIndex?: number; // For devices in racks
+  roomIndex?: number; // For devices in rooms
+  elementType: 'centralRack' | 'floorRack' | 'room';
+  // Associated products/services from catalog
+  associatedProducts?: EquipmentItem[];
+  associatedServices?: EquipmentItem[];
 }
 
 export interface ProposedRoom {
@@ -103,6 +109,7 @@ export interface ProposedInfrastructure {
   proposedFloorRacks: ProposedFloorRack[];
   proposedRooms: ProposedRoom[];
   proposedConnections: ProposedConnection[]; // General connections not tied to specific racks
+  proposedDevices?: ProposedDevice[]; // Generic devices that can be added to racks/rooms
 }
 
 // Helper to get all equipment from proposed infrastructure
@@ -114,8 +121,8 @@ export function getAllProposedEquipment(proposed: ProposedInfrastructure): Equip
     equipment.push(...rack.associatedProducts);
     equipment.push(...rack.associatedServices);
     rack.proposedDevices.forEach(device => {
-      if (device.associatedProduct) equipment.push(device.associatedProduct);
-      if (device.associatedService) equipment.push(device.associatedService);
+      if (device.associatedProducts) equipment.push(...device.associatedProducts);
+      if (device.associatedServices) equipment.push(...device.associatedServices);
     });
     rack.connections.forEach(conn => {
       equipment.push(...conn.associatedProducts);
@@ -128,8 +135,8 @@ export function getAllProposedEquipment(proposed: ProposedInfrastructure): Equip
     equipment.push(...rack.associatedProducts);
     equipment.push(...rack.associatedServices);
     rack.proposedDevices.forEach(device => {
-      if (device.associatedProduct) equipment.push(device.associatedProduct);
-      if (device.associatedService) equipment.push(device.associatedService);
+      if (device.associatedProducts) equipment.push(...device.associatedProducts);
+      if (device.associatedServices) equipment.push(...device.associatedServices);
     });
     rack.connections.forEach(conn => {
       equipment.push(...conn.associatedProducts);
@@ -144,8 +151,8 @@ export function getAllProposedEquipment(proposed: ProposedInfrastructure): Equip
       equipment.push(...outlet.associatedServices);
     });
     room.proposedDevices.forEach(device => {
-      if (device.associatedProduct) equipment.push(device.associatedProduct);
-      if (device.associatedService) equipment.push(device.associatedService);
+      if (device.associatedProducts) equipment.push(...device.associatedProducts);
+      if (device.associatedServices) equipment.push(...device.associatedServices);
     });
   });
 

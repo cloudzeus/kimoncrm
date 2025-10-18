@@ -725,62 +725,237 @@ export default function SiteSurveyDetailsPage() {
           <TabsContent value="bom" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Bill of Materials
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Bill of Materials
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={downloadBOM}
+                      disabled={downloadingBOM || equipment.length === 0}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    Equipment count: {equipment.length}
-                  </div>
-                  {equipment.length > 0 ? (
-                    <div className="space-y-3">
-                      <h3 className="font-semibold">Products</h3>
-                      <div className="space-y-2">
-                        {equipment.filter(e => e.type === 'product').map(item => (
-                          <div key={item.id} className="flex items-center justify-between p-3 border rounded">
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {item.brand} • {item.category}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div>Qty: {item.quantity}</div>
-                              <div className="text-sm font-semibold">€{item.totalPrice.toFixed(2)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <h3 className="font-semibold mt-6">Services</h3>
-                      <div className="space-y-2">
-                        {equipment.filter(e => e.type === 'service').map(item => (
-                          <div key={item.id} className="flex items-center justify-between p-3 border rounded">
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              <div className="text-xs text-muted-foreground">{item.category}</div>
-                            </div>
-                            <div className="text-right">
-                              <div>Qty: {item.quantity}</div>
-                              <div className="text-sm font-semibold">€{item.totalPrice.toFixed(2)}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-6 pt-4 border-t">
-                        <div className="text-right text-lg font-bold">
-                          Total: €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                {equipment.length > 0 ? (
+                  <div className="space-y-6">
+                    {/* Products Table */}
+                    {equipment.filter(e => e.type === 'product').length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-3 text-blue-800">PRODUCTS</h3>
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-blue-50">
+                              <tr>
+                                <th className="text-left p-2 font-semibold border-b">#</th>
+                                <th className="text-left p-2 font-semibold border-b">Product Name</th>
+                                <th className="text-left p-2 font-semibold border-b">Brand</th>
+                                <th className="text-left p-2 font-semibold border-b">Category</th>
+                                <th className="text-center p-2 font-semibold border-b">Qty</th>
+                                <th className="text-right p-2 font-semibold border-b">Unit Price (€)</th>
+                                <th className="text-right p-2 font-semibold border-b">Margin (%)</th>
+                                <th className="text-right p-2 font-semibold border-b">Total (€)</th>
+                                <th className="text-left p-2 font-semibold border-b">Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {equipment.filter(e => e.type === 'product').map((item, idx) => (
+                                <tr key={item.id} className="hover:bg-gray-50">
+                                  <td className="p-2 border-b">{idx + 1}</td>
+                                  <td className="p-2 border-b font-medium">{item.name}</td>
+                                  <td className="p-2 border-b">{item.brand || '-'}</td>
+                                  <td className="p-2 border-b">{item.category}</td>
+                                  <td className="p-2 border-b text-center">{item.quantity}</td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={item.price || 0}
+                                      onChange={(e) => {
+                                        const newPrice = parseFloat(e.target.value) || 0;
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id 
+                                            ? { ...eq, price: newPrice, totalPrice: newPrice * eq.quantity * (1 + (eq.margin || 0) / 100) }
+                                            : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      className="h-8 w-24 text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.1"
+                                      value={item.margin || 0}
+                                      onChange={(e) => {
+                                        const newMargin = parseFloat(e.target.value) || 0;
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id 
+                                            ? { ...eq, margin: newMargin, totalPrice: eq.price * eq.quantity * (1 + newMargin / 100) }
+                                            : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      className="h-8 w-20 text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 border-b text-right font-semibold">
+                                    {item.totalPrice.toFixed(2)}
+                                  </td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="text"
+                                      value={item.notes || ''}
+                                      onChange={(e) => {
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id ? { ...eq, notes: e.target.value } : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      placeholder="Notes..."
+                                      className="h-8 w-32 text-xs"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="bg-blue-100 font-semibold">
+                                <td colSpan={7} className="p-2 text-right">Products Subtotal:</td>
+                                <td className="p-2 text-right">
+                                  €{equipment.filter(e => e.type === 'product').reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                                </td>
+                                <td></td>
+                              </tr>
+                            </tbody>
+                          </table>
                         </div>
                       </div>
+                    )}
+
+                    {/* Services Table */}
+                    {equipment.filter(e => e.type === 'service').length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-3 text-green-800">SERVICES</h3>
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-green-50">
+                              <tr>
+                                <th className="text-left p-2 font-semibold border-b">#</th>
+                                <th className="text-left p-2 font-semibold border-b">Service Name</th>
+                                <th className="text-left p-2 font-semibold border-b">Category</th>
+                                <th className="text-center p-2 font-semibold border-b">Qty</th>
+                                <th className="text-right p-2 font-semibold border-b">Unit Price (€)</th>
+                                <th className="text-right p-2 font-semibold border-b">Margin (%)</th>
+                                <th className="text-right p-2 font-semibold border-b">Total (€)</th>
+                                <th className="text-left p-2 font-semibold border-b">Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {equipment.filter(e => e.type === 'service').map((item, idx) => (
+                                <tr key={item.id} className="hover:bg-gray-50">
+                                  <td className="p-2 border-b">{idx + 1}</td>
+                                  <td className="p-2 border-b font-medium">{item.name}</td>
+                                  <td className="p-2 border-b">{item.category}</td>
+                                  <td className="p-2 border-b text-center">{item.quantity}</td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={item.price || 0}
+                                      onChange={(e) => {
+                                        const newPrice = parseFloat(e.target.value) || 0;
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id 
+                                            ? { ...eq, price: newPrice, totalPrice: newPrice * eq.quantity * (1 + (eq.margin || 0) / 100) }
+                                            : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      className="h-8 w-24 text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.1"
+                                      value={item.margin || 0}
+                                      onChange={(e) => {
+                                        const newMargin = parseFloat(e.target.value) || 0;
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id 
+                                            ? { ...eq, margin: newMargin, totalPrice: eq.price * eq.quantity * (1 + newMargin / 100) }
+                                            : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      className="h-8 w-20 text-right"
+                                    />
+                                  </td>
+                                  <td className="p-2 border-b text-right font-semibold">
+                                    {item.totalPrice.toFixed(2)}
+                                  </td>
+                                  <td className="p-2 border-b">
+                                    <Input
+                                      type="text"
+                                      value={item.notes || ''}
+                                      onChange={(e) => {
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id ? { ...eq, notes: e.target.value } : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      placeholder="Notes..."
+                                      className="h-8 w-32 text-xs"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="bg-green-100 font-semibold">
+                                <td colSpan={6} className="p-2 text-right">Services Subtotal:</td>
+                                <td className="p-2 text-right">
+                                  €{equipment.filter(e => e.type === 'service').reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                                </td>
+                                <td></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Grand Total */}
+                    <div className="bg-gray-100 p-4 rounded-lg border-2 border-gray-300">
+                      <div className="flex justify-between items-center text-xl font-bold">
+                        <span>GRAND TOTAL:</span>
+                        <span className="text-green-700">
+                          €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground flex justify-between">
+                        <span>Total Items: {equipment.length}</span>
+                        <span>Products: {equipment.filter(e => e.type === 'product').length} | Services: {equipment.filter(e => e.type === 'service').length}</span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No equipment added yet. Add equipment in the Equipment tab.
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                    <p className="text-lg font-medium">No equipment added yet</p>
+                    <p className="text-sm">Add products and services in the Infrastructure → Equipment tab</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
