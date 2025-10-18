@@ -78,12 +78,10 @@ export function EquipmentSelection({
     }
   }, [open, activeTab, searchTerm, selectedBrands, selectedCategories]);
 
-  // Load services when searching/filtering or when on services tab
+  // Load services when on services tab
   useEffect(() => {
-    if (open && activeTab === 'services' && (searchTerm || selectedServiceCategories.length > 0)) {
+    if (open && activeTab === 'services') {
       fetchServices();
-    } else if (open && activeTab === 'services' && !searchTerm && selectedServiceCategories.length === 0) {
-      setServices([]);
     }
   }, [open, activeTab, searchTerm, selectedServiceCategories]);
 
