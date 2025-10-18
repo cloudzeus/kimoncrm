@@ -292,63 +292,6 @@ export function CablingHierarchyForm({
   ];
 
   // Load existing data on mount
-  // Save equipment function
-  const saveEquipment = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`/api/site-surveys/${siteSurveyId}/save-equipment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          proposedInfrastructure,
-          equipment,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save equipment');
-      }
-
-      toast.success('Equipment saved successfully');
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error('Error saving equipment:', error);
-      toast.error('Failed to save equipment');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load saved equipment on mount
-  useEffect(() => {
-    const loadSavedEquipment = async () => {
-      try {
-        const response = await fetch(`/api/site-surveys/${siteSurveyId}/save-equipment`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.equipment) {
-            setEquipment(data.equipment);
-          }
-          if (data.proposedInfrastructure) {
-            setProposedInfrastructure(data.proposedInfrastructure);
-          }
-          console.log('Loaded saved equipment:', data);
-        }
-      } catch (error) {
-        console.error('Error loading saved equipment:', error);
-      }
-    };
-
-    if (!initialLoad) {
-      loadSavedEquipment();
-    }
-  }, [siteSurveyId, initialLoad]);
-
   // Notify parent of equipment changes
   useEffect(() => {
     if (onEquipmentUpdate) {
@@ -1126,29 +1069,8 @@ export function CablingHierarchyForm({
 
   return (
     <div className="space-y-6">
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button
-          onClick={saveEquipment}
-          disabled={loading}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          {loading ? (
-            <>
-              <span className="animate-spin mr-2">⏳</span>
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              SAVE EQUIPMENT
-            </>
-          )}
-        </Button>
-      </div>
-
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">`
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="infrastructure" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
