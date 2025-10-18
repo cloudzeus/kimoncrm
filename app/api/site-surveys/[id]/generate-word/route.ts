@@ -135,7 +135,7 @@ export async function POST(
         name: image.title || 'Untitled',
         url: image.url,
         filetype: image.kind,
-        description: image.description,
+        description: image.description || undefined,
       })),
       buildings: siteSurvey.buildings || [],
       voipSurvey: siteSurvey.voipSurvey,
