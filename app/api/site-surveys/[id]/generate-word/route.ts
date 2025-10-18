@@ -156,7 +156,7 @@ export async function POST(
     const filename = `Site-Survey-${safeTitle}-${siteSurvey.id.substring(0, 8)}.docx`;
     
     // Return the Word document
-    return new NextResponse(wordBuffer, {
+    return new NextResponse(new Uint8Array(wordBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
