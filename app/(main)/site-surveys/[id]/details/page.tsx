@@ -689,6 +689,7 @@ export default function SiteSurveyDetailsPage() {
                   toast.success("Infrastructure updated successfully");
                 }}
                 onEquipmentUpdate={(equipmentData) => {
+                  console.log('Equipment updated in parent:', equipmentData);
                   setEquipment(equipmentData);
                 }}
               />
@@ -733,6 +734,31 @@ export default function SiteSurveyDetailsPage() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
+                      onClick={() => {
+                        const testEquipment = [
+                          {
+                            id: 'test-1',
+                            type: 'product' as const,
+                            itemId: 'test',
+                            name: 'Test Product',
+                            brand: 'Test Brand',
+                            category: 'Test Category',
+                            unit: 'Each',
+                            quantity: 2,
+                            price: 100,
+                            margin: 20,
+                            totalPrice: 240,
+                            notes: 'Test notes'
+                          }
+                        ];
+                        setEquipment(testEquipment);
+                        toast.success('Added test equipment');
+                      }}
+                    >
+                      Add Test Equipment
+                    </Button>
+                    <Button
+                      variant="outline"
                       onClick={downloadBOM}
                       disabled={downloadingBOM || equipment.length === 0}
                     >
@@ -743,6 +769,7 @@ export default function SiteSurveyDetailsPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                {console.log('BOM Tab - Equipment count:', equipment.length, 'Equipment:', equipment)}
                 {equipment.length > 0 ? (
                   <div className="space-y-6">
                     {/* Products Table */}

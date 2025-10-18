@@ -1868,14 +1868,14 @@ export function CablingHierarchyForm({
                                                 </p>
                                               )}
                                             </div>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
                                                 onClick={() => deleteDevice('room', bIdx, room.devices!.filter(d => !d.itemType).findIndex(d => d === device), fIdx, undefined, rIdx)}
-                                              >
-                                                <X className="h-3 w-3 text-destructive" />
-                                              </Button>
+                                            >
+                                              <X className="h-3 w-3 text-destructive" />
+                                            </Button>
                                           </div>
                                         ))}
                                       </div>
@@ -2937,18 +2937,18 @@ export function CablingHierarchyForm({
             ) : (
               buildings.map((building, bIdx) => (
                 <Card key={bIdx} className="border-2 border-blue-200">
-                  <CardHeader className="bg-blue-50">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-blue-800">
-                        <Building2 className="h-5 w-5" />
-                        {building.name}
-                        {building.code && <span className="text-sm text-blue-600">({building.code})</span>}
-                      </CardTitle>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
+                <CardHeader className="bg-blue-50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-blue-800">
+                      <Building2 className="h-5 w-5" />
+                      {building.name}
+                      {building.code && <span className="text-sm text-blue-600">({building.code})</span>}
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
                             setSelectedProposedContext({ 
                               buildingIndex: bIdx, 
                               floorIndex: -1,
@@ -2961,11 +2961,11 @@ export function CablingHierarchyForm({
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           ADD NEW RACK
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
                             // TODO: Open connection dialog for building level
                             toast.info('Add connection dialog coming soon');
                           }}
@@ -2983,16 +2983,16 @@ export function CablingHierarchyForm({
                               buildingIndex: bIdx,
                               buildingName: building.name
                             });
-                            setEquipmentSelectionOpen(true);
-                          }}
+                          setEquipmentSelectionOpen(true);
+                        }}
                           className="text-orange-600 border-orange-300 hover:bg-orange-100"
-                        >
+                      >
                           <Package className="h-3 w-3 mr-1" />
                           ASSIGN EQUIPMENT
-                        </Button>
-                      </div>
+                      </Button>
                     </div>
-                  </CardHeader>
+                  </div>
+                </CardHeader>
                   <CardContent className="p-4 space-y-3">
                     {/* Show equipment assigned to building */}
                     {equipment.filter(eq => 
@@ -3026,19 +3026,19 @@ export function CablingHierarchyForm({
                       </div>
                     )}
 
-                    {/* Central Rack */}
-                    {building.centralRack && (
+                  {/* Central Rack */}
+                  {building.centralRack && (
                       <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-sm text-orange-800 flex items-center gap-2">
-                            <Server className="h-4 w-4" />
+                          <Server className="h-4 w-4" />
                             {building.centralRack.name}
-                          </h4>
+                        </h4>
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
                                 setSelectedProposedContext({
                                   buildingIndex: bIdx,
                                   floorIndex: -1,
@@ -3083,21 +3083,21 @@ export function CablingHierarchyForm({
                                   buildingName: building.name,
                                   rackName: building.centralRack?.name || 'Central Rack'
                                 });
-                                setEquipmentSelectionOpen(true);
-                              }}
+                            setEquipmentSelectionOpen(true);
+                          }}
                               className="text-orange-600 border-orange-300 hover:bg-orange-100 h-6"
-                            >
+                        >
                               <Package className="h-3 w-3 mr-1" />
                               ASSIGN EQUIPMENT
-                            </Button>
-                          </div>
+                        </Button>
+                      </div>
                         </div>
                         {/* Show equipment assigned to central rack */}
                         {equipment.filter(eq => 
                           eq.infrastructureElement?.type === 'centralRack' && 
                           eq.infrastructureElement?.buildingIndex === bIdx
                         ).length > 0 && (
-                          <div className="space-y-1 mt-2">
+                        <div className="space-y-1 mt-2">
                             <p className="text-xs font-semibold text-orange-700">ASSIGNED EQUIPMENT:</p>
                             {equipment.filter(eq => 
                               eq.infrastructureElement?.type === 'centralRack' && 
@@ -3108,19 +3108,19 @@ export function CablingHierarchyForm({
                                   {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                   <span className="font-medium">{item.name}</span>
                                   <span className="text-muted-foreground">Qty: {item.quantity}</span>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                   onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
                                   className="h-5 w-5 p-0"
                                 >
                                   <X className="h-3 w-3 text-destructive" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                         {/* Show proposed devices for central rack */}
                         {(proposedInfrastructure.proposedDevices || []).filter(device => 
@@ -3165,22 +3165,22 @@ export function CablingHierarchyForm({
                             ))}
                           </div>
                         )}
-                      </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Floors */}
+                  {/* Floors */}
                     {building.floors && building.floors.map((floor, fIdx) => (
                       <div key={fIdx} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-sm text-green-800 flex items-center gap-2">
-                            <Layers3 className="h-4 w-4" />
-                            {floor.name}
-                          </h4>
+                          <Layers3 className="h-4 w-4" />
+                          {floor.name}
+                        </h4>
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
                                 setSelectedElement({ 
                                   type: 'floor', 
                                   buildingIndex: bIdx, 
@@ -3188,10 +3188,10 @@ export function CablingHierarchyForm({
                                   buildingName: building.name,
                                   floorName: floor.name
                                 });
-                                setEquipmentSelectionOpen(true);
-                              }}
-                              className="text-green-600 border-green-300 hover:bg-green-100"
-                            >
+                            setEquipmentSelectionOpen(true);
+                          }}
+                          className="text-green-600 border-green-300 hover:bg-green-100"
+                        >
                               <Package className="h-3 w-3 mr-1" />
                               ADD EQUIPMENT
                             </Button>
@@ -3211,8 +3211,8 @@ export function CablingHierarchyForm({
                             >
                               <Plus className="h-3 w-3 mr-1" />
                               ADD ROOM
-                            </Button>
-                          </div>
+                        </Button>
+                      </div>
                         </div>
                         {/* Show equipment assigned to floor */}
                         {equipment.filter(eq => 
@@ -3246,19 +3246,19 @@ export function CablingHierarchyForm({
                           </div>
                         )}
 
-                        {/* Floor Racks */}
+                      {/* Floor Racks */}
                         {floor.floorRacks && floor.floorRacks.map((rack, rIdx) => (
                           <div key={rIdx} className="ml-4 mb-2 p-2 bg-purple-50 border border-purple-200 rounded">
-                            <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center justify-between mb-1">
                               <h5 className="font-medium text-xs text-purple-800 flex items-center gap-1">
                                 <Server className="h-3 w-3" />
                                 {rack.name}
-                              </h5>
+                            </h5>
                               <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
                                     setSelectedProposedContext({
                                       buildingIndex: bIdx,
                                       floorIndex: fIdx,
@@ -3308,15 +3308,15 @@ export function CablingHierarchyForm({
                                       floorName: floor.name,
                                       rackName: rack.name
                                     });
-                                    setEquipmentSelectionOpen(true);
-                                  }}
+                                setEquipmentSelectionOpen(true);
+                              }}
                                   className="text-orange-600 border-orange-300 hover:bg-orange-100 h-6"
-                                >
+                            >
                                   <Package className="h-3 w-3 mr-1" />
                                   ASSIGN EQUIPMENT
-                                </Button>
-                              </div>
-                            </div>
+                            </Button>
+                          </div>
+                                    </div>
                             {/* Show equipment assigned to floor rack */}
                             {equipment.filter(eq => 
                               eq.infrastructureElement?.type === 'floorRack' && 
@@ -3337,19 +3337,19 @@ export function CablingHierarchyForm({
                                       {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                       <span className="font-medium">{item.name}</span>
                                       <span className="text-muted-foreground">×{item.quantity}</span>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                       onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
                                       className="h-4 w-4 p-0"
                                     >
                                       <X className="h-2.5 w-2.5 text-destructive" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                             {/* Show proposed devices for this rack */}
                             {(proposedInfrastructure.proposedDevices || []).filter(device => 
@@ -3389,13 +3389,13 @@ export function CablingHierarchyForm({
                                 ))}
                               </div>
                             )}
-                          </div>
-                        ))}
+                        </div>
+                      ))}
 
-                        {/* Rooms */}
+                      {/* Rooms */}
                         {floor.rooms && floor.rooms.map((room, rIdx) => (
                           <div key={rIdx} className="ml-4 mb-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                            <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center justify-between mb-1">
                               <h5 className="font-medium text-xs text-gray-800 flex items-center gap-1">
                                 <Home className="h-3 w-3" />
                                 {room.name}
@@ -3404,12 +3404,12 @@ export function CablingHierarchyForm({
                                     ×{room.identicalRoomsCount}
                                   </Badge>
                                 )}
-                              </h5>
+                            </h5>
                               <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
                                     setSelectedProposedContext({
                                       buildingIndex: bIdx,
                                       floorIndex: fIdx,
@@ -3459,15 +3459,15 @@ export function CablingHierarchyForm({
                                       floorName: floor.name,
                                       roomName: room.name
                                     });
-                                    setEquipmentSelectionOpen(true);
-                                  }}
+                                setEquipmentSelectionOpen(true);
+                              }}
                                   className="text-orange-600 border-orange-300 hover:bg-orange-100 h-6"
-                                >
+                            >
                                   <Package className="h-3 w-3 mr-1" />
                                   ASSIGN EQUIPMENT
-                                </Button>
-                              </div>
-                            </div>
+                            </Button>
+                          </div>
+                                    </div>
                             {/* Show equipment assigned to room */}
                             {equipment.filter(eq => 
                               eq.infrastructureElement?.type === 'room' && 
@@ -3488,19 +3488,19 @@ export function CablingHierarchyForm({
                                       {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                       <span className="font-medium">{item.name}</span>
                                       <span className="text-muted-foreground">×{item.quantity}</span>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                       onClick={() => setEquipment(equipment.filter(eq => eq.id !== item.id))}
                                       className="h-4 w-4 p-0"
                                     >
                                       <X className="h-2.5 w-2.5 text-destructive" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                             {/* Show proposed devices for this room */}
                             {(proposedInfrastructure.proposedDevices || []).filter(device => 
@@ -3523,7 +3523,7 @@ export function CablingHierarchyForm({
                                         <Server className="h-3 w-3 text-blue-600" />
                                         <span className="font-semibold">{device.name}</span>
                                         <Badge variant="secondary" className="text-[9px]">{device.type}</Badge>
-                                      </div>
+                        </div>
                                       <span className="text-muted-foreground text-[10px]">×{device.quantity}</span>
                                     </div>
                                     {(device.associatedProducts && device.associatedProducts.length > 0) || (device.associatedServices && device.associatedServices.length > 0) ? (
@@ -3541,11 +3541,11 @@ export function CablingHierarchyForm({
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
+                      ))}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
               ))
             )}
 
@@ -3621,8 +3621,9 @@ export function CablingHierarchyForm({
             // Add to equipment list only (not to infrastructure)
             console.log('Adding equipment to BOM:', newEquipment);
             console.log('Current equipment count:', equipment.length);
-            setEquipment([...equipment, ...newEquipment]);
-            console.log('New equipment count:', equipment.length + newEquipment.length);
+            const updatedEquipment = [...equipment, ...newEquipment];
+            setEquipment(updatedEquipment);
+            console.log('New equipment count:', updatedEquipment.length);
             setEquipmentSelectionOpen(false);
             setSelectedElement(null);
             toast.success(`Added ${newEquipment.length} item(s) to equipment requirements`);
