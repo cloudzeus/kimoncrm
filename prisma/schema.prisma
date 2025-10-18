@@ -773,40 +773,41 @@ model UnitTranslation {
 
 /// ** Products, Branches & Inventory **
 model Product {
-  id               String                  @id @default(cuid())
-  name             String
-  brandId          String?
-  manufacturerId   String?
-  categoryId       String?
-  unitId           String?
-  isActive         Boolean                 @default(true)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  code             String?                 @unique
-  code1            String?
-  code2            String?
-  height           Decimal?                @db.Decimal(10, 2)
-  length           Decimal?                @db.Decimal(10, 2)
-  mtrcategory      String?
-  mtrl             String?                 @unique
-  mtrmanfctr       String?
-  mtrmark          String?
-  weight           Decimal?                @db.Decimal(10, 2)
-  width            Decimal?                @db.Decimal(10, 2)
-  productDataSheet String?
-  media            FileRef[]               @relation("ProductMedia")
-  inventory        Inventory[]
-  orderItems       OrderItem[]
-  brand            Brand?                  @relation(fields: [brandId], references: [id])
-  category         Category?               @relation(fields: [categoryId], references: [id])
-  manufacturer     Manufacturer?           @relation(fields: [manufacturerId], references: [id])
-  unit             Unit?                   @relation(fields: [unitId], references: [id])
-  images           ProductImage[]
-  pricingHistory   ProductPricingHistory[]
-  specifications   ProductSpec[]
-  stock            ProductStock[]
-  translations     ProductTranslation[]
-  quoteItems       QuoteItem[]
+  id                          String                       @id @default(cuid())
+  name                        String
+  brandId                     String?
+  manufacturerId              String?
+  categoryId                  String?
+  unitId                      String?
+  isActive                    Boolean                      @default(true)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  code                        String?                      @unique
+  code1                       String?
+  code2                       String?
+  height                      Decimal?                     @db.Decimal(10, 2)
+  length                      Decimal?                     @db.Decimal(10, 2)
+  mtrcategory                 String?
+  mtrl                        String?                      @unique
+  mtrmanfctr                  String?
+  mtrmark                     String?
+  weight                      Decimal?                     @db.Decimal(10, 2)
+  width                       Decimal?                     @db.Decimal(10, 2)
+  productDataSheet            String?
+  media                       FileRef[]                    @relation("ProductMedia")
+  inventory                   Inventory[]
+  orderItems                  OrderItem[]
+  brand                       Brand?                       @relation(fields: [brandId], references: [id])
+  category                    Category?                    @relation(fields: [categoryId], references: [id])
+  manufacturer                Manufacturer?                @relation(fields: [manufacturerId], references: [id])
+  unit                        Unit?                        @relation(fields: [unitId], references: [id])
+  images                      ProductImage[]
+  pricingHistory              ProductPricingHistory[]
+  specifications              ProductSpec[]
+  stock                       ProductStock[]
+  translations                ProductTranslation[]
+  quoteItems                  QuoteItem[]
+  proposedProductAssociations ProposedProductAssociation[]
 
   @@index([brandId], map: "Product_brandId_fkey")
   @@index([categoryId], map: "Product_categoryId_fkey")
@@ -1056,33 +1057,39 @@ model QuoteItem {
 }
 
 model SiteSurvey {
-  id            String         @id @default(cuid())
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  address       String?
-  arrangedDate  DateTime?
-  assignFromId  String?
-  assignToId    String?
-  city          String?
-  contactId     String?
-  customerId    String
-  description   String?        @db.Text
-  email         String?
-  phone         String?
-  status        String         @default("Scheduled")
-  title         String
-  type          SurveyType
-  buildings     Building[]
-  cableRuns     CableRun[]
-  cablingSurvey CablingSurvey?
-  images        ImageAsset[]
-  pathways      Pathway[]
-  assignFrom    User?          @relation("SurveyAssignFrom", fields: [assignFromId], references: [id])
-  assignTo      User?          @relation("SurveyAssignTo", fields: [assignToId], references: [id])
-  contact       Contact?       @relation("SurveyContact", fields: [contactId], references: [id])
-  customer      Customer       @relation(fields: [customerId], references: [id])
-  voipSurvey    VoipSurvey?
-  workRequests  WorkRequest[]
+  id                          String                       @id @default(cuid())
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  address                     String?
+  arrangedDate                DateTime?
+  assignFromId                String?
+  assignToId                  String?
+  city                        String?
+  contactId                   String?
+  customerId                  String
+  description                 String?                      @db.Text
+  email                       String?
+  phone                       String?
+  status                      String                       @default("Scheduled")
+  title                       String
+  type                        SurveyType
+  buildings                   Building[]
+  cableRuns                   CableRun[]
+  cablingSurvey               CablingSurvey?
+  images                      ImageAsset[]
+  pathways                    Pathway[]
+  assignFrom                  User?                        @relation("SurveyAssignFrom", fields: [assignFromId], references: [id])
+  assignTo                    User?                        @relation("SurveyAssignTo", fields: [assignToId], references: [id])
+  contact                     Contact?                     @relation("SurveyContact", fields: [contactId], references: [id])
+  customer                    Customer                     @relation(fields: [customerId], references: [id])
+  voipSurvey                  VoipSurvey?
+  workRequests                WorkRequest[]
+  // Proposed Infrastructure Relations
+  proposedFloorRacks          ProposedFloorRack[]
+  proposedCentralRacks        ProposedCentralRack[]
+  proposedRooms               ProposedRoom[]
+  proposedConnections         ProposedConnection[]
+  proposedProductAssociations ProposedProductAssociation[]
 
   @@index([customerId])
   @@index([assignToId])
@@ -1955,18 +1962,19 @@ model Supplier {
 
 /// ** Services (SoftOne Integration) **
 model Service {
-  id                   String               @id @default(cuid())
-  mtrl                 String?              @unique
-  code                 String?              @unique
-  mtrcategory          String?
-  serviceCategoryCode  String?
-  name                 String
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  brandId              String?
-  brand                Brand?               @relation("ServiceBrand", fields: [brandId], references: [id])
-  translations         ServiceTranslation[]
+  id                          String                       @id @default(cuid())
+  mtrl                        String?                      @unique
+  code                        String?                      @unique
+  mtrcategory                 String?
+  serviceCategoryCode         String?
+  name                        String
+  isActive                    Boolean                      @default(true)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  brandId                     String?
+  brand                       Brand?                       @relation("ServiceBrand", fields: [brandId], references: [id])
+  translations                ServiceTranslation[]
+  proposedProductAssociations ProposedProductAssociation[]
 
   @@index([brandId], map: "Service_brandId_fkey")
   @@index([serviceCategoryCode])
@@ -2189,4 +2197,189 @@ enum FileEntityType {
   TASK
   USER
   SITESURVEY
+}
+
+// ========================================
+// PROPOSED INFRASTRUCTURE MODELS
+// These models store future/proposed infrastructure
+// separate from current infrastructure
+// ========================================
+
+model ProposedFloorRack {
+  id                    String                       @id @default(cuid())
+  siteSurveyId          String
+  buildingIndex         Int
+  floorIndex            Int
+  name                  String
+  code                  String?
+  units                 Int?
+  location              String?
+  notes                 String?                      @db.Text
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  siteSurvey            SiteSurvey                   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  proposedDevices       ProposedDevice[]
+  proposedConnections   ProposedConnection[]         @relation("ConnectionFromRack")
+  proposedConnectionsTo ProposedConnection[]         @relation("ConnectionToRack")
+  productAssociations   ProposedProductAssociation[]
+
+  @@index([siteSurveyId])
+}
+
+model ProposedCentralRack {
+  id                  String                       @id @default(cuid())
+  siteSurveyId        String
+  buildingIndex       Int
+  name                String
+  code                String?
+  units               Int?
+  location            String?
+  notes               String?                      @db.Text
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  siteSurvey          SiteSurvey                   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  proposedDevices     ProposedDevice[]
+  productAssociations ProposedProductAssociation[]
+
+  @@index([siteSurveyId])
+}
+
+model ProposedRoom {
+  id                  String                       @id @default(cuid())
+  siteSurveyId        String
+  buildingIndex       Int
+  floorIndex          Int
+  name                String
+  type                ProposedRoomType
+  notes               String?                      @db.Text
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  siteSurvey          SiteSurvey                   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  proposedOutlets     ProposedOutlet[]
+  proposedDevices     ProposedDevice[]
+  productAssociations ProposedProductAssociation[]
+
+  @@index([siteSurveyId])
+}
+
+model ProposedOutlet {
+  id                  String                       @id @default(cuid())
+  proposedRoomId      String
+  name                String
+  type                ProposedCableType
+  quantity            Int
+  terminationPoint    String?
+  notes               String?                      @db.Text
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  proposedRoom        ProposedRoom                 @relation(fields: [proposedRoomId], references: [id], onDelete: Cascade)
+  productAssociations ProposedProductAssociation[]
+
+  @@index([proposedRoomId])
+}
+
+model ProposedDevice {
+  id                    String                       @id @default(cuid())
+  proposedFloorRackId   String?
+  proposedCentralRackId String?
+  proposedRoomId        String?
+  type                  String
+  name                  String
+  brand                 String?
+  model                 String?
+  quantity              Int                          @default(1)
+  notes                 String?                      @db.Text
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  proposedFloorRack     ProposedFloorRack?           @relation(fields: [proposedFloorRackId], references: [id], onDelete: Cascade)
+  proposedCentralRack   ProposedCentralRack?         @relation(fields: [proposedCentralRackId], references: [id], onDelete: Cascade)
+  proposedRoom          ProposedRoom?                @relation(fields: [proposedRoomId], references: [id], onDelete: Cascade)
+  productAssociations   ProposedProductAssociation[]
+
+  @@index([proposedFloorRackId])
+  @@index([proposedCentralRackId])
+  @@index([proposedRoomId])
+}
+
+model ProposedConnection {
+  id                  String                       @id @default(cuid())
+  siteSurveyId        String
+  fromRackId          String
+  toRackId            String
+  connectionType      ProposedCableType
+  distance            Float?
+  description         String?                      @db.Text
+  notes               String?                      @db.Text
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  siteSurvey          SiteSurvey                   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  fromRack            ProposedFloorRack            @relation("ConnectionFromRack", fields: [fromRackId], references: [id], onDelete: Cascade)
+  toRack              ProposedFloorRack            @relation("ConnectionToRack", fields: [toRackId], references: [id], onDelete: Cascade)
+  productAssociations ProposedProductAssociation[]
+
+  @@index([siteSurveyId])
+  @@index([fromRackId])
+  @@index([toRackId])
+}
+
+// This model links products/services to proposed infrastructure elements
+model ProposedProductAssociation {
+  id                    String               @id @default(cuid())
+  siteSurveyId          String
+  productId             String?
+  serviceId             String?
+  itemType              ProposedItemType
+  quantity              Int                  @default(1)
+  unitPrice             Float                @default(0)
+  margin                Float                @default(0)
+  notes                 String?              @db.Text
+  // Link to proposed infrastructure elements (only one should be set)
+  proposedFloorRackId   String?
+  proposedCentralRackId String?
+  proposedRoomId        String?
+  proposedOutletId      String?
+  proposedDeviceId      String?
+  proposedConnectionId  String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  siteSurvey            SiteSurvey           @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+  product               Product?             @relation(fields: [productId], references: [id])
+  service               Service?             @relation(fields: [serviceId], references: [id])
+  proposedFloorRack     ProposedFloorRack?   @relation(fields: [proposedFloorRackId], references: [id], onDelete: Cascade)
+  proposedCentralRack   ProposedCentralRack? @relation(fields: [proposedCentralRackId], references: [id], onDelete: Cascade)
+  proposedRoom          ProposedRoom?        @relation(fields: [proposedRoomId], references: [id], onDelete: Cascade)
+  proposedOutlet        ProposedOutlet?      @relation(fields: [proposedOutletId], references: [id], onDelete: Cascade)
+  proposedDevice        ProposedDevice?      @relation(fields: [proposedDeviceId], references: [id], onDelete: Cascade)
+  proposedConnection    ProposedConnection?  @relation(fields: [proposedConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([siteSurveyId])
+  @@index([productId])
+  @@index([serviceId])
+  @@index([proposedFloorRackId])
+  @@index([proposedCentralRackId])
+  @@index([proposedRoomId])
+  @@index([proposedOutletId])
+  @@index([proposedDeviceId])
+  @@index([proposedConnectionId])
+}
+
+enum ProposedRoomType {
+  OFFICE
+  MEETING_ROOM
+  CLOSET
+  CORRIDOR
+  OTHER
+}
+
+enum ProposedCableType {
+  FIBER
+  COAXIAL
+  RJ11
+  RJ45
+  OTHER
+}
+
+enum ProposedItemType {
+  PRODUCT
+  SERVICE
 }

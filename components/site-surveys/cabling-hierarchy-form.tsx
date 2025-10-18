@@ -59,6 +59,18 @@ import { EquipmentSelection } from "./equipment-selection";
 import { BOMManagerEnhanced } from "./bom-manager-enhanced";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SelectedElement, EquipmentItem } from "@/types/equipment-selection";
+import { 
+  ProposedInfrastructure, 
+  ProposedFloorRack, 
+  ProposedRoom,
+  ProposedOutlet,
+  getAllProposedEquipment 
+} from "@/types/proposed-infrastructure";
+import { 
+  ProposedRackDialog, 
+  ProposedRoomDialog, 
+  ProposedOutletDialog 
+} from "./proposed-infrastructure-dialog";
 
 interface CablingHierarchyFormProps {
   siteSurveyId: string;
@@ -222,6 +234,24 @@ export function CablingHierarchyForm({
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [siteSurveyData, setSiteSurveyData] = useState<any>(null);
+  
+  // Proposed Infrastructure State
+  const [proposedInfrastructure, setProposedInfrastructure] = useState<ProposedInfrastructure>({
+    proposedCentralRacks: [],
+    proposedFloorRacks: [],
+    proposedRooms: [],
+    proposedConnections: [],
+  });
+  const [proposedRackDialog, setProposedRackDialog] = useState(false);
+  const [proposedRoomDialog, setProposedRoomDialog] = useState(false);
+  const [proposedOutletDialog, setProposedOutletDialog] = useState(false);
+  const [selectedProposedContext, setSelectedProposedContext] = useState<{
+    buildingIndex: number;
+    floorIndex: number;
+    buildingName: string;
+    floorName: string;
+    roomId?: string;
+  } | null>(null);
   const [connectionForm, setConnectionForm] = useState({
     toBuilding: "",
     connectionType: "WIRELESS",
