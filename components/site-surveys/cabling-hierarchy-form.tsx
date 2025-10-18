@@ -55,7 +55,7 @@ import { ImagePreviewTooltip } from "@/components/ui/image-preview-tooltip";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { NetworkDiagramModal } from "./network-diagram-modal";
 import { EquipmentSelection } from "./equipment-selection";
-import { BOMManager } from "./bom-manager";
+import { BOMManagerEnhanced } from "./bom-manager-enhanced";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SelectedElement, EquipmentItem } from "@/types/equipment-selection";
 
@@ -824,6 +824,92 @@ export function CablingHierarchyForm({
     toast.success("Device deleted");
   };
 
+  // Equipment Management Handlers
+  const addEquipment = (type: 'building' | 'centralRack' | 'floor' | 'floorRack' | 'room' | 'buildingConnection', 
+                        buildingIdx: number, floorIdx?: number, rackIdx?: number, roomIdx?: number, connectionIdx?: number) => {
+    const element: SelectedElement = {
+      type,
+      buildingIndex: buildingIdx,
+      floorIndex: floorIdx,
+      rackIndex: rackIdx,
+      roomIndex: roomIdx,
+      connectionIndex: connectionIdx,
+    };
+    setSelectedElement(element);
+    setEquipmentSelectionOpen(true);
+  };
+
+  const saveEquipmentToElement = (equipmentItems: EquipmentItem[]) => {
+    if (!selectedElement) return;
+    
+    const newBuildings = [...buildings];
+    
+    // Convert equipment items to device format for storage
+    const devicesFromEquipment = equipmentItems.map(item => ({
+      name: item.name,
+      type: item.type === 'product' ? 'PRODUCT' : 'SERVICE',
+      brand: item.brand,
+      model: item.model,
+      quantity: item.quantity,
+      notes: item.notes,
+      itemType: item.type,
+      equipmentId: item.itemId,
+    })) as DeviceWithEquipment[];
+    
+    // Add to the appropriate location
+    if (selectedElement.type === 'centralRack' && selectedElement.buildingIndex !== undefined) {
+      const building = newBuildings[selectedElement.buildingIndex];
+      if (building.centralRack) {
+        if (!building.centralRack.devices) building.centralRack.devices = [];
+        building.centralRack.devices.push(...devicesFromEquipment);
+      }
+    } else if (selectedElement.type === 'floorRack' && selectedElement.buildingIndex !== undefined && 
+               selectedElement.floorIndex !== undefined && selectedElement.rackIndex !== undefined) {
+      const rack = newBuildings[selectedElement.buildingIndex].floors[selectedElement.floorIndex].floorRacks?.[selectedElement.rackIndex];
+      if (rack) {
+        if (!rack.devices) rack.devices = [];
+        rack.devices.push(...devicesFromEquipment);
+      }
+    } else if (selectedElement.type === 'room' && selectedElement.buildingIndex !== undefined && 
+               selectedElement.floorIndex !== undefined && selectedElement.roomIndex !== undefined) {
+      const room = newBuildings[selectedElement.buildingIndex].floors[selectedElement.floorIndex].rooms[selectedElement.roomIndex];
+      if (room) {
+        if (!room.devices) room.devices = [];
+        room.devices.push(...devicesFromEquipment);
+      }
+    }
+    
+    setBuildings(newBuildings);
+    setEquipmentSelectionOpen(false);
+    setSelectedElement(null);
+    toast.success(`${equipmentItems.length} equipment item(s) added`);
+  };
+
+  const deleteEquipmentItem = (type: 'central' | 'floor' | 'room', buildingIdx: number, deviceIdx: number, 
+                               floorIdx?: number, rackIdx?: number, roomIdx?: number) => {
+    const newBuildings = [...buildings];
+
+    if (type === 'central') {
+      const rack = newBuildings[buildingIdx].centralRack;
+      if (rack?.devices) {
+        rack.devices = rack.devices.filter((_, i) => i !== deviceIdx);
+      }
+    } else if (type === 'floor' && floorIdx !== undefined && rackIdx !== undefined) {
+      const rack = newBuildings[buildingIdx].floors[floorIdx].floorRacks?.[rackIdx];
+      if (rack?.devices) {
+        rack.devices = rack.devices.filter((_, i) => i !== deviceIdx);
+      }
+    } else if (type === 'room' && floorIdx !== undefined && roomIdx !== undefined) {
+      const room = newBuildings[buildingIdx].floors[floorIdx].rooms[roomIdx];
+      if (room?.devices) {
+        room.devices = room.devices.filter((_, i) => i !== deviceIdx);
+      }
+    }
+
+    setBuildings(newBuildings);
+    toast.success("Equipment item deleted");
+  };
+
   const saveRoom = () => {
     if (!selectedFloor) return;
     if (!roomForm.name) {
@@ -1169,6 +1255,12 @@ export function CablingHierarchyForm({
                                 {building.images.length} image{building.images.length > 1 ? 's' : ''}
                               </p>
                             )}
+                            {building.notes && (
+                              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                Notes available
+                              </p>
+                            )}
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -1269,6 +1361,12 @@ export function CablingHierarchyForm({
                                 {building.centralRack.images.length} image{building.centralRack.images.length > 1 ? 's' : ''}
                               </p>
                             )}
+                            {building.centralRack.notes && (
+                              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                Notes available
+                              </p>
+                            )}
                           </div>
                           <div className="flex gap-1">
                             <Button
@@ -1285,6 +1383,15 @@ export function CablingHierarchyForm({
                             >
                               <Plus className="h-3 w-3 mr-1" />
                               Device
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addEquipment('centralRack', bIdx)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Package className="h-3 w-3 mr-1" />
+                              Equipment
                             </Button>
                             <ImageUploadButton
                               entityType="rack"
@@ -1318,30 +1425,62 @@ export function CablingHierarchyForm({
                           </div>
                         </div>
                         
-                        {/* Devices in Central Rack */}
+                        {/* Devices & Equipment in Central Rack */}
                         {building.centralRack.devices && building.centralRack.devices.length > 0 && (
                           <div className="mt-2 ml-11 space-y-1">
-                            {building.centralRack.devices.map((device, dIdx) => (
-                              <div key={dIdx} className="flex items-center gap-2 p-1.5 bg-white rounded border text-xs group">
-                                <span className="text-base">{getDeviceIcon(device.type)}</span>
-                                <div className="flex-1">
-                                  <p className="font-medium">{device.name}</p>
-                                  <p className="text-muted-foreground">
-                                    {device.type}
-                                    {device.ipAddress && ` • ${device.ipAddress}`}
-                                    {device.phoneNumber && ` • ${device.phoneNumber}`}
-                                  </p>
+                            {building.centralRack.devices.map((device, dIdx) => {
+                              const isEquipment = device.itemType === 'product' || device.itemType === 'service';
+                              const isProduct = device.itemType === 'product';
+                              const isService = device.itemType === 'service';
+                              
+                              return (
+                                <div key={dIdx} className={`flex items-center gap-2 p-1.5 rounded border text-xs group ${
+                                  isProduct ? 'bg-blue-50 border-blue-200' :
+                                  isService ? 'bg-green-50 border-green-200' :
+                                  'bg-white'
+                                }`}>
+                                  {isProduct ? (
+                                    <Package className="h-4 w-4 text-blue-600" />
+                                  ) : isService ? (
+                                    <Settings className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <span className="text-base">{getDeviceIcon(device.type)}</span>
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="font-medium">{device.name}</p>
+                                    <p className="text-muted-foreground">
+                                      {isEquipment ? (
+                                        <>
+                                          {isProduct ? '📦 Product' : '⚙️ Service'}
+                                          {device.brand && ` • ${device.brand}`}
+                                          {device.quantity && device.quantity > 1 && ` • Qty: ${device.quantity}`}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {device.type}
+                                          {device.ipAddress && ` • ${device.ipAddress}`}
+                                          {device.phoneNumber && ` • ${device.phoneNumber}`}
+                                        </>
+                                      )}
+                                    </p>
+                                    {device.notes && (
+                                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1" title={device.notes}>
+                                        <FileText className="h-3 w-3" />
+                                        {device.notes.substring(0, 50)}{device.notes.length > 50 ? '...' : ''}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                    onClick={() => deleteDevice('central', bIdx, dIdx)}
+                                  >
+                                    <X className="h-3 w-3 text-destructive" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                                  onClick={() => deleteDevice('central', bIdx, dIdx)}
-                                >
-                                  <X className="h-3 w-3 text-destructive" />
-                                </Button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                         </>
@@ -1420,6 +1559,12 @@ export function CablingHierarchyForm({
                                       {floor.images.length}
                                     </>
                                   )}
+                                </p>
+                              )}
+                              {floor.notes && (
+                                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  Notes available
                                 </p>
                               )}
                             </div>
@@ -1538,6 +1683,12 @@ export function CablingHierarchyForm({
                                         {floorRack.images.length}
                                       </p>
                                     )}
+                                    {floorRack.notes && (
+                                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                        <FileText className="h-3 w-3" />
+                                        Notes available
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="flex gap-1">
                                     <Button
@@ -1553,8 +1704,18 @@ export function CablingHierarchyForm({
                                       size="sm"
                                       className="h-6 w-6 p-0"
                                       onClick={() => addDevice('floor', bIdx, fIdx, frIdx)}
+                                      title="Add Device"
                                     >
                                       <Plus className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                                      onClick={() => addEquipment('floorRack', bIdx, fIdx, frIdx)}
+                                      title="Add Equipment"
+                                    >
+                                      <Package className="h-3 w-3" />
                                     </Button>
                                     <ImageUploadButton
                                       entityType="rack"
@@ -1589,30 +1750,62 @@ export function CablingHierarchyForm({
                                   </div>
                                 </div>
                                 
-                                {/* Devices in Floor Rack */}
+                                {/* Devices & Equipment in Floor Rack */}
                                 {floorRack.devices && floorRack.devices.length > 0 && (
                                   <div className="mt-1 ml-11 space-y-1">
-                                    {floorRack.devices.map((device, dIdx) => (
-                                      <div key={dIdx} className="flex items-center gap-2 p-1.5 bg-white rounded border text-xs group">
-                                        <span className="text-base">{getDeviceIcon(device.type)}</span>
-                                        <div className="flex-1">
-                                          <p className="font-medium">{device.name}</p>
-                                          <p className="text-muted-foreground">
-                                            {device.type}
-                                            {device.ipAddress && ` • ${device.ipAddress}`}
-                                            {device.phoneNumber && ` • ${device.phoneNumber}`}
-                                          </p>
+                                    {floorRack.devices.map((device, dIdx) => {
+                                      const isEquipment = device.itemType === 'product' || device.itemType === 'service';
+                                      const isProduct = device.itemType === 'product';
+                                      const isService = device.itemType === 'service';
+                                      
+                                      return (
+                                        <div key={dIdx} className={`flex items-center gap-2 p-1.5 rounded border text-xs group ${
+                                          isProduct ? 'bg-blue-50 border-blue-200' :
+                                          isService ? 'bg-green-50 border-green-200' :
+                                          'bg-white'
+                                        }`}>
+                                          {isProduct ? (
+                                            <Package className="h-4 w-4 text-blue-600" />
+                                          ) : isService ? (
+                                            <Settings className="h-4 w-4 text-green-600" />
+                                          ) : (
+                                            <span className="text-base">{getDeviceIcon(device.type)}</span>
+                                          )}
+                                          <div className="flex-1">
+                                            <p className="font-medium">{device.name}</p>
+                                            <p className="text-muted-foreground">
+                                              {isEquipment ? (
+                                                <>
+                                                  {isProduct ? '📦 Product' : '⚙️ Service'}
+                                                  {device.brand && ` • ${device.brand}`}
+                                                  {device.quantity && device.quantity > 1 && ` • Qty: ${device.quantity}`}
+                                                </>
+                                              ) : (
+                                                <>
+                                                  {device.type}
+                                                  {device.ipAddress && ` • ${device.ipAddress}`}
+                                                  {device.phoneNumber && ` • ${device.phoneNumber}`}
+                                                </>
+                                              )}
+                                            </p>
+                                            {device.notes && (
+                                              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1" title={device.notes}>
+                                                <FileText className="h-3 w-3" />
+                                                {device.notes.substring(0, 50)}{device.notes.length > 50 ? '...' : ''}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                            onClick={() => deleteDevice('floor', bIdx, dIdx, fIdx, frIdx)}
+                                          >
+                                            <X className="h-3 w-3 text-destructive" />
+                                          </Button>
                                         </div>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                                          onClick={() => deleteDevice('floor', bIdx, dIdx, fIdx, frIdx)}
-                                        >
-                                          <X className="h-3 w-3 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                                 </div>
@@ -1680,6 +1873,12 @@ export function CablingHierarchyForm({
                                             )}
                                           </p>
                                         )}
+                                        {room.notes && (
+                                          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                            <FileText className="h-3 w-3" />
+                                            Notes available
+                                          </p>
+                                        )}
                                       </div>
                                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                                         <Button
@@ -1695,8 +1894,18 @@ export function CablingHierarchyForm({
                                           size="sm"
                                           className="h-6 w-6 p-0"
                                           onClick={() => addDevice('room', bIdx, fIdx, undefined, rIdx)}
+                                          title="Add Device"
                                         >
                                           <Plus className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                                          onClick={() => addEquipment('room', bIdx, fIdx, undefined, rIdx)}
+                                          title="Add Equipment"
+                                        >
+                                          <Package className="h-3 w-3" />
                                         </Button>
                                         <ImageUploadButton
                                           entityType="room"
@@ -1738,30 +1947,62 @@ export function CablingHierarchyForm({
                                       </div>
                                     </div>
                                     
-                                    {/* Devices in Room */}
+                                    {/* Devices & Equipment in Room */}
                                     {room.devices && room.devices.length > 0 && (
                                       <div className="mt-1 ml-5 space-y-1">
-                                        {room.devices.map((device, dIdx) => (
-                                          <div key={dIdx} className="flex items-center gap-2 p-1.5 bg-white rounded border text-xs group">
-                                            <span className="text-base">{getDeviceIcon(device.type)}</span>
-                                            <div className="flex-1">
-                                              <p className="font-medium">{device.name}</p>
-                                              <p className="text-muted-foreground">
-                                                {device.type}
-                                                {device.ipAddress && ` • ${device.ipAddress}`}
-                                                {device.phoneNumber && ` • ${device.phoneNumber}`}
-                                              </p>
+                                        {room.devices.map((device, dIdx) => {
+                                          const isEquipment = device.itemType === 'product' || device.itemType === 'service';
+                                          const isProduct = device.itemType === 'product';
+                                          const isService = device.itemType === 'service';
+                                          
+                                          return (
+                                            <div key={dIdx} className={`flex items-center gap-2 p-1.5 rounded border text-xs group ${
+                                              isProduct ? 'bg-blue-50 border-blue-200' :
+                                              isService ? 'bg-green-50 border-green-200' :
+                                              'bg-white'
+                                            }`}>
+                                              {isProduct ? (
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                              ) : isService ? (
+                                                <Settings className="h-4 w-4 text-green-600" />
+                                              ) : (
+                                                <span className="text-base">{getDeviceIcon(device.type)}</span>
+                                              )}
+                                              <div className="flex-1">
+                                                <p className="font-medium">{device.name}</p>
+                                                <p className="text-muted-foreground">
+                                                  {isEquipment ? (
+                                                    <>
+                                                      {isProduct ? '📦 Product' : '⚙️ Service'}
+                                                      {device.brand && ` • ${device.brand}`}
+                                                      {device.quantity && device.quantity > 1 && ` • Qty: ${device.quantity}`}
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      {device.type}
+                                                      {device.ipAddress && ` • ${device.ipAddress}`}
+                                                      {device.phoneNumber && ` • ${device.phoneNumber}`}
+                                                    </>
+                                                  )}
+                                                </p>
+                                                {device.notes && (
+                                                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1" title={device.notes}>
+                                                    <FileText className="h-3 w-3" />
+                                                    {device.notes.substring(0, 50)}{device.notes.length > 50 ? '...' : ''}
+                                                  </p>
+                                                )}
+                                              </div>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                                onClick={() => deleteDevice('room', bIdx, dIdx, fIdx, undefined, rIdx)}
+                                              >
+                                                <X className="h-3 w-3 text-destructive" />
+                                              </Button>
                                             </div>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                                              onClick={() => deleteDevice('room', bIdx, dIdx, fIdx, undefined, rIdx)}
-                                            >
-                                              <X className="h-3 w-3 text-destructive" />
-                                            </Button>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
@@ -2109,6 +2350,16 @@ export function CablingHierarchyForm({
               )}
             </div>
 
+            <div>
+              <Label>NOTES</Label>
+              <Textarea
+                value={centralRackForm.notes || ""}
+                onChange={(e) => setCentralRackForm({ ...centralRackForm, notes: e.target.value })}
+                placeholder="Additional rack information..."
+                rows={2}
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setCentralRackDialog(false)}>
                 CANCEL
@@ -2360,6 +2611,16 @@ export function CablingHierarchyForm({
               )}
             </div>
 
+            <div>
+              <Label>NOTES</Label>
+              <Textarea
+                value={floorRackForm.notes || ""}
+                onChange={(e) => setFloorRackForm({ ...floorRackForm, notes: e.target.value })}
+                placeholder="Additional floor rack information..."
+                rows={2}
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setFloorRackDialog(false)}>
                 CANCEL
@@ -2476,6 +2737,16 @@ export function CablingHierarchyForm({
                   </p>
                 </div>
               )}
+            </div>
+
+            <div>
+              <Label>NOTES</Label>
+              <Textarea
+                value={roomForm.notes || ""}
+                onChange={(e) => setRoomForm({ ...roomForm, notes: e.target.value })}
+                placeholder="Additional room information..."
+                rows={2}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
@@ -3099,17 +3370,19 @@ export function CablingHierarchyForm({
         </TabsContent>
 
         <TabsContent value="bom" className="space-y-6">
-          <BOMManager
+          <BOMManagerEnhanced
             equipment={equipment}
             onUpdateEquipment={setEquipment}
             buildings={buildings}
             files={[]} // TODO: Get files from site survey data
             siteSurveyData={{
+              id: siteSurveyId,
               title: `Site Survey ${siteSurveyId}`,
               customer: { name: 'Customer Name' }, // This would come from site survey data
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             }}
+            onSave={handleSave}
           />
         </TabsContent>
       </Tabs>
@@ -3121,73 +3394,7 @@ export function CablingHierarchyForm({
           setEquipmentSelectionOpen(false);
           setSelectedElement(null);
         }}
-        onSave={(newEquipment) => {
-          // Add equipment to the selected element and BOM
-          if (selectedElement) {
-            const newBuildings = [...buildings];
-            
-            // Add equipment items to the BOM
-            const updatedEquipment = [...equipment, ...newEquipment];
-            setEquipment(updatedEquipment);
-            
-            // Add devices to the selected element for display in hierarchy
-            newEquipment.forEach(item => {
-              const device: DeviceWithEquipment = {
-                name: item.name,
-                type: item.type,
-                brand: item.brand,
-                model: item.model,
-                quantity: item.quantity,
-                notes: item.notes,
-                itemType: item.type, // 'product' or 'service'
-                equipmentId: item.id, // Store reference to equipment item
-              };
-              
-              switch (selectedElement.type) {
-                case 'building':
-                  // Add to building level (could be general building equipment)
-                  if (!newBuildings[selectedElement.buildingIndex!].centralRack) {
-                    // If no central rack, we can store it at building level (would need to add equipment array)
-                  }
-                  break;
-                case 'centralRack':
-                  if (newBuildings[selectedElement.buildingIndex!].centralRack) {
-                    if (!newBuildings[selectedElement.buildingIndex!].centralRack!.devices) {
-                      newBuildings[selectedElement.buildingIndex!].centralRack!.devices = [];
-                    }
-                    newBuildings[selectedElement.buildingIndex!].centralRack!.devices!.push(device);
-                  }
-                  break;
-                case 'floor':
-                  // Add to floor level
-                  break;
-                case 'floorRack':
-                  if (newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks?.[selectedElement.rackIndex!]) {
-                    if (!newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices) {
-                      newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices = [];
-                    }
-                    newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].floorRacks![selectedElement.rackIndex!].devices!.push(device);
-                  }
-                  break;
-                case 'room':
-                  if (newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms?.[selectedElement.roomIndex!]) {
-                    if (!newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices) {
-                      newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices = [];
-                    }
-                    newBuildings[selectedElement.buildingIndex!].floors[selectedElement.floorIndex!].rooms![selectedElement.roomIndex!].devices!.push(device);
-                  }
-                  break;
-              }
-            });
-            
-            setBuildings(newBuildings);
-          }
-          
-          setEquipmentSelectionOpen(false);
-          setSelectedElement(null);
-          // Don't switch tabs - let user continue adding equipment
-          toast.success(`Added ${newEquipment.length} item(s) to BOM`);
-        }}
+        onSave={saveEquipmentToElement}
         existingEquipment={equipment}
         selectedElement={selectedElement}
       />

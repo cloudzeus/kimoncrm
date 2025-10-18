@@ -80,12 +80,20 @@ export async function generateSiteSurveyWordDocument(
           createSiteSurveyDetails(surveyData),
           new PageBreak(),
           
-          // Infrastructure Analysis
-          createInfrastructureAnalysis(surveyData),
+          // Current Infrastructure Assessment
+          ...createInfrastructureAnalysis(surveyData),
           new PageBreak(),
           
-          // Equipment & BOM
-          createEquipmentAndBOM(equipment),
+          // Future Requirements
+          ...createFutureRequirements(surveyData, equipment),
+          new PageBreak(),
+          
+          // Bill of Materials
+          ...createBillOfMaterials(equipment),
+          new PageBreak(),
+          
+          // Product Datasheets
+          ...createProductDatasheets(equipment),
           new PageBreak(),
           
           // Attachments
@@ -104,69 +112,71 @@ export async function generateSiteSurveyWordDocument(
 
 function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDetails) {
   return [
-    // Company Logo and Header
+    // Company Header with Logo Placeholder
     new Paragraph({
       children: [
         new TextRun({
-          text: companyDetails.name,
+          text: companyDetails.name.toUpperCase(),
           bold: true,
-          size: 32,
-          color: "2E86AB",
+          size: 40,
+          color: "1A5490",
+          font: "Arial",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
+      spacing: { before: 800, after: 200 },
     }),
     
-    // Company Details
+    // Company Tagline/Subtitle
     new Paragraph({
       children: [
         new TextRun({
-          text: companyDetails.address || "",
-          size: 12,
-          color: "666666",
-        }),
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-    }),
-    
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: `${companyDetails.city || ""} | ${companyDetails.phone || ""} | ${companyDetails.email || ""}`,
-          size: 12,
-          color: "666666",
-        }),
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-    }),
-    
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: companyDetails.website || "",
-          size: 12,
-          color: "2E86AB",
+          text: "PROFESSIONAL IT INFRASTRUCTURE CONSULTANCY",
+          size: 14,
+          color: "4B5563",
+          font: "Arial",
         }),
       ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 600 },
     }),
     
-    // Main Title
+    // Decorative Line
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          color: "1A5490",
+        }),
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 800 },
+    }),
+    
+    // Main Document Title
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "COMPREHENSIVE",
+          size: 20,
+          color: "6B7280",
+        }),
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+    }),
+    
     new Paragraph({
       children: [
         new TextRun({
           text: "SITE SURVEY REPORT",
           bold: true,
-          size: 28,
+          size: 36,
           color: "1A1A1A",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
+      spacing: { after: 400 },
     }),
     
     // Survey Title
@@ -175,38 +185,39 @@ function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDeta
         new TextRun({
           text: surveyData.title,
           bold: true,
-          size: 24,
-          color: "2E86AB",
+          size: 28,
+          color: "1A5490",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 300 },
     }),
     
     // Survey Type Badge
     new Paragraph({
       children: [
         new TextRun({
-          text: surveyData.type,
+          text: `  ${surveyData.type}  `,
           bold: true,
-          size: 18,
+          size: 16,
           color: "FFFFFF",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 400 },
+      spacing: { before: 100, after: 600 },
       shading: {
         type: ShadingType.SOLID,
-        color: "2E86AB",
+        color: "1A5490",
       },
     }),
     
-    // Project Details Table
+    // Customer Information Box
     new Table({
       width: {
-        size: 100,
+        size: 80,
         type: WidthType.PERCENTAGE,
       },
+      alignment: AlignmentType.CENTER,
       rows: [
         new TableRow({
           children: [
@@ -215,34 +226,16 @@ function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDeta
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: "PROJECT DETAILS",
+                      text: "PREPARED FOR",
                       bold: true,
-                      size: 16,
-                      color: "2E86AB",
+                      size: 14,
+                      color: "FFFFFF",
                     }),
                   ],
                   alignment: AlignmentType.CENTER,
                 }),
               ],
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.SOLID, color: "F8F9FA" },
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "CUSTOMER INFORMATION",
-                      bold: true,
-                      size: 16,
-                      color: "2E86AB",
-                    }),
-                  ],
-                  alignment: AlignmentType.CENTER,
-                }),
-              ],
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.SOLID, color: "F8F9FA" },
+              shading: { type: ShadingType.SOLID, color: "1A5490" },
             }),
           ],
         }),
@@ -252,66 +245,215 @@ function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDeta
               children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Survey ID:", bold: true }),
-                    new TextRun({ text: ` SS-${surveyData.id}` }),
+                    new TextRun({
+                      text: surveyData.customer.name,
+                      bold: true,
+                      size: 18,
+                      color: "1A1A1A",
+                    }),
                   ],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 200, after: 100 },
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Status:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.status}` }),
+                    new TextRun({
+                      text: surveyData.customer.address || '',
+                      size: 12,
+                      color: "6B7280",
+                    }),
                   ],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 50 },
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Type:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.type}` }),
+                    new TextRun({
+                      text: surveyData.customer.city || '',
+                      size: 12,
+                      color: "6B7280",
+                    }),
                   ],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 100 },
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Arranged Date:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.arrangedDate ? new Date(surveyData.arrangedDate).toLocaleDateString() : 'Not set'}` }),
+                    new TextRun({
+                      text: surveyData.customer.email || '',
+                      size: 11,
+                      color: "1A5490",
+                    }),
                   ],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 50 },
                 }),
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Location:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.address || 'Not specified'}` }),
+                    new TextRun({
+                      text: surveyData.customer.phone || '',
+                      size: 11,
+                      color: "6B7280",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 200 },
+                }),
+              ],
+              shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+            }),
+          ],
+        }),
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        left: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        right: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+      },
+    }),
+    
+    // Survey Details Grid
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "",
+        }),
+      ],
+      spacing: { before: 600, after: 200 },
+    }),
+    
+    new Table({
+      width: {
+        size: 80,
+        type: WidthType.PERCENTAGE,
+      },
+      alignment: AlignmentType.CENTER,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Survey ID:", bold: true, size: 12 }),
                   ],
                 }),
               ],
+              width: { size: 40, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "F3F4F6" },
             }),
             new TableCell({
               children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Customer:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.customer.name}` }),
+                    new TextRun({ text: `SS-${surveyData.id}`, size: 12 }),
                   ],
                 }),
+              ],
+              width: { size: 60, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Email:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.customer.email || 'Not provided'}` }),
+                    new TextRun({ text: "Survey Type:", bold: true, size: 12 }),
                   ],
                 }),
+              ],
+              shading: { type: ShadingType.SOLID, color: "F3F4F6" },
+            }),
+            new TableCell({
+              children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Phone:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.customer.phone || 'Not provided'}` }),
+                    new TextRun({ text: surveyData.type, size: 12 }),
                   ],
                 }),
+              ],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Address:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.customer.address || 'Not provided'}` }),
+                    new TextRun({ text: "Status:", bold: true, size: 12 }),
                   ],
                 }),
+              ],
+              shading: { type: ShadingType.SOLID, color: "F3F4F6" },
+            }),
+            new TableCell({
+              children: [
                 new Paragraph({
                   children: [
-                    new TextRun({ text: "Contact:", bold: true }),
-                    new TextRun({ text: ` ${surveyData.contact?.name || 'Not assigned'}` }),
+                    new TextRun({ text: surveyData.status, size: 12, bold: true, color: "059669" }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Survey Date:", bold: true, size: 12 }),
+                  ],
+                }),
+              ],
+              shading: { type: ShadingType.SOLID, color: "F3F4F6" },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: surveyData.arrangedDate
+                        ? new Date(surveyData.arrangedDate).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })
+                        : 'To be scheduled',
+                      size: 12,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Location:", bold: true, size: 12 }),
+                  ],
+                }),
+              ],
+              shading: { type: ShadingType.SOLID, color: "F3F4F6" },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${surveyData.address || 'Not specified'}, ${surveyData.city || ''}`,
+                      size: 12,
+                    }),
                   ],
                 }),
               ],
@@ -320,24 +462,73 @@ function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDeta
         }),
       ],
       borders: {
-        top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
-        bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
-        left: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
-        right: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+        top: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "D1D5DB" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
       },
     }),
     
-    // Footer
+    // Footer Section
     new Paragraph({
       children: [
         new TextRun({
-          text: `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
-          size: 10,
-          color: "999999",
+          text: "",
+        }),
+      ],
+      spacing: { before: 1000 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          color: "D1D5DB",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { before: 800 },
+      spacing: { after: 200 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: companyDetails.address || '',
+          size: 10,
+          color: "6B7280",
+        }),
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 50 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `${companyDetails.phone || ''} • ${companyDetails.email || ''} • ${companyDetails.website || ''}`,
+          size: 10,
+          color: "6B7280",
+        }),
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `Document generated on ${new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}`,
+          size: 9,
+          color: "9CA3AF",
+          italics: true,
+        }),
+      ],
+      alignment: AlignmentType.CENTER,
     }),
   ];
 }
@@ -350,11 +541,11 @@ function createTableOfContents() {
           text: "TABLE OF CONTENTS",
           bold: true,
           size: 20,
-          color: "2E86AB",
+          color: "1A5490",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
+      spacing: { after: 600 },
     }),
     
     new Paragraph({
@@ -362,9 +553,15 @@ function createTableOfContents() {
         new TextRun({
           text: "1. Executive Summary",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " .......................................................... 3",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
@@ -372,9 +569,15 @@ function createTableOfContents() {
         new TextRun({
           text: "2. Project Information",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " ......................................................... 4",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
@@ -382,46 +585,108 @@ function createTableOfContents() {
         new TextRun({
           text: "3. Site Survey Details",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " .......................................................... 5",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
       children: [
         new TextRun({
-          text: "4. Infrastructure Analysis",
+          text: "4. Current Infrastructure Assessment",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " .................................... 6",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
       children: [
         new TextRun({
-          text: "5. Equipment & Bill of Materials",
+          text: "5. Future Requirements",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " ........................................................ 7",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
       children: [
         new TextRun({
-          text: "6. Attachments",
+          text: "6. Bill of Materials",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " ............................................................... 8",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
-      spacing: { after: 200 },
+      spacing: { after: 150 },
     }),
     
     new Paragraph({
       children: [
         new TextRun({
-          text: "7. Appendices",
+          text: "7. Product Datasheets",
           bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " ........................................................... 9",
+          size: 12,
+          color: "D1D5DB",
+        }),
+      ],
+      spacing: { after: 150 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "8. Attachments",
+          bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " .................................................................. 10",
+          size: 12,
+          color: "D1D5DB",
+        }),
+      ],
+      spacing: { after: 150 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "9. Appendices",
+          bold: true,
+          size: 12,
+        }),
+        new TextRun({
+          text: " .................................................................... 11",
+          size: 12,
+          color: "D1D5DB",
         }),
       ],
       spacing: { after: 400 },
@@ -729,14 +994,14 @@ function createSiteSurveyDetails(surveyData: SiteSurveyData) {
 }
 
 function createInfrastructureAnalysis(surveyData: SiteSurveyData) {
-  return [
+  const elements = [
     new Paragraph({
       children: [
         new TextRun({
-          text: "INFRASTRUCTURE ANALYSIS",
+          text: "CURRENT INFRASTRUCTURE ASSESSMENT",
           bold: true,
-          size: 18,
-          color: "2E86AB",
+          size: 20,
+          color: "1A5490",
         }),
       ],
       heading: HeadingLevel.HEADING_1,
@@ -746,25 +1011,245 @@ function createInfrastructureAnalysis(surveyData: SiteSurveyData) {
     new Paragraph({
       children: [
         new TextRun({
-          text: surveyData.buildings && surveyData.buildings.length > 0 
-            ? `The site survey identified ${surveyData.buildings.length} building(s) requiring infrastructure assessment. Detailed infrastructure analysis is available in the appendices.`
-            : "No infrastructure data available for this survey type.",
+          text: "Infrastructure Overview",
+          bold: true,
+          size: 16,
+          color: "1F2937",
         }),
       ],
-      spacing: { after: 300 },
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 200, after: 200 },
     }),
   ];
+
+  if (!surveyData.buildings || surveyData.buildings.length === 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No infrastructure data has been documented for this survey.",
+            italics: true,
+            color: "6B7280",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+    return elements;
+  }
+
+  // Infrastructure Summary
+  let totalFloors = 0;
+  let totalRacks = 0;
+  let totalRooms = 0;
+  let totalDevices = 0;
+
+  surveyData.buildings.forEach((building: any) => {
+    if (building.centralRack) totalRacks++;
+    building.floors?.forEach((floor: any) => {
+      totalFloors++;
+      totalRooms += floor.rooms?.length || 0;
+      totalRacks += floor.floorRacks?.length || 0;
+      
+      // Count devices
+      floor.rooms?.forEach((room: any) => {
+        totalDevices += room.devices?.length || 0;
+      });
+      floor.floorRacks?.forEach((rack: any) => {
+        totalDevices += rack.devices?.length || 0;
+      });
+    });
+    if (building.centralRack?.devices) {
+      totalDevices += building.centralRack.devices.length;
+    }
+  });
+
+  // Summary Table
+  elements.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Buildings", bold: true })] })],
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: surveyData.buildings.length.toString() })] })],
+              width: { size: 50, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Total Floors", bold: true })] })],
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalFloors.toString() })] })],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Total Racks", bold: true })] })],
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalRacks.toString() })] })],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Total Rooms", bold: true })] })],
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalRooms.toString() })] })],
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Network Devices", bold: true })] })],
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalDevices.toString() })] })],
+            }),
+          ],
+        }),
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "DBEAFE" },
+      },
+    })
+  );
+
+  elements.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "",
+        }),
+      ],
+      spacing: { before: 400, after: 200 },
+    })
+  );
+
+  // Building Details
+  surveyData.buildings.forEach((building: any, idx: number) => {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `${idx + 1}. ${building.name}`,
+            bold: true,
+            size: 14,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_3,
+        spacing: { before: 300, after: 200 },
+      })
+    );
+
+    if (building.address || building.code) {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${building.code ? `Code: ${building.code} | ` : ''}${building.address || 'No address specified'}`,
+              size: 11,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
+    }
+
+    // Central Rack
+    if (building.centralRack) {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `   • Central Rack: ${building.centralRack.name}`,
+              size: 11,
+            }),
+            ...(building.centralRack.devices?.length
+              ? [
+                  new TextRun({
+                    text: ` (${building.centralRack.devices.length} device${building.centralRack.devices.length > 1 ? 's' : ''})`,
+                    size: 11,
+                    color: "059669",
+                    bold: true,
+                  }),
+                ]
+              : []),
+          ],
+          spacing: { after: 100 },
+        })
+      );
+    }
+
+    // Floors
+    building.floors?.forEach((floor: any, fIdx: number) => {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `   • ${floor.name}`,
+              size: 11,
+              bold: true,
+            }),
+            new TextRun({
+              text: ` - ${floor.rooms?.length || 0} room${(floor.rooms?.length || 0) !== 1 ? 's' : ''}, ${floor.floorRacks?.length || 0} rack${(floor.floorRacks?.length || 0) !== 1 ? 's' : ''}`,
+              size: 11,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 100 },
+        })
+      );
+    });
+
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "",
+          }),
+        ],
+        spacing: { after: 200 },
+      })
+    );
+  });
+
+  return elements;
 }
 
-function createEquipmentAndBOM(equipment?: any[]) {
-  return [
+function createFutureRequirements(surveyData: SiteSurveyData, equipment?: any[]) {
+  const elements = [
     new Paragraph({
       children: [
         new TextRun({
-          text: "EQUIPMENT & BILL OF MATERIALS",
+          text: "FUTURE REQUIREMENTS",
           bold: true,
-          size: 18,
-          color: "2E86AB",
+          size: 20,
+          color: "1A5490",
         }),
       ],
       heading: HeadingLevel.HEADING_1,
@@ -774,14 +1259,973 @@ function createEquipmentAndBOM(equipment?: any[]) {
     new Paragraph({
       children: [
         new TextRun({
-          text: equipment && equipment.length > 0 
-            ? `A comprehensive Bill of Materials has been prepared with ${equipment.length} items identified for this project. Detailed specifications and pricing are available in the Excel attachment.`
-            : "No equipment has been specified for this project yet.",
+          text: "Recommended Infrastructure Upgrades",
+          bold: true,
+          size: 16,
+          color: "1F2937",
+        }),
+      ],
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 200, after: 200 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "Based on the site survey assessment, the following equipment and services have been identified as necessary for successful project implementation:",
+          size: 11,
         }),
       ],
       spacing: { after: 300 },
     }),
   ];
+
+  if (!equipment || equipment.length === 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No specific equipment or services have been defined for this project yet.",
+            italics: true,
+            color: "6B7280",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+    return elements;
+  }
+
+  // Separate products and services
+  const products = equipment.filter((item: any) => item.type === 'product' || item.itemType === 'product');
+  const services = equipment.filter((item: any) => item.type === 'service' || item.itemType === 'service');
+
+  // Products Section
+  if (products.length > 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Hardware & Equipment",
+            bold: true,
+            size: 14,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_3,
+        spacing: { before: 300, after: 200 },
+      })
+    );
+
+    products.forEach((product: any, idx: number) => {
+      const location = product.infrastructureElement
+        ? getLocationString(product.infrastructureElement, surveyData.buildings)
+        : 'Not assigned';
+      
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${idx + 1}. ${product.name}`,
+              bold: true,
+              size: 11,
+            }),
+          ],
+          spacing: { before: 100, after: 50 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `   Quantity: ${product.quantity} | Location: ${location}`,
+              size: 10,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 50 },
+        })
+      );
+
+      if (product.notes) {
+        elements.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `   Notes: ${product.notes}`,
+                size: 10,
+                color: "6B7280",
+                italics: true,
+              }),
+            ],
+            spacing: { after: 100 },
+          })
+        );
+      }
+    });
+  }
+
+  // Services Section
+  if (services.length > 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Professional Services",
+            bold: true,
+            size: 14,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_3,
+        spacing: { before: 300, after: 200 },
+      })
+    );
+
+    services.forEach((service: any, idx: number) => {
+      const location = service.infrastructureElement
+        ? getLocationString(service.infrastructureElement, surveyData.buildings)
+        : 'Not assigned';
+      
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${idx + 1}. ${service.name}`,
+              bold: true,
+              size: 11,
+            }),
+          ],
+          spacing: { before: 100, after: 50 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `   Quantity: ${service.quantity} ${service.unit || 'units'} | Location: ${location}`,
+              size: 10,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 50 },
+        })
+      );
+
+      if (service.notes) {
+        elements.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `   Notes: ${service.notes}`,
+                size: 10,
+                color: "6B7280",
+                italics: true,
+              }),
+            ],
+            spacing: { after: 100 },
+          })
+        );
+      }
+    });
+  }
+
+  return elements;
+}
+
+function getLocationString(element: any, buildings?: any[]): string {
+  if (!buildings || !element) return 'Not assigned';
+  
+  const parts: string[] = [];
+  
+  if (element.buildingIndex !== undefined && buildings[element.buildingIndex]) {
+    const building = buildings[element.buildingIndex];
+    parts.push(building.name);
+    
+    if (element.type === 'centralRack') {
+      parts.push('Central Rack');
+    } else if (element.floorIndex !== undefined && building.floors?.[element.floorIndex]) {
+      const floor = building.floors[element.floorIndex];
+      parts.push(floor.name);
+      
+      if (element.type === 'floorRack' && element.rackIndex !== undefined) {
+        parts.push(`Floor Rack ${element.rackIndex + 1}`);
+      } else if (element.type === 'room' && element.roomIndex !== undefined && floor.rooms?.[element.roomIndex]) {
+        parts.push(floor.rooms[element.roomIndex].name);
+      }
+    }
+  }
+  
+  return parts.length > 0 ? parts.join(' → ') : 'Not assigned';
+}
+
+function createBillOfMaterials(equipment?: any[]) {
+  const elements = [
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "BILL OF MATERIALS",
+          bold: true,
+          size: 20,
+          color: "1A5490",
+        }),
+      ],
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 400 },
+    }),
+  ];
+
+  if (!equipment || equipment.length === 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No equipment or services have been added to this project.",
+            italics: true,
+            color: "6B7280",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+    return elements;
+  }
+
+  // Separate products and services
+  const products = equipment.filter((item: any) => item.type === 'product' || item.itemType === 'product');
+  const services = equipment.filter((item: any) => item.type === 'service' || item.itemType === 'service');
+
+  // Products BOM Table
+  if (products.length > 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Products",
+            bold: true,
+            size: 16,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 200, after: 200 },
+      })
+    );
+
+    // Create products table
+    const productRows = [
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "#", bold: true, size: 11 })] })],
+            width: { size: 5, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Product Name", bold: true, size: 11 })] })],
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Brand", bold: true, size: 11 })] })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Category", bold: true, size: 11 })] })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Qty", bold: true, size: 11 })], alignment: AlignmentType.CENTER })],
+            width: { size: 10, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Unit Price", bold: true, size: 11 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 12, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Total", bold: true, size: 11 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 13, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "DBEAFE" },
+          }),
+        ],
+      }),
+    ];
+
+    let productsTotal = 0;
+
+    products.forEach((product: any, idx: number) => {
+      const total = (product.price || 0) * (product.quantity || 0);
+      productsTotal += total;
+
+      productRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (idx + 1).toString(), size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.name || '', size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.brand || '-', size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.category || '-', size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (product.quantity || 0).toString(), size: 10 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${(product.price || 0).toFixed(2)}`, size: 10 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${total.toFixed(2)}`, size: 10, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
+          ],
+        })
+      );
+    });
+
+    // Products Subtotal Row
+    productRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "", size: 10 })] })],
+            columnSpan: 6,
+            shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Subtotal:", bold: true, size: 11 })] })],
+            shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "", size: 10 })] })],
+            columnSpan: 6,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${productsTotal.toFixed(2)}`, bold: true, size: 12, color: "1A5490" })], alignment: AlignmentType.RIGHT })],
+          }),
+        ],
+      })
+    );
+
+    elements.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: productRows,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+          left: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+          right: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+        },
+      })
+    );
+  }
+
+  // Services BOM Table
+  if (services.length > 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Services",
+            bold: true,
+            size: 16,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 },
+      })
+    );
+
+    // Create services table
+    const serviceRows = [
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "#", bold: true, size: 11 })] })],
+            width: { size: 5, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Service Name", bold: true, size: 11 })] })],
+            width: { size: 40, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Category", bold: true, size: 11 })] })],
+            width: { size: 20, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Qty", bold: true, size: 11 })], alignment: AlignmentType.CENTER })],
+            width: { size: 10, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Unit Price", bold: true, size: 11 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 12, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Total", bold: true, size: 11 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 13, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: "D1FAE5" },
+          }),
+        ],
+      }),
+    ];
+
+    let servicesTotal = 0;
+
+    services.forEach((service: any, idx: number) => {
+      const total = (service.price || 0) * (service.quantity || 0);
+      servicesTotal += total;
+
+      serviceRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (idx + 1).toString(), size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: service.name || '', size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: service.category || '-', size: 10 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `${service.quantity || 0} ${service.unit || ''}`, size: 10 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${(service.price || 0).toFixed(2)}`, size: 10 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${total.toFixed(2)}`, size: 10, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
+          ],
+        })
+      );
+    });
+
+    // Services Subtotal Row
+    serviceRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "", size: 10 })] })],
+            columnSpan: 5,
+            shading: { type: ShadingType.SOLID, color: "ECFDF5" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Subtotal:", bold: true, size: 11 })] })],
+            shading: { type: ShadingType.SOLID, color: "ECFDF5" },
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "", size: 10 })] })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${servicesTotal.toFixed(2)}`, bold: true, size: 12, color: "059669" })], alignment: AlignmentType.RIGHT })],
+          }),
+        ],
+      })
+    );
+
+    elements.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: serviceRows,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: "A7F3D0" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "A7F3D0" },
+          left: { style: BorderStyle.SINGLE, size: 1, color: "A7F3D0" },
+          right: { style: BorderStyle.SINGLE, size: 1, color: "A7F3D0" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "D1FAE5" },
+          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "D1FAE5" },
+        },
+      })
+    );
+  }
+
+  // Grand Total
+  const grandTotal = equipment.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
+
+  elements.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "",
+        }),
+      ],
+      spacing: { before: 400, after: 200 },
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "GRAND TOTAL",
+                      bold: true,
+                      size: 16,
+                      color: "FFFFFF",
+                    }),
+                  ],
+                  alignment: AlignmentType.LEFT,
+                }),
+              ],
+              width: { size: 70, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "1A5490" },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `€${grandTotal.toFixed(2)}`,
+                      bold: true,
+                      size: 18,
+                      color: "FFFFFF",
+                    }),
+                  ],
+                  alignment: AlignmentType.RIGHT,
+                }),
+              ],
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "1A5490" },
+            }),
+          ],
+        }),
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        left: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+        right: { style: BorderStyle.SINGLE, size: 2, color: "1A5490" },
+      },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "Note: All prices are exclusive of VAT and applicable taxes.",
+          size: 9,
+          color: "6B7280",
+          italics: true,
+        }),
+      ],
+      alignment: AlignmentType.RIGHT,
+      spacing: { before: 100 },
+    })
+  );
+
+  return elements;
+}
+
+function createProductDatasheets(equipment?: any[]) {
+  const elements = [
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "PRODUCT DATASHEETS",
+          bold: true,
+          size: 20,
+          color: "1A5490",
+        }),
+      ],
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 400 },
+    }),
+    
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "Detailed specifications and technical information for all products included in this project.",
+          size: 11,
+        }),
+      ],
+      spacing: { after: 400 },
+    }),
+  ];
+
+  if (!equipment || equipment.length === 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No products have been added to this project.",
+            italics: true,
+            color: "6B7280",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+    return elements;
+  }
+
+  // Filter only products
+  const products = equipment.filter((item: any) => item.type === 'product' || item.itemType === 'product');
+
+  if (products.length === 0) {
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No products have been specified. Only services are included in this project.",
+            italics: true,
+            color: "6B7280",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+    return elements;
+  }
+
+  // Create datasheet for each product
+  products.forEach((product: any, idx: number) => {
+    // Product Header
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `${idx + 1}. ${product.name}`,
+            bold: true,
+            size: 14,
+            color: "1F2937",
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: idx > 0 ? 600 : 200, after: 200 },
+        border: {
+          bottom: {
+            color: "BFDBFE",
+            space: 1,
+            style: BorderStyle.SINGLE,
+            size: 6,
+          },
+        },
+      })
+    );
+
+    // Product Information Table
+    const productInfoRows = [];
+
+    if (product.brand) {
+      productInfoRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Brand:", bold: true, size: 11 })] })],
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.brand, size: 11 })] })],
+              width: { size: 70, type: WidthType.PERCENTAGE },
+            }),
+          ],
+        })
+      );
+    }
+
+    if (product.category) {
+      productInfoRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Category:", bold: true, size: 11 })] })],
+              shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.category, size: 11 })] })],
+            }),
+          ],
+        })
+      );
+    }
+
+    if (product.model) {
+      productInfoRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Model:", bold: true, size: 11 })] })],
+              shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.model, size: 11 })] })],
+            }),
+          ],
+        })
+      );
+    }
+
+    productInfoRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Quantity:", bold: true, size: 11 })] })],
+            shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `${product.quantity} ${product.unit || 'units'}`, size: 11, bold: true, color: "1A5490" })] })],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Unit Price:", bold: true, size: 11 })] })],
+            shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${(product.price || 0).toFixed(2)}`, size: 11 })] })],
+          }),
+        ],
+      })
+    );
+
+    elements.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: productInfoRows,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          left: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          right: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "F3F4F6" },
+        },
+      })
+    );
+
+    // Product Images Section
+    if (product.images && product.images.length > 0) {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Product Images",
+              bold: true,
+              size: 12,
+              color: "374151",
+            }),
+          ],
+          spacing: { before: 300, after: 150 },
+        })
+      );
+
+      // Note: Images would be embedded here if we fetch them as buffers
+      product.images.forEach((image: any, imgIdx: number) => {
+        elements.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Image ${imgIdx + 1}: ${image.alt || 'Product image'}`,
+                size: 10,
+                color: "6B7280",
+              }),
+            ],
+            spacing: { after: 50 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `URL: ${image.url}`,
+                size: 9,
+                color: "9CA3AF",
+                italics: true,
+              }),
+            ],
+            spacing: { after: 100 },
+          })
+        );
+      });
+    }
+
+    // Description Section
+    elements.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Description",
+            bold: true,
+            size: 12,
+            color: "374151",
+          }),
+        ],
+        spacing: { before: 300, after: 150 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: product.description || "Detailed product description and technical specifications will be provided upon request. Please contact our sales team for complete product documentation and datasheets.",
+            size: 10,
+            color: "4B5563",
+          }),
+        ],
+        spacing: { after: 200 },
+      })
+    );
+
+    // Technical Specifications Section
+    if (product.specifications && product.specifications.length > 0) {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Technical Specifications",
+              bold: true,
+              size: 12,
+              color: "374151",
+            }),
+          ],
+          spacing: { before: 200, after: 150 },
+        })
+      );
+
+      // Create specifications table
+      const specRows = [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Specification", bold: true, size: 11 })] })],
+              width: { size: 40, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: "Value", bold: true, size: 11 })] })],
+              width: { size: 60, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: "EFF6FF" },
+            }),
+          ],
+        }),
+      ];
+
+      product.specifications.forEach((spec: any) => {
+        specRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: spec.name, size: 10, bold: true })] })],
+                shading: { type: ShadingType.SOLID, color: "F9FAFB" },
+              }),
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: spec.value || '-', size: 10 })] })],
+              }),
+            ],
+          })
+        );
+      });
+
+      elements.push(
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: specRows,
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+            left: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+            right: { style: BorderStyle.SINGLE, size: 1, color: "BFDBFE" },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E5E7EB" },
+          },
+        })
+      );
+    } else {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Technical Specifications",
+              bold: true,
+              size: 12,
+              color: "374151",
+            }),
+          ],
+          spacing: { before: 200, after: 150 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "• Full technical specifications available in product datasheet",
+              size: 10,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 50 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "• Compliance certifications and regulatory information included",
+              size: 10,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 50 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "• Installation and configuration guides available",
+              size: 10,
+              color: "6B7280",
+            }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
+    }
+
+    // Notes if any
+    if (product.notes) {
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Additional Notes",
+              bold: true,
+              size: 12,
+              color: "374151",
+            }),
+          ],
+          spacing: { before: 200, after: 150 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: product.notes,
+              size: 10,
+              color: "6B7280",
+              italics: true,
+            }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
+    }
+  });
+
+  return elements;
 }
 
 function createAttachments(files: any[]) {
