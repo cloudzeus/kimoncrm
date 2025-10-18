@@ -2906,8 +2906,8 @@ export function CablingHierarchyForm({
                           {equipment.filter(eq => 
                             eq.infrastructureElement?.type === 'building' && 
                             eq.infrastructureElement?.buildingIndex === bIdx
-                          ).map(item => (
-                            <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                          ).map((item, idx) => (
+                            <div key={`building-${bIdx}-eq-${idx}`} className="text-xs bg-white p-2 rounded flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                 <span className="font-medium">{item.name}</span>
@@ -2958,8 +2958,8 @@ export function CablingHierarchyForm({
                             {equipment.filter(eq => 
                               eq.infrastructureElement?.type === 'centralRack' && 
                               eq.infrastructureElement?.buildingIndex === bIdx
-                            ).map(item => (
-                              <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                            ).map((item, idx) => (
+                              <div key={`centralrack-${bIdx}-eq-${idx}`} className="text-xs bg-white p-2 rounded flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                   <span className="font-medium">{item.name}</span>
@@ -3013,8 +3013,8 @@ export function CablingHierarchyForm({
                               eq.infrastructureElement?.type === 'floor' && 
                               eq.infrastructureElement?.buildingIndex === bIdx &&
                               eq.infrastructureElement?.floorIndex === fIdx
-                            ).map(item => (
-                              <div key={item.id} className="text-xs bg-white p-2 rounded flex items-center justify-between">
+                            ).map((item, idx) => (
+                              <div key={`floor-${bIdx}-${fIdx}-eq-${idx}`} className="text-xs bg-white p-2 rounded flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                   <span className="font-medium">{item.name}</span>
@@ -3067,8 +3067,8 @@ export function CablingHierarchyForm({
                                   eq.infrastructureElement?.buildingIndex === bIdx &&
                                   eq.infrastructureElement?.floorIndex === fIdx &&
                                   eq.infrastructureElement?.rackIndex === rIdx
-                                ).map(item => (
-                                  <div key={item.id} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
+                                ).map((item, idx) => (
+                                  <div key={`rack-${bIdx}-${fIdx}-${rIdx}-eq-${idx}`} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
                                       {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                       <span className="font-medium">{item.name}</span>
@@ -3128,8 +3128,8 @@ export function CablingHierarchyForm({
                                   eq.infrastructureElement?.buildingIndex === bIdx &&
                                   eq.infrastructureElement?.floorIndex === fIdx &&
                                   eq.infrastructureElement?.roomIndex === rIdx
-                                ).map(item => (
-                                  <div key={item.id} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
+                                ).map((item, idx) => (
+                                  <div key={`room-${bIdx}-${fIdx}-${rIdx}-eq-${idx}`} className="text-xs bg-white p-1.5 rounded flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
                                       {item.type === 'product' ? <Package className="h-3 w-3 text-blue-600" /> : <Settings className="h-3 w-3 text-green-600" />}
                                       <span className="font-medium">{item.name}</span>
