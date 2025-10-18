@@ -489,6 +489,7 @@ export default function SiteSurveyDetailsPage() {
             <div className="flex gap-2">
               <Button
                 onClick={async () => {
+                  console.log('NEXT button clicked, current activeTab:', activeTab);
                   if (activeTab === 'infrastructure') {
                     // Save infrastructure and move to equipment
                     toast.success('Infrastructure saved! Moving to Equipment tab...');
@@ -506,6 +507,9 @@ export default function SiteSurveyDetailsPage() {
                  activeTab === 'equipment' ? 'SAVE & NEXT → BOM' : 'NEXT'}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
+              <div className="text-xs text-gray-500 mt-2">
+                Debug: activeTab = {activeTab}
+              </div>
             </div>
           </div>
 
@@ -559,48 +563,48 @@ export default function SiteSurveyDetailsPage() {
             <div className="space-y-6">
               {/* Project Information - Full Width */}
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
+                      <FileText className="h-4 w-4" />
                       <span className="text-[12px]">PROJECT INFORMATION</span>
                     </div>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" className="h-6 px-2">
+                      <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="pt-0 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Title</label>
-                      <p className="text-[12px] font-semibold">{survey.title}</p>
+                      <label className="text-[10px] font-medium text-muted-foreground">Title</label>
+                      <p className="text-[11px] font-semibold">{survey.title}</p>
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Type</label>
-                      <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-medium text-muted-foreground">Type</label>
+                      <div className="flex items-center gap-1">
                         {getTypeIcon(survey.type)}
-                        <span className="text-[12px] font-semibold">{survey.type}</span>
+                        <span className="text-[11px] font-semibold">{survey.type}</span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Status</label>
-                      <Badge variant={survey.status === "Completed" ? "default" : "secondary"} className="text-[11px]">
+                      <label className="text-[10px] font-medium text-muted-foreground">Status</label>
+                      <Badge variant={survey.status === "Completed" ? "default" : "secondary"} className="text-[10px] h-4">
                         {survey.status}
                       </Badge>
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Arranged Date</label>
-                      <p className="text-[12px] font-semibold">
+                      <label className="text-[10px] font-medium text-muted-foreground">Arranged Date</label>
+                      <p className="text-[11px] font-semibold">
                         {survey.arrangedDate ? new Date(survey.arrangedDate).toLocaleDateString() : "Not set"}
                       </p>
                     </div>
                   </div>
                   {survey.description && (
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Description</label>
-                      <p className="text-[11px] mt-1">{survey.description}</p>
+                      <label className="text-[10px] font-medium text-muted-foreground">Description</label>
+                      <p className="text-[10px] mt-1">{survey.description}</p>
                     </div>
                   )}
                 </CardContent>
@@ -608,37 +612,37 @@ export default function SiteSurveyDetailsPage() {
 
               {/* Customer Information - Full Width */}
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
+                      <Building2 className="h-4 w-4" />
                       <span className="text-[12px]">CUSTOMER INFORMATION</span>
                     </div>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" className="h-6 px-2">
+                      <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="pt-0 space-y-2">
                   <div>
-                    <label className="text-[11px] font-medium text-muted-foreground">Customer Name</label>
-                    <p className="text-[12px] font-semibold">{survey.customer.name}</p>
+                    <label className="text-[10px] font-medium text-muted-foreground">Customer Name</label>
+                    <p className="text-[11px] font-semibold">{survey.customer.name}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Email</label>
-                      <p className="text-[11px]">{survey.customer.email || "Not provided"}</p>
+                      <label className="text-[10px] font-medium text-muted-foreground">Email</label>
+                      <p className="text-[10px]">{survey.customer.email || "Not provided"}</p>
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Phone</label>
-                      <p className="text-[11px]">{survey.customer.phone01 || "Not provided"}</p>
+                      <label className="text-[10px] font-medium text-muted-foreground">Phone</label>
+                      <p className="text-[10px]">{survey.customer.phone01 || "Not provided"}</p>
                     </div>
                   </div>
                   {survey.customer.address && (
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground">Address</label>
-                      <p className="text-[11px]">{survey.customer.address}</p>
+                      <label className="text-[10px] font-medium text-muted-foreground">Address</label>
+                      <p className="text-[10px]">{survey.customer.address}</p>
                     </div>
                   )}
                 </CardContent>
@@ -646,26 +650,26 @@ export default function SiteSurveyDetailsPage() {
 
               {/* Assignment Information - Full Width */}
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
+                    <User className="h-4 w-4" />
                     <span className="text-[12px]">ASSIGNMENT</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 gap-3">
                     {survey.assignTo && (
                       <div>
-                        <label className="text-[11px] font-medium text-muted-foreground">Assigned To</label>
-                        <p className="text-[12px] font-semibold">{survey.assignTo.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{survey.assignTo.email}</p>
+                        <label className="text-[10px] font-medium text-muted-foreground">Assigned To</label>
+                        <p className="text-[11px] font-semibold">{survey.assignTo.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{survey.assignTo.email}</p>
                       </div>
                     )}
                     {survey.assignFrom && (
                       <div>
-                        <label className="text-[11px] font-medium text-muted-foreground">Assigned From</label>
-                        <p className="text-[12px] font-semibold">{survey.assignFrom.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{survey.assignFrom.email}</p>
+                        <label className="text-[10px] font-medium text-muted-foreground">Assigned From</label>
+                        <p className="text-[11px] font-semibold">{survey.assignFrom.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{survey.assignFrom.email}</p>
                       </div>
                     )}
                   </div>
