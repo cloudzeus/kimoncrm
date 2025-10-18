@@ -39,6 +39,7 @@ import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarch
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
 import { EquipmentDisplay } from "@/components/site-surveys/equipment-display";
+import { BOMManagerEnhanced } from "@/components/site-surveys/bom-manager-enhanced";
 
 interface SiteSurveyDetail {
   id: string;
@@ -147,6 +148,7 @@ export default function SiteSurveyDetailsPage() {
   const [generatingWord, setGeneratingWord] = useState(false);
   const [downloadingBOM, setDownloadingBOM] = useState(false);
   const [buildings, setBuildings] = useState<any[]>([]);
+  const [equipment, setEquipment] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSurveyDetails();
@@ -443,11 +445,12 @@ export default function SiteSurveyDetailsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">OVERVIEW</TabsTrigger>
             <TabsTrigger value="details">DETAILS</TabsTrigger>
             <TabsTrigger value="infrastructure">INFRASTRUCTURE</TabsTrigger>
             <TabsTrigger value="equipment">EQUIPMENT</TabsTrigger>
+            <TabsTrigger value="bom">BOM</TabsTrigger>
             <TabsTrigger value="files">FILES</TabsTrigger>
             <TabsTrigger value="history">HISTORY</TabsTrigger>
           </TabsList>
@@ -676,6 +679,9 @@ export default function SiteSurveyDetailsPage() {
                   fetchSurveyDetails();
                   toast.success("Infrastructure updated successfully");
                 }}
+                onEquipmentUpdate={(equipmentData) => {
+                  setEquipment(equipmentData);
+                }}
               />
             ) : (
               <Card>
@@ -699,6 +705,45 @@ export default function SiteSurveyDetailsPage() {
                     {survey.type === 'CABLING' 
                       ? 'No equipment added yet. Add equipment to the site survey infrastructure.'
                       : 'Equipment management is only available for cabling surveys.'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* BOM Tab */}
+          <TabsContent value="bom" className="space-y-6">
+            {survey.type === 'CABLING' && buildings.length > 0 ? (
+              <BOMManagerEnhanced
+                equipment={equipment}
+                onUpdateEquipment={setEquipment}
+                buildings={buildings}
+                files={survey.files || []}
+                siteSurveyData={{
+                  id: survey.id,
+                  title: survey.title,
+                  customer: survey.customer || { name: 'Unknown Customer' },
+                  createdAt: survey.createdAt,
+                  updatedAt: survey.updatedAt,
+                  arrangedDate: survey.arrangedDate,
+                  address: survey.address,
+                  city: survey.city,
+                  status: survey.status,
+                  type: survey.type,
+                }}
+                onSave={() => {
+                  toast.success("BOM saved successfully");
+                }}
+              />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    {survey.type === 'CABLING' 
+                      ? 'No equipment added yet. Add equipment to the site survey infrastructure first.'
+                      : 'BOM management is only available for cabling surveys.'
                     }
                   </p>
                 </CardContent>

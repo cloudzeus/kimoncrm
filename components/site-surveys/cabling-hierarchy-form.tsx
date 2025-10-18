@@ -75,6 +75,7 @@ import {
 interface CablingHierarchyFormProps {
   siteSurveyId: string;
   onSuccess?: () => void;
+  onEquipmentUpdate?: (equipment: EquipmentItem[]) => void;
 }
 
 // Extended Device interface to include equipment properties
@@ -184,6 +185,7 @@ interface Room {
 export function CablingHierarchyForm({
   siteSurveyId,
   onSuccess,
+  onEquipmentUpdate,
 }: CablingHierarchyFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -230,7 +232,7 @@ export function CablingHierarchyForm({
   }>>([]);
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment' | 'bom'>('infrastructure');
+  const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment'>('infrastructure');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [siteSurveyData, setSiteSurveyData] = useState<any>(null);
@@ -290,6 +292,13 @@ export function CablingHierarchyForm({
   ];
 
   // Load existing data on mount
+  // Notify parent of equipment changes
+  useEffect(() => {
+    if (onEquipmentUpdate) {
+      onEquipmentUpdate(equipment);
+    }
+  }, [equipment, onEquipmentUpdate]);
+
   useEffect(() => {
     const loadData = async () => {
       if (!initialLoad) return;
@@ -1062,7 +1071,7 @@ export function CablingHierarchyForm({
     <div className="space-y-6">
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="infrastructure" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             INFRASTRUCTURE
@@ -1070,10 +1079,6 @@ export function CablingHierarchyForm({
           <TabsTrigger value="equipment" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
             EQUIPMENT
-          </TabsTrigger>
-          <TabsTrigger value="bom" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            BOM
           </TabsTrigger>
         </TabsList>
 
@@ -3343,32 +3348,6 @@ export function CablingHierarchyForm({
               </Card>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="bom" className="space-y-6">
-          <BOMManagerEnhanced
-            equipment={equipment}
-            onUpdateEquipment={setEquipment}
-            buildings={buildings}
-            files={siteSurveyData?.images || []}
-            siteSurveyData={siteSurveyData ? {
-              id: siteSurveyData.id,
-              title: siteSurveyData.title,
-              customer: siteSurveyData.customer || { name: 'Unknown Customer' },
-              createdAt: siteSurveyData.createdAt,
-              updatedAt: siteSurveyData.updatedAt,
-              arrangedDate: siteSurveyData.arrangedDate,
-              address: siteSurveyData.address,
-              city: siteSurveyData.city,
-              status: siteSurveyData.status,
-              type: siteSurveyData.type,
-            } : {
-              id: siteSurveyId,
-              title: 'Site Survey',
-              customer: { name: 'Unknown Customer' },
-            }}
-            onSave={handleSave}
-          />
         </TabsContent>
       </Tabs>
 
