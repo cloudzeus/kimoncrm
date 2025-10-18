@@ -233,7 +233,8 @@ export async function GET(
               },
             },
             include: {
-              category: true,
+              brand: true,
+              translations: true,
             },
           });
           
@@ -269,12 +270,14 @@ export async function GET(
           } else if (item.itemType === 'service' && item.equipmentId) {
             const service = servicesMap.get(item.equipmentId);
             if (service) {
+              // Get description from translations (default to first available)
+              const description = service.translations?.[0]?.description || null;
+              
               return {
                 ...item,
                 name: service.name,
-                category: service.category?.name,
-                price: service.price,
-                description: service.description,
+                category: service.mtrcategory || service.serviceCategoryCode,
+                description: description,
               };
             }
           }
