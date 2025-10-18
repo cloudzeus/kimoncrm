@@ -20,6 +20,7 @@ interface EquipmentItem {
   unit: string;
   quantity: number;
   price: number;
+  margin?: number;
   totalPrice: number;
   notes?: string;
   infrastructureElement?: SelectedElement;
@@ -79,6 +80,8 @@ interface Floor {
   id?: string;
   name: string;
   level?: number;
+  blueprintUrl?: string;
+  images?: string[];
   floorRacks?: FloorRack[];
   rooms?: Room[];
   expanded?: boolean;
@@ -121,28 +124,51 @@ interface DeviceWithEquipment {
   phoneNumber?: string;
 }
 
-// Helper function to format placement information
-function getPlacementString(element?: SelectedElement): string {
+// Helper function to format placement information with actual building names
+function getPlacementString(element?: SelectedElement, buildings?: Building[]): string {
   if (!element) return 'General';
   
   const parts: string[] = [];
   
-  if (element.buildingIndex !== undefined) {
-    parts.push(`Building ${element.buildingIndex + 1}`);
-  }
-  
-  if (element.floorIndex !== undefined) {
-    parts.push(`Floor ${element.floorIndex + 1}`);
-  }
-  
-  if (element.type === 'centralRack') {
-    parts.push('Central Rack');
-  } else if (element.type === 'floorRack' && element.rackIndex !== undefined) {
-    parts.push(`Rack ${element.rackIndex + 1}`);
-  } else if (element.type === 'room' && element.roomIndex !== undefined) {
-    parts.push(`Room ${element.roomIndex + 1}`);
-  } else if (element.type === 'buildingConnection' && element.connectionIndex !== undefined) {
-    parts.push(`Connection ${element.connectionIndex + 1}`);
+  if (element.buildingIndex !== undefined && buildings && buildings[element.buildingIndex]) {
+    const building = buildings[element.buildingIndex];
+    parts.push(building.name);
+    
+    if (element.type === 'centralRack') {
+      if (building.centralRack) {
+        parts.push(building.centralRack.name || 'Central Rack');
+      }
+    } else if (element.floorIndex !== undefined && building.floors && building.floors[element.floorIndex]) {
+      const floor = building.floors[element.floorIndex];
+      parts.push(floor.name);
+      
+      if (element.type === 'floorRack' && element.rackIndex !== undefined && floor.floorRacks && floor.floorRacks[element.rackIndex]) {
+        const rack = floor.floorRacks[element.rackIndex];
+        parts.push(rack.name || `Rack ${element.rackIndex + 1}`);
+      } else if (element.type === 'room' && element.roomIndex !== undefined && floor.rooms && floor.rooms[element.roomIndex]) {
+        const room = floor.rooms[element.roomIndex];
+        parts.push(room.name);
+      }
+    } else if (element.type === 'buildingConnection' && element.connectionIndex !== undefined) {
+      parts.push(`Connection ${element.connectionIndex + 1}`);
+    }
+  } else {
+    // Fallback to indices if buildings not provided
+    if (element.buildingIndex !== undefined) {
+      parts.push(`Building ${element.buildingIndex + 1}`);
+    }
+    if (element.floorIndex !== undefined) {
+      parts.push(`Floor ${element.floorIndex + 1}`);
+    }
+    if (element.type === 'centralRack') {
+      parts.push('Central Rack');
+    } else if (element.type === 'floorRack' && element.rackIndex !== undefined) {
+      parts.push(`Rack ${element.rackIndex + 1}`);
+    } else if (element.type === 'room' && element.roomIndex !== undefined) {
+      parts.push(`Room ${element.roomIndex + 1}`);
+    } else if (element.type === 'buildingConnection' && element.connectionIndex !== undefined) {
+      parts.push(`Connection ${element.connectionIndex + 1}`);
+    }
   }
   
   return parts.length > 0 ? parts.join(' → ') : 'General';
@@ -163,7 +189,7 @@ interface ConsolidatedItem {
   notes: string[];
 }
 
-function consolidateEquipment(equipment: EquipmentItem[]): ConsolidatedItem[] {
+function consolidateEquipment(equipment: EquipmentItem[], buildings?: Building[]): ConsolidatedItem[] {
   const consolidated = new Map<string, ConsolidatedItem>();
 
   equipment.forEach(item => {
@@ -174,7 +200,7 @@ function consolidateEquipment(equipment: EquipmentItem[]): ConsolidatedItem[] {
       existing.totalQuantity += item.quantity;
       existing.totalPrice += item.totalPrice;
       
-      const placement = getPlacementString(item.infrastructureElement);
+      const placement = getPlacementString(item.infrastructureElement, buildings);
       if (!existing.placements.includes(placement)) {
         existing.placements.push(placement);
       }
@@ -193,7 +219,7 @@ function consolidateEquipment(equipment: EquipmentItem[]): ConsolidatedItem[] {
         totalQuantity: item.quantity,
         price: item.price,
         totalPrice: item.totalPrice,
-        placements: [getPlacementString(item.infrastructureElement)],
+        placements: [getPlacementString(item.infrastructureElement, buildings)],
         notes: item.notes ? [item.notes] : [],
       });
     }
@@ -238,10 +264,10 @@ export async function POST(request: NextRequest) {
     await createFileLinksSheet(workbook, siteSurveyData);
     
     // Create BOM Summary Sheet
-    await createBOMSummarySheet(workbook, equipment, siteSurveyData);
+    await createBOMSummarySheet(workbook, equipment, siteSurveyData, buildings);
     
     // Create Detailed BOM Sheet
-    await createDetailedBOMSheet(workbook, equipment, siteSurveyData);
+    await createDetailedBOMSheet(workbook, equipment, siteSurveyData, buildings);
     
     // Create Products Only Sheet
     await createProductsSheet(workbook, equipment);
@@ -273,14 +299,15 @@ export async function POST(request: NextRequest) {
 async function createBOMSummarySheet(
   workbook: ExcelJS.Workbook, 
   equipment: EquipmentItem[], 
-  siteSurveyData?: SiteSurveyData
+  siteSurveyData?: SiteSurveyData,
+  buildings?: Building[]
 ) {
   const worksheet = workbook.addWorksheet('BOM Summary', {
     pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
   });
 
   // Consolidate equipment
-  const consolidatedEquipment = consolidateEquipment(equipment);
+  const consolidatedEquipment = consolidateEquipment(equipment, buildings);
 
   // Header with project info
   worksheet.mergeCells('A1:H1');
@@ -377,14 +404,15 @@ async function createBOMSummarySheet(
 async function createDetailedBOMSheet(
   workbook: ExcelJS.Workbook, 
   equipment: EquipmentItem[], 
-  siteSurveyData?: SiteSurveyData
+  siteSurveyData?: SiteSurveyData,
+  buildings?: Building[]
 ) {
   const worksheet = workbook.addWorksheet('Detailed BOM', {
     pageSetup: { orientation: 'landscape', fitToWidth: 1, fitToHeight: 0 }
   });
 
   // Consolidate equipment for detailed view
-  const consolidatedEquipment = consolidateEquipment(equipment);
+  const consolidatedEquipment = consolidateEquipment(equipment, buildings);
   
   // Headers
   const headers = [
@@ -699,7 +727,7 @@ async function createSiteStructureSheet(
   }
 
   // Headers for structure table
-  const headers = ['Level', 'Type', 'Name', 'Code', 'Location/Details', 'Devices', 'Notes'];
+  const headers = ['Level', 'Type', 'Name', 'Code', 'Location/Details', 'Devices', 'Images', 'Blueprints', 'Notes'];
   headers.forEach((header, index) => {
     const cell = worksheet.getCell(7, index + 1);
     cell.value = header;
@@ -723,10 +751,26 @@ async function createSiteStructureSheet(
     worksheet.getCell(row, 4).value = building.code || '';
     worksheet.getCell(row, 5).value = building.address || '';
     worksheet.getCell(row, 6).value = '';
-    worksheet.getCell(row, 7).value = building.notes || '';
+    
+    // Building Images
+    if (building.images && building.images.length > 0) {
+      worksheet.getCell(row, 7).value = {
+        text: `View (${building.images.length})`,
+        hyperlink: building.images[0]
+      };
+      worksheet.getCell(row, 7).font = { 
+        color: { argb: 'FF0000FF' },
+        underline: true 
+      };
+    } else {
+      worksheet.getCell(row, 7).value = '';
+    }
+    
+    worksheet.getCell(row, 8).value = ''; // Blueprints (buildings don't have blueprints)
+    worksheet.getCell(row, 9).value = building.notes || '';
     
     // Style building row
-    for (let col = 1; col <= 7; col++) {
+    for (let col = 1; col <= 9; col++) {
       const cell = worksheet.getCell(row, col);
       cell.fill = {
         type: 'pattern',
@@ -734,6 +778,14 @@ async function createSiteStructureSheet(
         fgColor: { argb: 'FFF2F2F2' }
       };
       cell.font = { bold: true };
+      // Reset hyperlink color and underline for images column
+      if (col === 7 && building.images && building.images.length > 0) {
+        cell.font = { 
+          bold: true,
+          color: { argb: 'FF0000FF' },
+          underline: true 
+        };
+      }
     }
     row++;
 
@@ -745,16 +797,39 @@ async function createSiteStructureSheet(
       worksheet.getCell(row, 4).value = building.centralRack.code || '';
       worksheet.getCell(row, 5).value = building.centralRack.location || '';
       worksheet.getCell(row, 6).value = building.centralRack.devices?.length || 0;
-      worksheet.getCell(row, 7).value = building.centralRack.notes || '';
+      
+      // Central Rack Images
+      if (building.centralRack.images && building.centralRack.images.length > 0) {
+        worksheet.getCell(row, 7).value = {
+          text: `View (${building.centralRack.images.length})`,
+          hyperlink: building.centralRack.images[0]
+        };
+        worksheet.getCell(row, 7).font = { 
+          color: { argb: 'FF0000FF' },
+          underline: true 
+        };
+      } else {
+        worksheet.getCell(row, 7).value = '';
+      }
+      
+      worksheet.getCell(row, 8).value = ''; // Blueprints
+      worksheet.getCell(row, 9).value = building.centralRack.notes || '';
       
       // Style central rack row
-      for (let col = 1; col <= 7; col++) {
+      for (let col = 1; col <= 9; col++) {
         const cell = worksheet.getCell(row, col);
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFE7F3FF' }
         };
+        // Reset hyperlink color and underline for images column
+        if (col === 7 && building.centralRack.images && building.centralRack.images.length > 0) {
+          cell.font = { 
+            color: { argb: 'FF0000FF' },
+            underline: true 
+          };
+        }
       }
       row++;
 
@@ -767,7 +842,9 @@ async function createSiteStructureSheet(
           worksheet.getCell(row, 4).value = device.model || '';
           worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
           worksheet.getCell(row, 6).value = device.quantity || 1;
-          worksheet.getCell(row, 7).value = device.notes || '';
+          worksheet.getCell(row, 7).value = ''; // Devices don't have images
+          worksheet.getCell(row, 8).value = ''; // Devices don't have blueprints
+          worksheet.getCell(row, 9).value = device.notes || '';
           row++;
         });
       }
@@ -781,16 +858,53 @@ async function createSiteStructureSheet(
       worksheet.getCell(row, 4).value = floor.level?.toString() || '';
       worksheet.getCell(row, 5).value = `Level ${floor.level || floorIndex + 1}`;
       worksheet.getCell(row, 6).value = '';
-      worksheet.getCell(row, 7).value = '';
+      
+      // Floor Images
+      if (floor.images && floor.images.length > 0) {
+        worksheet.getCell(row, 7).value = {
+          text: `View (${floor.images.length})`,
+          hyperlink: floor.images[0]
+        };
+        worksheet.getCell(row, 7).font = { 
+          color: { argb: 'FF0000FF' },
+          underline: true 
+        };
+      } else {
+        worksheet.getCell(row, 7).value = '';
+      }
+      
+      // Floor Blueprint
+      if (floor.blueprintUrl) {
+        worksheet.getCell(row, 8).value = {
+          text: 'View Blueprint',
+          hyperlink: floor.blueprintUrl
+        };
+        worksheet.getCell(row, 8).font = { 
+          color: { argb: 'FF0000FF' },
+          underline: true 
+        };
+      } else {
+        worksheet.getCell(row, 8).value = '';
+      }
+      
+      worksheet.getCell(row, 9).value = '';
       
       // Style floor row
-      for (let col = 1; col <= 7; col++) {
+      for (let col = 1; col <= 9; col++) {
         const cell = worksheet.getCell(row, col);
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFE7F3FF' }
         };
+        // Reset hyperlink colors
+        if ((col === 7 && floor.images && floor.images.length > 0) || 
+            (col === 8 && floor.blueprintUrl)) {
+          cell.font = { 
+            color: { argb: 'FF0000FF' },
+            underline: true 
+          };
+        }
       }
       row++;
 
@@ -803,7 +917,23 @@ async function createSiteStructureSheet(
           worksheet.getCell(row, 4).value = rack.code || '';
           worksheet.getCell(row, 5).value = rack.location || '';
           worksheet.getCell(row, 6).value = rack.devices?.length || 0;
-          worksheet.getCell(row, 7).value = rack.notes || '';
+          
+          // Floor Rack Images
+          if (rack.images && rack.images.length > 0) {
+            worksheet.getCell(row, 7).value = {
+              text: `View (${rack.images.length})`,
+              hyperlink: rack.images[0]
+            };
+            worksheet.getCell(row, 7).font = { 
+              color: { argb: 'FF0000FF' },
+              underline: true 
+            };
+          } else {
+            worksheet.getCell(row, 7).value = '';
+          }
+          
+          worksheet.getCell(row, 8).value = ''; // No blueprints for racks
+          worksheet.getCell(row, 9).value = rack.notes || '';
           row++;
 
           // Floor Rack Devices
@@ -815,7 +945,9 @@ async function createSiteStructureSheet(
               worksheet.getCell(row, 4).value = device.model || '';
               worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
               worksheet.getCell(row, 6).value = device.quantity || 1;
-              worksheet.getCell(row, 7).value = device.notes || '';
+              worksheet.getCell(row, 7).value = ''; // No images
+              worksheet.getCell(row, 8).value = ''; // No blueprints
+              worksheet.getCell(row, 9).value = device.notes || '';
               row++;
             });
           }
@@ -831,7 +963,9 @@ async function createSiteStructureSheet(
           worksheet.getCell(row, 4).value = room.type;
           worksheet.getCell(row, 5).value = `${room.outlets} outlets, ${room.connectionType}${room.identicalRoomsCount ? ` (×${room.identicalRoomsCount})` : ''}`;
           worksheet.getCell(row, 6).value = room.devices?.length || 0;
-          worksheet.getCell(row, 7).value = room.notes || '';
+          worksheet.getCell(row, 7).value = ''; // Rooms don't have images in this structure
+          worksheet.getCell(row, 8).value = ''; // Rooms don't have blueprints
+          worksheet.getCell(row, 9).value = room.notes || '';
           row++;
 
           // Room Devices
@@ -843,7 +977,9 @@ async function createSiteStructureSheet(
               worksheet.getCell(row, 4).value = device.model || '';
               worksheet.getCell(row, 5).value = `${device.type}${device.brand ? ` (${device.brand})` : ''}`;
               worksheet.getCell(row, 6).value = device.quantity || 1;
-              worksheet.getCell(row, 7).value = device.notes || '';
+              worksheet.getCell(row, 7).value = ''; // No images
+              worksheet.getCell(row, 8).value = ''; // No blueprints
+              worksheet.getCell(row, 9).value = device.notes || '';
               row++;
             });
           }
@@ -857,7 +993,7 @@ async function createSiteStructureSheet(
 
   // Add borders to all cells
   for (let r = 7; r < row; r++) {
-    for (let c = 1; c <= 7; c++) {
+    for (let c = 1; c <= 9; c++) {
       const cell = worksheet.getCell(r, c);
       cell.border = {
         top: { style: 'thin' },
@@ -876,6 +1012,8 @@ async function createSiteStructureSheet(
     { width: 15 },  // Code
     { width: 30 },  // Location/Details
     { width: 10 },  // Devices
+    { width: 15 },  // Images
+    { width: 15 },  // Blueprints
     { width: 25 },  // Notes
   ];
 }
@@ -933,9 +1071,12 @@ async function createFileLinksSheet(
     worksheet.getCell(row, 1).value = file.name;
     worksheet.getCell(row, 2).value = file.filetype.toUpperCase();
     worksheet.getCell(row, 3).value = file.description || '';
-    worksheet.getCell(row, 4).value = file.url;
     
-    // Make the URL clickable
+    // Make the URL a proper hyperlink
+    worksheet.getCell(row, 4).value = {
+      text: 'Download',
+      hyperlink: file.url
+    };
     worksheet.getCell(row, 4).font = { 
       color: { argb: 'FF0000FF' },
       underline: true 

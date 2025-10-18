@@ -221,6 +221,7 @@ export function CablingHierarchyForm({
   const [activeTab, setActiveTab] = useState<'infrastructure' | 'equipment' | 'bom'>('infrastructure');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [siteSurveyData, setSiteSurveyData] = useState<any>(null);
   const [connectionForm, setConnectionForm] = useState({
     toBuilding: "",
     connectionType: "WIRELESS",
@@ -270,6 +271,11 @@ export function CablingHierarchyForm({
         if (response.ok) {
           const data = await response.json();
           console.log("Loaded cabling data:", data);
+          
+          // Store site survey data for BOM and document generation
+          if (data.siteSurvey) {
+            setSiteSurveyData(data.siteSurvey);
+          }
           
           // Transform the data to match our Building interface
           if (data.siteSurvey?.buildings) {
@@ -3203,13 +3209,22 @@ export function CablingHierarchyForm({
             equipment={equipment}
             onUpdateEquipment={setEquipment}
             buildings={buildings}
-            files={[]} // TODO: Get files from site survey data
-            siteSurveyData={{
+            files={siteSurveyData?.images || []}
+            siteSurveyData={siteSurveyData ? {
+              id: siteSurveyData.id,
+              title: siteSurveyData.title,
+              customer: siteSurveyData.customer || { name: 'Unknown Customer' },
+              createdAt: siteSurveyData.createdAt,
+              updatedAt: siteSurveyData.updatedAt,
+              arrangedDate: siteSurveyData.arrangedDate,
+              address: siteSurveyData.address,
+              city: siteSurveyData.city,
+              status: siteSurveyData.status,
+              type: siteSurveyData.type,
+            } : {
               id: siteSurveyId,
-              title: `Site Survey ${siteSurveyId}`,
-              customer: { name: 'Customer Name' }, // This would come from site survey data
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              title: 'Site Survey',
+              customer: { name: 'Unknown Customer' },
             }}
             onSave={handleSave}
           />

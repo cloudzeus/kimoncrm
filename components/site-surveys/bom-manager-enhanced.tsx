@@ -97,6 +97,7 @@ export function BOMManagerEnhanced({
     unit: 'Each',
     quantity: 1,
     price: 0,
+    margin: 0,
     notes: '',
   });
   const [selectedLocation, setSelectedLocation] = useState<SelectedElement | undefined>();
@@ -220,9 +221,9 @@ export function BOMManagerEnhanced({
     },
     {
       accessorKey: 'quantity',
-      header: 'Quantity',
+      header: 'Qty',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
@@ -231,7 +232,7 @@ export function BOMManagerEnhanced({
           >
             <Plus className="h-3 w-3 rotate-45" />
           </Button>
-          <span className="w-12 text-center font-medium">{row.original.quantity}</span>
+          <span className="w-8 text-center font-medium text-xs">{row.original.quantity}</span>
           <Button
             variant="outline"
             size="sm"
@@ -246,13 +247,53 @@ export function BOMManagerEnhanced({
     {
       accessorKey: 'price',
       header: 'Unit Price',
-      cell: ({ row }) => `€${row.original.price.toFixed(2)}`,
+      cell: ({ row }) => (
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={row.original.price}
+          onChange={(e) => {
+            const newPrice = parseFloat(e.target.value) || 0;
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, price: newPrice, totalPrice: newPrice * item.quantity * (1 + (item.margin || 0) / 100) }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          className="h-7 w-20 text-xs"
+        />
+      ),
+    },
+    {
+      accessorKey: 'margin',
+      header: 'Margin %',
+      cell: ({ row }) => (
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          value={row.original.margin || 0}
+          onChange={(e) => {
+            const newMargin = parseFloat(e.target.value) || 0;
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, margin: newMargin, totalPrice: item.price * item.quantity * (1 + newMargin / 100) }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          className="h-7 w-16 text-xs"
+        />
+      ),
     },
     {
       accessorKey: 'totalPrice',
       header: 'Total',
       cell: ({ row }) => (
-        <span className="font-semibold">€{row.original.totalPrice.toFixed(2)}</span>
+        <span className="font-semibold text-sm">€{row.original.totalPrice.toFixed(2)}</span>
       ),
     },
     {
@@ -261,14 +302,35 @@ export function BOMManagerEnhanced({
       cell: ({ row }) => (
         <div className="flex items-center gap-1 text-xs">
           <MapPin className="h-3 w-3 text-muted-foreground" />
-          <span className="max-w-[200px] truncate">
+          <span className="max-w-[150px] truncate">
             {getLocationLabel(row.original.infrastructureElement)}
           </span>
         </div>
       ),
     },
     {
+      accessorKey: 'notes',
+      header: 'Notes',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          value={row.original.notes || ''}
+          onChange={(e) => {
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, notes: e.target.value }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          placeholder="Add notes..."
+          className="h-7 w-32 text-xs"
+        />
+      ),
+    },
+    {
       id: 'actions',
+      header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
@@ -276,6 +338,7 @@ export function BOMManagerEnhanced({
             size="sm"
             onClick={() => openEditDialog(row.original)}
             className="h-6 w-6 p-0"
+            title="Edit"
           >
             <Edit className="h-3 w-3" />
           </Button>
@@ -284,6 +347,7 @@ export function BOMManagerEnhanced({
             size="sm"
             onClick={() => removeItem(row.original.id)}
             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            title="Delete"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -309,9 +373,9 @@ export function BOMManagerEnhanced({
     },
     {
       accessorKey: 'quantity',
-      header: 'Quantity',
+      header: 'Qty',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
@@ -320,7 +384,7 @@ export function BOMManagerEnhanced({
           >
             <Plus className="h-3 w-3 rotate-45" />
           </Button>
-          <span className="w-12 text-center font-medium">{row.original.quantity}</span>
+          <span className="w-8 text-center font-medium text-xs">{row.original.quantity}</span>
           <Button
             variant="outline"
             size="sm"
@@ -335,17 +399,58 @@ export function BOMManagerEnhanced({
     {
       accessorKey: 'unit',
       header: 'Unit',
+      cell: ({ row }) => <span className="text-xs">{row.original.unit}</span>,
     },
     {
       accessorKey: 'price',
       header: 'Unit Price',
-      cell: ({ row }) => `€${row.original.price.toFixed(2)}`,
+      cell: ({ row }) => (
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={row.original.price}
+          onChange={(e) => {
+            const newPrice = parseFloat(e.target.value) || 0;
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, price: newPrice, totalPrice: newPrice * item.quantity * (1 + (item.margin || 0) / 100) }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          className="h-7 w-20 text-xs"
+        />
+      ),
+    },
+    {
+      accessorKey: 'margin',
+      header: 'Margin %',
+      cell: ({ row }) => (
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          value={row.original.margin || 0}
+          onChange={(e) => {
+            const newMargin = parseFloat(e.target.value) || 0;
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, margin: newMargin, totalPrice: item.price * item.quantity * (1 + newMargin / 100) }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          className="h-7 w-16 text-xs"
+        />
+      ),
     },
     {
       accessorKey: 'totalPrice',
       header: 'Total',
       cell: ({ row }) => (
-        <span className="font-semibold">€${row.original.totalPrice.toFixed(2)}</span>
+        <span className="font-semibold text-sm">€{row.original.totalPrice.toFixed(2)}</span>
       ),
     },
     {
@@ -354,14 +459,35 @@ export function BOMManagerEnhanced({
       cell: ({ row }) => (
         <div className="flex items-center gap-1 text-xs">
           <MapPin className="h-3 w-3 text-muted-foreground" />
-          <span className="max-w-[200px] truncate">
+          <span className="max-w-[150px] truncate">
             {getLocationLabel(row.original.infrastructureElement)}
           </span>
         </div>
       ),
     },
     {
+      accessorKey: 'notes',
+      header: 'Notes',
+      cell: ({ row }) => (
+        <Input
+          type="text"
+          value={row.original.notes || ''}
+          onChange={(e) => {
+            const updated = equipment.map(item => 
+              item.id === row.original.id 
+                ? { ...item, notes: e.target.value }
+                : item
+            );
+            onUpdateEquipment(updated);
+          }}
+          placeholder="Add notes..."
+          className="h-7 w-32 text-xs"
+        />
+      ),
+    },
+    {
       id: 'actions',
+      header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
@@ -369,6 +495,7 @@ export function BOMManagerEnhanced({
             size="sm"
             onClick={() => openEditDialog(row.original)}
             className="h-6 w-6 p-0"
+            title="Edit"
           >
             <Edit className="h-3 w-3" />
           </Button>
@@ -377,6 +504,7 @@ export function BOMManagerEnhanced({
             size="sm"
             onClick={() => removeItem(row.original.id)}
             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            title="Delete"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -448,6 +576,7 @@ export function BOMManagerEnhanced({
       unit: 'Each',
       quantity: 1,
       price: 0,
+      margin: 0,
       notes: '',
     });
     setSelectedLocation(undefined);
@@ -460,8 +589,11 @@ export function BOMManagerEnhanced({
       return;
     }
 
+    const baseTotal = newItemForm.price * newItemForm.quantity;
+    const totalWithMargin = baseTotal * (1 + (newItemForm.margin || 0) / 100);
+
     const newItem: EquipmentItem = {
-      id: `manual-${addItemType}-${Date.now()}`,
+      id: `manual-${addItemType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: addItemType,
       itemId: `manual-${Date.now()}`,
       name: newItemForm.name,
@@ -470,7 +602,8 @@ export function BOMManagerEnhanced({
       unit: newItemForm.unit,
       quantity: newItemForm.quantity,
       price: newItemForm.price,
-      totalPrice: newItemForm.price * newItemForm.quantity,
+      margin: newItemForm.margin,
+      totalPrice: totalWithMargin,
       notes: newItemForm.notes || undefined,
       infrastructureElement: selectedLocation,
     };
@@ -884,15 +1017,28 @@ export function BOMManagerEnhanced({
                 />
               </div>
             </div>
-            <div>
-              <Label>Unit Price (€) *</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={newItemForm.price}
-                onChange={(e) => setNewItemForm({ ...newItemForm, price: parseFloat(e.target.value) || 0 })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Unit Price (€) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newItemForm.price}
+                  onChange={(e) => setNewItemForm({ ...newItemForm, price: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label>Margin %</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={newItemForm.margin}
+                  onChange={(e) => setNewItemForm({ ...newItemForm, margin: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
             <div>
               <Label>Location Assignment</Label>
@@ -930,10 +1076,20 @@ export function BOMManagerEnhanced({
                 rows={2}
               />
             </div>
-            <div className="p-3 bg-muted rounded">
-              <div className="flex justify-between text-sm">
+            <div className="p-3 bg-muted rounded space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Base Total:</span>
+                <span>€{(newItemForm.price * newItemForm.quantity).toFixed(2)}</span>
+              </div>
+              {newItemForm.margin > 0 && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Margin ({newItemForm.margin}%):</span>
+                  <span>€{((newItemForm.price * newItemForm.quantity * newItemForm.margin) / 100).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-bold border-t pt-1">
                 <span>Total Price:</span>
-                <span className="font-bold">€{(newItemForm.price * newItemForm.quantity).toFixed(2)}</span>
+                <span>€{(newItemForm.price * newItemForm.quantity * (1 + (newItemForm.margin || 0) / 100)).toFixed(2)}</span>
               </div>
             </div>
             <div className="flex justify-end gap-2">

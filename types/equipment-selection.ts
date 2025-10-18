@@ -31,6 +31,7 @@ export interface EquipmentItem {
   unit: string;
   quantity: number;
   price: number;
+  margin?: number; // Profit margin percentage
   totalPrice: number;
   notes?: string;
   // Infrastructure context

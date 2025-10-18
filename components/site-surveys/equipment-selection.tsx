@@ -211,7 +211,7 @@ export function EquipmentSelection({
 
   const addEquipment = (item: Product | Service, type: 'product' | 'service', qty: number = 1) => {
     const equipmentItem: EquipmentItem = {
-      id: `${type}-${item.id}-${Date.now()}`,
+      id: `${type}-${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
       itemId: item.id,
       name: item.name,
