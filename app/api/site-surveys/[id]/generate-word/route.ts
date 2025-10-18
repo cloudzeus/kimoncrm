@@ -152,8 +152,8 @@ export async function POST(
     console.log('Word document generated successfully, buffer size:', wordBuffer.length);
 
     // Generate safe filename
-    const safeTitle = siteSurvey.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 50);
-    const filename = `Site-Survey-${safeTitle}-${siteSurvey.id.substring(0, 8)}.docx`;
+    const safeTitle = siteSurvey.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').substring(0, 30);
+    const filename = `Site-Survey-${safeTitle}-${new Date().toISOString().split('T')[0]}.docx`;
     
     // Return the Word document
     return new NextResponse(new Uint8Array(wordBuffer), {

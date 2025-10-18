@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
   ArrowRight,
@@ -456,6 +457,117 @@ export default function SiteSurveyDetailsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Project and Customer Information Cards - Always Visible */}
+        <div className="space-y-1 mb-4">
+          {/* Project Information - Full Width */}
+          <Card>
+            <CardHeader className="pb-1 pt-3">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  <span className="text-[10px]">PROJECT INFORMATION</span>
+                </div>
+                <Button variant="outline" size="sm" className="h-5 px-1 text-[8px]">
+                  <Edit className="h-2 w-2 mr-1" />
+                  Edit
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 pb-1">
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Title</label>
+                  <p className="text-[8px] font-semibold">{survey.title}</p>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Type</label>
+                  <div className="flex items-center gap-1">
+                    {getTypeIcon(survey.type)}
+                    <span className="text-[8px] font-semibold">{survey.type}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Status</label>
+                  <Badge variant={survey.status === "Completed" ? "default" : "secondary"} className="text-[7px] h-3">
+                    {survey.status}
+                  </Badge>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Arranged Date</label>
+                  <p className="text-[8px] font-semibold">
+                    {survey.arrangedDate ? new Date(survey.arrangedDate).toLocaleDateString() : "Not set"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Customer Information - Full Width */}
+          <Card>
+            <CardHeader className="pb-1 pt-3">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  <span className="text-[10px]">CUSTOMER INFORMATION</span>
+                </div>
+                <Button variant="outline" size="sm" className="h-5 px-1 text-[8px]">
+                  <Edit className="h-2 w-2 mr-1" />
+                  Edit
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 pb-1">
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Customer Name</label>
+                  <p className="text-[8px] font-semibold">{survey.customer.name}</p>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Email</label>
+                  <p className="text-[7px]">{survey.customer.email || "Not provided"}</p>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Phone</label>
+                  <p className="text-[7px]">{survey.customer.phone01 || "Not provided"}</p>
+                </div>
+                <div>
+                  <label className="text-[7px] font-medium text-muted-foreground">Address</label>
+                  <p className="text-[7px]">{survey.customer.address || "Not provided"}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Assignment Information - Full Width */}
+          <Card>
+            <CardHeader className="pb-1 pt-3">
+              <CardTitle className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                <span className="text-[10px]">ASSIGNMENT</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 pb-1">
+              <div className="grid grid-cols-2 gap-2">
+                {survey.assignTo && (
+                  <div>
+                    <label className="text-[7px] font-medium text-muted-foreground">Assigned To</label>
+                    <p className="text-[8px] font-semibold">{survey.assignTo.name}</p>
+                    <p className="text-[7px] text-muted-foreground">{survey.assignTo.email}</p>
+                  </div>
+                )}
+                {survey.assignFrom && (
+                  <div>
+                    <label className="text-[7px] font-medium text-muted-foreground">Assigned From</label>
+                    <p className="text-[8px] font-semibold">{survey.assignFrom.name}</p>
+                    <p className="text-[7px] text-muted-foreground">{survey.assignFrom.email}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs and Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">OVERVIEW</TabsTrigger>
@@ -473,13 +585,19 @@ export default function SiteSurveyDetailsPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  if (activeTab === 'equipment') {
+                  console.log('PREVIOUS button clicked, current activeTab:', activeTab);
+                  if (activeTab === 'infrastructure') {
+                    setActiveTab('overview');
+                    toast.success('Back to Overview tab');
+                  } else if (activeTab === 'equipment') {
                     setActiveTab('infrastructure');
+                    toast.success('Back to Infrastructure tab');
                   } else if (activeTab === 'bom') {
                     setActiveTab('equipment');
+                    toast.success('Back to Equipment tab');
                   }
                 }}
-                disabled={activeTab === 'infrastructure' || activeTab === 'overview' || activeTab === 'details'}
+                disabled={activeTab === 'overview' || activeTab === 'details'}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 PREVIOUS
@@ -490,26 +608,25 @@ export default function SiteSurveyDetailsPage() {
               <Button
                 onClick={async () => {
                   console.log('NEXT button clicked, current activeTab:', activeTab);
-                  if (activeTab === 'infrastructure') {
-                    // Save infrastructure and move to equipment
-                    toast.success('Infrastructure saved! Moving to Equipment tab...');
+                  if (activeTab === 'overview') {
+                    setActiveTab('infrastructure');
+                    toast.success('Moving to Infrastructure tab...');
+                  } else if (activeTab === 'infrastructure') {
                     setActiveTab('equipment');
+                    toast.success('Moving to Equipment tab...');
                   } else if (activeTab === 'equipment') {
-                    // Save equipment and move to BOM
-                    toast.success('Equipment saved! Moving to BOM tab...');
                     setActiveTab('bom');
+                    toast.success('Moving to BOM tab...');
                   }
                 }}
                 disabled={activeTab === 'bom' || activeTab === 'files' || activeTab === 'history'}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {activeTab === 'infrastructure' ? 'SAVE & NEXT → EQUIPMENT' : 
-                 activeTab === 'equipment' ? 'SAVE & NEXT → BOM' : 'NEXT'}
+                {activeTab === 'overview' ? 'NEXT → INFRASTRUCTURE' : 
+                 activeTab === 'infrastructure' ? 'NEXT → EQUIPMENT' : 
+                 activeTab === 'equipment' ? 'NEXT → BOM' : 'NEXT'}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-              <div className="text-xs text-gray-500 mt-2">
-                Debug: activeTab = {activeTab}
-              </div>
             </div>
           </div>
 
@@ -560,121 +677,8 @@ export default function SiteSurveyDetailsPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <div className="space-y-6">
-              {/* Project Information - Full Width */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-[12px]">PROJECT INFORMATION</span>
-                    </div>
-                    <Button variant="outline" size="sm" className="h-6 px-2">
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Title</label>
-                      <p className="text-[11px] font-semibold">{survey.title}</p>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Type</label>
-                      <div className="flex items-center gap-1">
-                        {getTypeIcon(survey.type)}
-                        <span className="text-[11px] font-semibold">{survey.type}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Status</label>
-                      <Badge variant={survey.status === "Completed" ? "default" : "secondary"} className="text-[10px] h-4">
-                        {survey.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Arranged Date</label>
-                      <p className="text-[11px] font-semibold">
-                        {survey.arrangedDate ? new Date(survey.arrangedDate).toLocaleDateString() : "Not set"}
-                      </p>
-                    </div>
-                  </div>
-                  {survey.description && (
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Description</label>
-                      <p className="text-[10px] mt-1">{survey.description}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Customer Information - Full Width */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      <span className="text-[12px]">CUSTOMER INFORMATION</span>
-                    </div>
-                    <Button variant="outline" size="sm" className="h-6 px-2">
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-2">
-                  <div>
-                    <label className="text-[10px] font-medium text-muted-foreground">Customer Name</label>
-                    <p className="text-[11px] font-semibold">{survey.customer.name}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Email</label>
-                      <p className="text-[10px]">{survey.customer.email || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Phone</label>
-                      <p className="text-[10px]">{survey.customer.phone01 || "Not provided"}</p>
-                    </div>
-                  </div>
-                  {survey.customer.address && (
-                    <div>
-                      <label className="text-[10px] font-medium text-muted-foreground">Address</label>
-                      <p className="text-[10px]">{survey.customer.address}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Assignment Information - Full Width */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span className="text-[12px]">ASSIGNMENT</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-3">
-                    {survey.assignTo && (
-                      <div>
-                        <label className="text-[10px] font-medium text-muted-foreground">Assigned To</label>
-                        <p className="text-[11px] font-semibold">{survey.assignTo.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{survey.assignTo.email}</p>
-                      </div>
-                    )}
-                    {survey.assignFrom && (
-                      <div>
-                        <label className="text-[10px] font-medium text-muted-foreground">Assigned From</label>
-                        <p className="text-[11px] font-semibold">{survey.assignFrom.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{survey.assignFrom.email}</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="space-y-2">
+              {/* Empty overview tab - all info is displayed above */}
             </div>
           </TabsContent>
 
@@ -755,7 +759,17 @@ export default function SiteSurveyDetailsPage() {
           {/* Equipment Tab */}
           <TabsContent value="equipment" className="space-y-6">
             {survey.type === 'CABLING' && buildings.length > 0 ? (
-              <EquipmentDisplay buildings={buildings} />
+              <CablingHierarchyForm
+                siteSurveyId={survey.id}
+                onSuccess={() => {
+                  fetchSurveyDetails();
+                  toast.success("Infrastructure updated successfully");
+                }}
+                onEquipmentUpdate={(equipmentData) => {
+                  console.log('Equipment updated in parent:', equipmentData);
+                  setEquipment(equipmentData);
+                }}
+              />
             ) : (
               <Card>
                 <CardContent className="py-8 text-center">
