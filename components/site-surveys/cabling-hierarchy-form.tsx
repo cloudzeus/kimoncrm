@@ -306,6 +306,7 @@ export function CablingHierarchyForm({
   // Notify parent of equipment changes
   useEffect(() => {
     if (onEquipmentUpdate) {
+      console.log('CablingHierarchyForm: Calling onEquipmentUpdate with:', equipment);
       onEquipmentUpdate(equipment);
     }
   }, [equipment, onEquipmentUpdate]);

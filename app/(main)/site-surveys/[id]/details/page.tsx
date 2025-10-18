@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
+  ArrowRight,
   Calendar,
   MapPin,
   Phone,
@@ -32,6 +33,8 @@ import {
   PhoneCall,
   FileImage,
   ExternalLink,
+  Folder,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilesList } from "@/components/files/files-list";
@@ -464,6 +467,48 @@ export default function SiteSurveyDetailsPage() {
             <TabsTrigger value="history">HISTORY</TabsTrigger>
           </TabsList>
 
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center py-4 border-t bg-gray-50 rounded-lg px-4">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (activeTab === 'equipment') {
+                    setActiveTab('infrastructure');
+                  } else if (activeTab === 'bom') {
+                    setActiveTab('equipment');
+                  }
+                }}
+                disabled={activeTab === 'infrastructure' || activeTab === 'overview' || activeTab === 'details'}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                PREVIOUS
+              </Button>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (activeTab === 'infrastructure') {
+                    // Save infrastructure and move to equipment
+                    toast.success('Infrastructure saved! Moving to Equipment tab...');
+                    setActiveTab('equipment');
+                  } else if (activeTab === 'equipment') {
+                    // Save equipment and move to BOM
+                    toast.success('Equipment saved! Moving to BOM tab...');
+                    setActiveTab('bom');
+                  }
+                }}
+                disabled={activeTab === 'bom' || activeTab === 'files' || activeTab === 'history'}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {activeTab === 'infrastructure' ? 'SAVE & NEXT → EQUIPMENT' : 
+                 activeTab === 'equipment' ? 'SAVE & NEXT → BOM' : 'NEXT'}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+
           {/* Action Buttons Row */}
           <div className="flex gap-2 justify-end">
             {survey.type === "VOIP" && (
@@ -798,7 +843,23 @@ export default function SiteSurveyDetailsPage() {
                                   <td className="p-2 border-b font-medium">{item.name}</td>
                                   <td className="p-2 border-b">{item.brand || '-'}</td>
                                   <td className="p-2 border-b">{item.category}</td>
-                                  <td className="p-2 border-b text-center">{item.quantity}</td>
+                                  <td className="p-2 border-b text-center">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const newQuantity = parseInt(e.target.value) || 1;
+                                        const updated = equipment.map(eq => 
+                                          eq.id === item.id 
+                                            ? { ...eq, quantity: newQuantity, totalPrice: eq.price * newQuantity * (1 + (eq.margin || 0) / 100) }
+                                            : eq
+                                        );
+                                        setEquipment(updated);
+                                      }}
+                                      className="h-8 w-16 text-center"
+                                    />
+                                  </td>
                                   <td className="p-2 border-b">
                                     <Input
                                       type="number"
@@ -980,7 +1041,46 @@ export default function SiteSurveyDetailsPage() {
                   <div className="text-center py-12 text-muted-foreground">
                     <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
                     <p className="text-lg font-medium">No equipment added yet</p>
-                    <p className="text-sm">Add products and services in the Infrastructure → Equipment tab</p>
+                    <p className="text-sm mb-4">Add products and services in the Infrastructure → Equipment tab</p>
+                    <Button
+                      onClick={() => {
+                        const testEquipment = [
+                          {
+                            id: 'test-product-1',
+                            type: 'product' as const,
+                            itemId: 'test-1',
+                            name: 'Cat6 Cable',
+                            brand: 'Cisco',
+                            category: 'Cables',
+                            unit: 'Meter',
+                            quantity: 100,
+                            price: 2.50,
+                            margin: 25,
+                            totalPrice: 312.50,
+                            notes: 'Test cable for BOM'
+                          },
+                          {
+                            id: 'test-service-1',
+                            type: 'service' as const,
+                            itemId: 'test-2',
+                            name: 'Installation Service',
+                            brand: undefined,
+                            category: 'Installation',
+                            unit: 'Hour',
+                            quantity: 8,
+                            price: 50,
+                            margin: 30,
+                            totalPrice: 520,
+                            notes: 'Test installation service'
+                          }
+                        ];
+                        setEquipment(testEquipment);
+                        toast.success('Added test equipment to BOM');
+                      }}
+                      className="mt-4"
+                    >
+                      Add Test Equipment
+                    </Button>
                   </div>
                 )}
               </CardContent>
