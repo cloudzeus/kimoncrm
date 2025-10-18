@@ -39,7 +39,6 @@ import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarch
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
 import { EquipmentDisplay } from "@/components/site-surveys/equipment-display";
-import { BOMManagerEnhanced } from "@/components/site-surveys/bom-manager-enhanced";
 
 interface SiteSurveyDetail {
   id: string;
@@ -724,41 +723,66 @@ export default function SiteSurveyDetailsPage() {
 
           {/* BOM Tab */}
           <TabsContent value="bom" className="space-y-6">
-            {survey.type === 'CABLING' && buildings.length > 0 ? (
-              <BOMManagerEnhanced
-                equipment={equipment}
-                onUpdateEquipment={setEquipment}
-                buildings={buildings}
-                files={survey.files || []}
-                siteSurveyData={{
-                  id: survey.id,
-                  title: survey.title,
-                  customer: survey.customer || { name: 'Unknown Customer' },
-                  createdAt: survey.createdAt,
-                  updatedAt: survey.updatedAt,
-                  arrangedDate: survey.arrangedDate,
-                  address: survey.address,
-                  city: survey.city,
-                  status: survey.status,
-                  type: survey.type,
-                }}
-                onSave={() => {
-                  toast.success("BOM saved successfully");
-                }}
-              />
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    {survey.type === 'CABLING' 
-                      ? 'No equipment added yet. Add equipment to the site survey infrastructure first.'
-                      : 'BOM management is only available for cabling surveys.'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Bill of Materials
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Equipment count: {equipment.length}
+                  </div>
+                  {equipment.length > 0 ? (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold">Products</h3>
+                      <div className="space-y-2">
+                        {equipment.filter(e => e.type === 'product').map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-3 border rounded">
+                            <div>
+                              <div className="font-medium">{item.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {item.brand} • {item.category}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div>Qty: {item.quantity}</div>
+                              <div className="text-sm font-semibold">€{item.totalPrice.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <h3 className="font-semibold mt-6">Services</h3>
+                      <div className="space-y-2">
+                        {equipment.filter(e => e.type === 'service').map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-3 border rounded">
+                            <div>
+                              <div className="font-medium">{item.name}</div>
+                              <div className="text-xs text-muted-foreground">{item.category}</div>
+                            </div>
+                            <div className="text-right">
+                              <div>Qty: {item.quantity}</div>
+                              <div className="text-sm font-semibold">€{item.totalPrice.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-6 pt-4 border-t">
+                        <div className="text-right text-lg font-bold">
+                          Total: €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No equipment added yet. Add equipment in the Equipment tab.
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Files Tab */}

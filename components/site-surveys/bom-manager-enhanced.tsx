@@ -42,8 +42,7 @@ import {
   Save,
   FileDown,
 } from 'lucide-react';
-import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef } from '@tanstack/react-table';
+import { DataTable, Column } from '@/components/ui/data-table';
 import { SelectedElement, EquipmentItem } from '@/types/equipment-selection';
 
 interface Building {
@@ -205,43 +204,44 @@ export function BOMManagerEnhanced({
   };
 
   // Product columns
-  const productColumns: ColumnDef<EquipmentItem>[] = [
+  const productColumns: Column<EquipmentItem>[] = [
     {
-      accessorKey: 'name',
-      header: 'Product Name',
-      cell: ({ row }) => (
-        <div className="font-medium">
-          {row.original.name}
-        </div>
+      key: 'name',
+      label: 'Product Name',
+      sortable: true,
+      render: (value, row) => (
+        <div className="font-medium">{row.name}</div>
       ),
     },
     {
-      accessorKey: 'brand',
-      header: 'Brand',
-      cell: ({ row }) => row.original.brand || '-',
+      key: 'brand',
+      label: 'Brand',
+      sortable: true,
+      render: (value, row) => row.brand || '-',
     },
     {
-      accessorKey: 'category',
-      header: 'Category',
+      key: 'category',
+      label: 'Category',
+      sortable: true,
     },
     {
-      accessorKey: 'quantity',
-      header: 'Qty',
-      cell: ({ row }) => (
+      key: 'quantity',
+      label: 'Qty',
+      render: (value, row) => (
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => updateQuantity(row.original.id, row.original.quantity - 1)}
+            onClick={() => updateQuantity(row.id, row.quantity - 1)}
             className="h-6 w-6 p-0"
           >
             <Plus className="h-3 w-3 rotate-45" />
           </Button>
-          <span className="w-8 text-center font-medium text-xs">{row.original.quantity}</span>
+          <span className="w-8 text-center font-medium text-xs">{row.quantity}</span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => updateQuantity(row.original.id, row.original.quantity + 1)}
+            onClick={() => updateQuantity(row.id, row.quantity + 1)}
             className="h-6 w-6 p-0"
           >
             <Plus className="h-3 w-3" />
@@ -250,18 +250,18 @@ export function BOMManagerEnhanced({
       ),
     },
     {
-      accessorKey: 'price',
-      header: 'Unit Price',
-      cell: ({ row }) => (
+      key: 'price',
+      label: 'Unit Price',
+      render: (value, row) => (
         <Input
           type="number"
           min="0"
           step="0.01"
-          value={row.original.price}
+          value={row.price}
           onChange={(e) => {
             const newPrice = parseFloat(e.target.value) || 0;
             const updated = equipment.map(item => 
-              item.id === row.original.id 
+              item.id === row.id 
                 ? { ...item, price: newPrice, totalPrice: newPrice * item.quantity * (1 + (item.margin || 0) / 100) }
                 : item
             );
@@ -272,19 +272,19 @@ export function BOMManagerEnhanced({
       ),
     },
     {
-      accessorKey: 'margin',
-      header: 'Margin %',
-      cell: ({ row }) => (
+      key: 'margin',
+      label: 'Margin %',
+      render: (value, row) => (
         <Input
           type="number"
           min="0"
           max="100"
           step="0.1"
-          value={row.original.margin || 0}
+          value={row.margin || 0}
           onChange={(e) => {
             const newMargin = parseFloat(e.target.value) || 0;
             const updated = equipment.map(item => 
-              item.id === row.original.id 
+              item.id === row.id 
                 ? { ...item, margin: newMargin, totalPrice: item.price * item.quantity * (1 + newMargin / 100) }
                 : item
             );
@@ -295,34 +295,34 @@ export function BOMManagerEnhanced({
       ),
     },
     {
-      accessorKey: 'totalPrice',
-      header: 'Total',
-      cell: ({ row }) => (
-        <span className="font-semibold text-sm">€{row.original.totalPrice.toFixed(2)}</span>
+      key: 'totalPrice',
+      label: 'Total',
+      render: (value, row) => (
+        <span className="font-semibold text-sm">€{row.totalPrice.toFixed(2)}</span>
       ),
     },
     {
-      accessorKey: 'location',
-      header: 'Location',
-      cell: ({ row }) => (
+      key: 'infrastructureElement',
+      label: 'Location',
+      render: (value, row) => (
         <div className="flex items-center gap-1 text-xs">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span className="max-w-[150px] truncate">
-            {getLocationLabel(row.original.infrastructureElement)}
+            {getLocationLabel(row.infrastructureElement)}
           </span>
         </div>
       ),
     },
     {
-      accessorKey: 'notes',
-      header: 'Notes',
-      cell: ({ row }) => (
+      key: 'notes',
+      label: 'Notes',
+      render: (value, row) => (
         <Input
           type="text"
-          value={row.original.notes || ''}
+          value={row.notes || ''}
           onChange={(e) => {
             const updated = equipment.map(item => 
-              item.id === row.original.id 
+              item.id === row.id 
                 ? { ...item, notes: e.target.value }
                 : item
             );
@@ -334,14 +334,14 @@ export function BOMManagerEnhanced({
       ),
     },
     {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => (
+      key: 'id',
+      label: 'Actions',
+      render: (value, row) => (
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => openEditDialog(row.original)}
+            onClick={() => openEditDialog(row)}
             className="h-6 w-6 p-0"
             title="Edit"
           >
@@ -350,7 +350,7 @@ export function BOMManagerEnhanced({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => removeItem(row.original.id)}
+            onClick={() => removeItem(row.id)}
             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
             title="Delete"
           >
@@ -362,7 +362,7 @@ export function BOMManagerEnhanced({
   ];
 
   // Service columns
-  const serviceColumns: ColumnDef<EquipmentItem>[] = [
+  const serviceColumns: Column<EquipmentItem>[] = [
     {
       accessorKey: 'name',
       header: 'Service Name',
