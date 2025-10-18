@@ -157,7 +157,17 @@ export default function SiteSurveyDetailsPage() {
   const generateWordDocument = async () => {
     try {
       setGeneratingWord(true);
-      const response = await fetch(`/api/site-surveys/${id}/generate-word`);
+      
+      const response = await fetch(`/api/site-surveys/${id}/generate-word`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          equipment: equipment, // Pass the equipment data from BOM tab
+        }),
+      });
+      
       if (!response.ok) {
         throw new Error("Failed to generate Word document");
       }

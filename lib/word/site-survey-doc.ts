@@ -55,59 +55,86 @@ export async function generateSiteSurveyWordDocument(
   companyDetails: CompanyDetails,
   equipment?: any[]
 ): Promise<Buffer> {
-  const doc = new Document({
-    sections: [
-      {
-        properties: {},
-        children: [
-          // Cover Page
-          createCoverPage(surveyData, companyDetails),
-          new PageBreak(),
-          
-          // Table of Contents
-          createTableOfContents(),
-          new PageBreak(),
-          
-          // Executive Summary
-          createExecutiveSummary(surveyData),
-          new PageBreak(),
-          
-          // Project Information
-          createProjectInformation(surveyData),
-          new PageBreak(),
-          
-          // Site Survey Details
-          createSiteSurveyDetails(surveyData),
-          new PageBreak(),
-          
-          // Current Infrastructure Assessment
-          ...createInfrastructureAnalysis(surveyData),
-          new PageBreak(),
-          
-          // Future Requirements
-          ...createFutureRequirements(surveyData, equipment),
-          new PageBreak(),
-          
-          // Bill of Materials
-          ...createBillOfMaterials(equipment),
-          new PageBreak(),
-          
-          // Product Datasheets
-          ...createProductDatasheets(equipment),
-          new PageBreak(),
-          
-          // Attachments
-          createAttachments(surveyData.files || []),
-          new PageBreak(),
-          
-          // Appendices
-          createAppendices(surveyData),
-        ],
-      },
-    ],
-  });
+  try {
+    // Validate required data
+    if (!surveyData || !surveyData.title) {
+      throw new Error('Invalid survey data: missing required fields');
+    }
 
-  return await Packer.toBuffer(doc);
+    if (!companyDetails || !companyDetails.name) {
+      throw new Error('Invalid company details: missing required fields');
+    }
+
+    // Ensure equipment is an array
+    const safeEquipment = Array.isArray(equipment) ? equipment : [];
+
+    console.log('Generating Word document with:', {
+      surveyTitle: surveyData.title,
+      equipmentCount: safeEquipment.length,
+      companyName: companyDetails.name
+    });
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            // Cover Page
+            createCoverPage(surveyData, companyDetails),
+            new PageBreak(),
+            
+            // Table of Contents
+            createTableOfContents(),
+            new PageBreak(),
+            
+            // Executive Summary
+            createExecutiveSummary(surveyData),
+            new PageBreak(),
+            
+            // Project Information
+            createProjectInformation(surveyData),
+            new PageBreak(),
+            
+            // Site Survey Details
+            createSiteSurveyDetails(surveyData),
+            new PageBreak(),
+            
+            // Current Infrastructure Assessment
+            ...createInfrastructureAnalysis(surveyData),
+            new PageBreak(),
+            
+            // Future Requirements
+            ...createFutureRequirements(surveyData, safeEquipment),
+            new PageBreak(),
+            
+            // Bill of Materials
+            ...createBillOfMaterials(safeEquipment),
+            new PageBreak(),
+            
+            // Product Datasheets
+            ...createProductDatasheets(safeEquipment),
+            new PageBreak(),
+            
+            // Attachments
+            createAttachments(surveyData.files || []),
+            new PageBreak(),
+            
+            // Appendices
+            createAppendices(surveyData),
+          ],
+        },
+      ],
+    });
+
+    console.log('Document created successfully, generating buffer...');
+    const buffer = await Packer.toBuffer(doc);
+    console.log('Word document generated successfully, size:', buffer.length);
+    
+    return buffer;
+  } catch (error) {
+    console.error('Error in generateSiteSurveyWordDocument:', error);
+    throw new Error(`Failed to generate Word document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 function createCoverPage(surveyData: SiteSurveyData, companyDetails: CompanyDetails) {
