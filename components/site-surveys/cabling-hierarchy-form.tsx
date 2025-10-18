@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -990,7 +991,7 @@ export function CablingHierarchyForm({
           // For typical rooms, multiply by the count of identical rooms
           const roomMultiplier = room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1;
           
-          totalOutlets += room.outlets * roomMultiplier;
+          totalOutlets += (room.outlets || 0) * roomMultiplier;
           if (room.devices) totalDevices += room.devices.length * roomMultiplier;
         });
       });
@@ -1694,9 +1695,14 @@ export function CablingHierarchyForm({
                                         previewSize={500}
                                       />
                                       <div className="flex-1">
-                                        <p className="font-medium text-xs">
-                                          {room.name}
-                                          {room.number && ` (${room.number})`}
+                                        <p className="font-medium text-xs flex items-center gap-1 flex-wrap">
+                                          <span>{room.type === "ROOM" ? "🚪" : room.type === "CLOSET" ? "🗄️" : room.type === "CORRIDOR" ? "🚶" : "📦"} {room.name}</span>
+                                          {room.number && <span className="text-muted-foreground">(#{room.number})</span>}
+                                          {room.isTypicalRoom && room.identicalRoomsCount && room.identicalRoomsCount > 1 && (
+                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-700 border-blue-200">
+                                              ×{room.identicalRoomsCount} rooms
+                                            </Badge>
+                                          )}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                           {room.connectionType === "FLOOR_RACK" ? (
@@ -1704,7 +1710,14 @@ export function CablingHierarchyForm({
                                           ) : (
                                             <>↑↑ Central Rack (Direct)</>
                                           )}
-                                          {room.outlets > 0 && ` • ${room.outlets} outlets`}
+                                          {(room.outlets || 0) > 0 && (
+                                            <span>
+                                              {` • ${room.outlets || 0} outlets`}
+                                              {room.isTypicalRoom && room.identicalRoomsCount && room.identicalRoomsCount > 1 && (
+                                                <span className="text-blue-600 font-semibold"> (Total: {(room.outlets || 0) * room.identicalRoomsCount})</span>
+                                              )}
+                                            </span>
+                                          )}
                                         </p>
                                         {(room.floorPlanUrl || (room.images && room.images.length > 0)) && (
                                           <p className="text-xs text-gray-600 flex items-center gap-1">
@@ -1724,12 +1737,13 @@ export function CablingHierarchyForm({
                                           </p>
                                         )}
                                       </div>
-                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                                      <div className="flex gap-1">
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           className="h-6 w-6 p-0"
                                           onClick={() => editRoom(bIdx, fIdx, rIdx)}
+                                          title="Edit Room"
                                         >
                                           <Edit className="h-3 w-3" />
                                         </Button>
