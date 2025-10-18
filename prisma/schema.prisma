@@ -1073,6 +1073,7 @@ model SiteSurvey {
   status                      String                       @default("Scheduled")
   title                       String
   type                        SurveyType
+  equipment                   Json?
   buildings                   Building[]
   cableRuns                   CableRun[]
   cablingSurvey               CablingSurvey?

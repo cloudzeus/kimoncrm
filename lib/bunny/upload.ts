@@ -80,3 +80,23 @@ export async function bunnyGet(path: string): Promise<Buffer> {
 
   return Buffer.from(await res.arrayBuffer());
 }
+
+/**
+ * Upload a file to BunnyCDN storage
+ * @param buffer - File buffer to upload
+ * @param fileName - Name of the file
+ * @param mimeType - MIME type of the file
+ * @returns Object with the CDN URL
+ */
+export async function uploadFileToBunny(
+  buffer: Buffer, 
+  fileName: string, 
+  mimeType?: string
+): Promise<{ url: string }> {
+  // Generate a unique path with timestamp to avoid conflicts
+  const timestamp = Date.now();
+  const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `site-surveys/${timestamp}_${sanitizedFileName}`;
+  
+  return await bunnyPut(path, buffer);
+}

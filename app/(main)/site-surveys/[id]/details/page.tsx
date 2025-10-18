@@ -43,6 +43,7 @@ import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarch
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
 import { EquipmentDisplay } from "@/components/site-surveys/equipment-display";
+import { SiteSurveyWizard } from "@/components/site-surveys/site-survey-wizard";
 
 interface SiteSurveyDetail {
   id: string;
@@ -567,8 +568,18 @@ export default function SiteSurveyDetailsPage() {
           </Card>
         </div>
 
-        {/* Tabs and Navigation */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* Site Survey Wizard */}
+        <SiteSurveyWizard
+          siteSurveyId={id}
+          siteSurveyData={survey}
+          onComplete={() => {
+            toast.success("Site survey completed!");
+            fetchSurveyDetails();
+          }}
+        />
+
+        {/* Legacy Tabs and Navigation - Hidden but kept for reference */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 hidden">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">OVERVIEW</TabsTrigger>
             <TabsTrigger value="details">DETAILS</TabsTrigger>
