@@ -1,9 +1,28 @@
+# Nixpacks configuration for optimal deployment
+[variables]
+# Set NODE_ENV to development during build to install devDependencies
+NODE_ENV = "development"
+
+[phases.setup]
+aptPkgs = ["curl", "wget"]
+nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
+
 [phases.install]
-cmds = ["npm install --legacy-peer-deps --no-cache"]
+# Install dependencies with legacy peer deps flag
+cmds = ["npm ci --legacy-peer-deps || npm install --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["npm run build"]
+# Generate Prisma client and build Next.js
+cmds = [
+  "npx prisma generate",
+  "NODE_ENV=production npm run build"
+]
 
 [start]
-cmd = "npm start"
+# Start the production server
+cmd = "NODE_ENV=production npm start"
+
+[build]
+# Optimize Docker build
+builderImage = "ghcr.io/railwayapp/nixpacks:ubuntu-1745885067"
 

@@ -1,6 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'redis'],
+  // Optimize production builds
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // Production optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn']
+    } : false,
+  },
+  
+  // Experimental features for better performance
+  experimental: {
+    // Optimize package imports
+    optimizePackageImports: [
+      '@radix-ui/react-icons',
+      'lucide-react',
+      'recharts',
+      'date-fns'
+    ],
+  },
+  
+  serverExternalPackages: ['@prisma/client', 'redis', 'bcryptjs'],
+  
   images: {
     remotePatterns: [
       {
@@ -27,8 +50,11 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       }
-    ]
+    ],
+    // Optimize image loading
+    formats: ['image/webp'],
   },
+  
   webpack: (config, { isServer }) => {
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
@@ -39,6 +65,12 @@ const nextConfig = {
     if (isServer) {
       config.externals.push('redis');
     }
+    
+    // Optimize build performance
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+    };
     
     return config;
   }
