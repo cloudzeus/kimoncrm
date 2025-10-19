@@ -1073,8 +1073,14 @@ model SiteSurvey {
   status                      String                       @default("Scheduled")
   title                       String
   type                        SurveyType
-  equipment                   Json?
-  buildings                   Building[]
+  // Comprehensive Infrastructure Data
+  infrastructureData          Json?                        // Complete infrastructure hierarchy
+  equipment                   Json?                        // Equipment/device data
+  siteConnections             Json?                        // Inter-building connections
+  // Future Proposals
+  futureInfrastructureData    Json?                        // Future infrastructure proposals
+  futureEquipment             Json?                        // Future equipment proposals
+  buildingRecords             Building[]
   cableRuns                   CableRun[]
   cablingSurvey               CablingSurvey?
   images                      ImageAsset[]
@@ -1144,6 +1150,7 @@ model Building {
   code         String?
   address      String?
   notes        String?      @db.Text
+  blueprints   Json?        // Array of blueprint file references
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   siteSurvey   SiteSurvey   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
@@ -1186,7 +1193,8 @@ model Floor {
   notes            String?      @db.Text
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  blueprintUrl     String?
+  blueprintUrl     String?      // Legacy field - keep for backwards compatibility
+  blueprints       Json?        // Array of blueprint file references
   similarToFloorId String?
   building         Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   similarToFloor   Floor?       @relation("SimilarFloors", fields: [similarToFloorId], references: [id])
@@ -1263,13 +1271,14 @@ model Device {
   serial        String?
   mgmtIp        String?
   notes         String?      @db.Text
+  images        Json?        // Array of image file references for equipment
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   centralRackId String?
   floorRackId   String?
   centralRack   CentralRack? @relation(fields: [centralRackId], references: [id], onDelete: Cascade)
   floorRack     FloorRack?   @relation(fields: [floorRackId], references: [id], onDelete: Cascade)
-  images        ImageAsset[]
+  imageAssets   ImageAsset[] // Legacy relation - keep for backwards compatibility
   ports         Port[]
 
   @@index([centralRackId])
@@ -2045,9 +2054,10 @@ enum Warehouse {
 
 /// ** Site Surveys **
 enum SurveyType {
-  VOIP
-  CABLING
-  WIFI
+  COMPREHENSIVE  // New unified survey type for all infrastructure
+  VOIP          // Legacy - kept for backward compatibility
+  CABLING       // Legacy - kept for backward compatibility
+  WIFI          // Legacy - kept for backward compatibility
   DIGITAL_SIGNAGE
   HOTEL_TV
   NETWORK

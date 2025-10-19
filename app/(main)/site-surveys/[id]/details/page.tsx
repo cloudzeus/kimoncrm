@@ -5,45 +5,30 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
-  ArrowRight,
-  Calendar,
-  MapPin,
-  Phone,
-  Mail,
-  User,
   Building2,
-  Server,
   FileText,
   Download,
-  Eye,
   Edit,
-  Trash2,
-  Plus,
   Network,
+  FileImage,
+  Phone,
   Wifi,
   Camera,
   Tv,
   Smartphone,
-  Monitor,
   Router,
-  PhoneCall,
-  FileImage,
-  ExternalLink,
-  Folder,
-  History,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilesList } from "@/components/files/files-list";
 import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarchy-form";
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
-import { EquipmentDisplay } from "@/components/site-surveys/equipment-display";
-import { SiteSurveyWizard } from "@/components/site-surveys/site-survey-wizard";
+import { ComprehensiveInfrastructureWizard } from "@/components/site-surveys/comprehensive-infrastructure-wizard";
+import { EditProjectInfoModal } from "@/components/site-surveys/edit-project-info-modal";
+import { EditCustomerInfoModal } from "@/components/site-surveys/edit-customer-info-modal";
 
 interface SiteSurveyDetail {
   id: string;
@@ -88,13 +73,12 @@ interface SiteSurveyDetail {
   files: any[];
   voipSurvey?: any;
   cablingSurvey?: any;
-  buildings?: any[];
 }
 
 const getTypeIcon = (type: string) => {
   switch (type) {
     case "VOIP":
-      return <PhoneCall className="h-5 w-5" />;
+      return <Phone className="h-5 w-5" />;
     case "CABLING":
       return <Network className="h-5 w-5" />;
     case "WIFI":
@@ -117,23 +101,23 @@ const getTypeIcon = (type: string) => {
 const getTypeBadgeColor = (type: string) => {
   switch (type) {
     case "VOIP":
-      return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+      return "bg-blue-100 text-blue-800";
     case "CABLING":
-      return "bg-orange-100 text-orange-800 hover:bg-orange-100";
+      return "bg-green-100 text-green-800";
     case "WIFI":
-      return "bg-cyan-100 text-cyan-800 hover:bg-cyan-100";
-    case "DIGITAL_SIGNAGE":
-      return "bg-indigo-100 text-indigo-800 hover:bg-indigo-100";
-    case "HOTEL_TV":
-      return "bg-violet-100 text-violet-800 hover:bg-violet-100";
-    case "NETWORK":
-      return "bg-green-100 text-green-800 hover:bg-green-100";
+      return "bg-purple-100 text-purple-800";
     case "CCTV":
-      return "bg-purple-100 text-purple-800 hover:bg-purple-100";
+      return "bg-red-100 text-red-800";
+    case "DIGITAL_SIGNAGE":
+      return "bg-orange-100 text-orange-800";
+    case "HOTEL_TV":
+      return "bg-yellow-100 text-yellow-800";
+    case "NETWORK":
+      return "bg-indigo-100 text-indigo-800";
     case "IOT":
-      return "bg-pink-100 text-pink-800 hover:bg-pink-100";
+      return "bg-pink-100 text-pink-800";
     default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+      return "bg-gray-100 text-gray-800";
   }
 };
 
@@ -144,15 +128,14 @@ export default function SiteSurveyDetailsPage() {
 
   const [survey, setSurvey] = useState<SiteSurveyDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
   const [voipDialogOpen, setVoipDialogOpen] = useState(false);
   const [cablingDialogOpen, setCablingDialogOpen] = useState(false);
   const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
   const [generatingWord, setGeneratingWord] = useState(false);
   const [downloadingBOM, setDownloadingBOM] = useState(false);
-  const [buildings, setBuildings] = useState<any[]>([]);
-  const [equipment, setEquipment] = useState<any[]>([]);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
 
   useEffect(() => {
     fetchSurveyDetails();
@@ -167,9 +150,7 @@ export default function SiteSurveyDetailsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          equipment: equipment, // Pass the equipment data from BOM tab
-        }),
+        body: JSON.stringify({}),
       });
       
       if (!response.ok) {
@@ -201,105 +182,6 @@ export default function SiteSurveyDetailsPage() {
     try {
       setDownloadingBOM(true);
 
-      // Fetch cabling survey data if it's a cabling type
-      let buildings = [];
-      if (survey.type === 'CABLING') {
-        const cablingResponse = await fetch(`/api/site-surveys/${id}/cabling`);
-        if (cablingResponse.ok) {
-          const cablingData = await cablingResponse.json();
-          buildings = cablingData.data?.buildings || [];
-        }
-      }
-
-      // Extract equipment from buildings
-      const equipment: any[] = [];
-      buildings.forEach((building: any) => {
-        if (building.centralRacks) {
-          building.centralRacks.forEach((rack: any) => {
-            if (rack.devices) {
-              rack.devices.forEach((device: any) => {
-                equipment.push({
-                  itemId: device.equipmentId || device.id,
-                  name: device.name,
-                  type: device.itemType || device.type,
-                  brand: device.brand,
-                  model: device.model,
-                  category: '',
-                  unit: 'Each',
-                  quantity: device.quantity || 1,
-                  price: 0,
-                  totalPrice: 0,
-                  notes: device.notes,
-                  infrastructureElement: {
-                    type: 'centralRack',
-                    name: rack.name,
-                    buildingName: building.name,
-                  },
-                });
-              });
-            }
-          });
-        }
-        if (building.floors) {
-          building.floors.forEach((floor: any) => {
-            if (floor.rooms) {
-              floor.rooms.forEach((room: any) => {
-                if (room.devices) {
-                  room.devices.forEach((device: any) => {
-                    equipment.push({
-                      itemId: device.equipmentId || device.id,
-                      name: device.name,
-                      type: device.itemType || device.type,
-                      brand: device.brand,
-                      model: device.model,
-                      category: '',
-                      unit: 'Each',
-                      quantity: device.quantity || 1,
-                      price: 0,
-                      totalPrice: 0,
-                      notes: device.notes,
-                      infrastructureElement: {
-                        type: 'room',
-                        name: room.name,
-                        floorName: floor.name,
-                        buildingName: building.name,
-                      },
-                    });
-                  });
-                }
-              });
-            }
-            if (floor.floorRacks) {
-              floor.floorRacks.forEach((rack: any) => {
-                if (rack.devices) {
-                  rack.devices.forEach((device: any) => {
-                    equipment.push({
-                      itemId: device.equipmentId || device.id,
-                      name: device.name,
-                      type: device.itemType || device.type,
-                      brand: device.brand,
-                      model: device.model,
-                      category: '',
-                      unit: 'Each',
-                      quantity: device.quantity || 1,
-                      price: 0,
-                      totalPrice: 0,
-                      notes: device.notes,
-                      infrastructureElement: {
-                        type: 'floorRack',
-                        name: rack.name,
-                        floorName: floor.name,
-                        buildingName: building.name,
-                      },
-                    });
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-
       // Prepare site survey data
       const siteSurveyData = {
         title: survey.title,
@@ -320,16 +202,14 @@ export default function SiteSurveyDetailsPage() {
         } : undefined,
         createdAt: survey.createdAt,
         updatedAt: survey.updatedAt,
-        files: [], // Files will be fetched separately if needed
+        files: [],
       };
 
-      // Generate BOM Excel
+      // Generate BOM Excel using comprehensive infrastructure data
       const bomResponse = await fetch('/api/site-surveys/generate-bom-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          equipment,
-          buildings,
           siteSurveyData,
         }),
       });
@@ -342,7 +222,7 @@ export default function SiteSurveyDetailsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `BOM-${survey.title.replace(/[^a-zA-Z0-9]/g, '-')}-${id}.xlsx`;
+      a.download = `BOM-${survey.title.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -357,6 +237,40 @@ export default function SiteSurveyDetailsPage() {
     }
   };
 
+  const handleSaveProjectInfo = async (data: any) => {
+    const response = await fetch(`/api/site-surveys/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update project information");
+    }
+
+    // Refresh the survey data
+    await fetchSurveyDetails();
+  };
+
+  const handleSaveCustomerInfo = async (data: any) => {
+    const response = await fetch(`/api/customers/${survey.customer.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update customer information");
+    }
+
+    // Refresh the survey data
+    await fetchSurveyDetails();
+  };
+
   const fetchSurveyDetails = async () => {
     try {
       setLoading(true);
@@ -366,19 +280,6 @@ export default function SiteSurveyDetailsPage() {
       }
       const data = await response.json();
       setSurvey(data);
-
-      // Fetch cabling data if it's a cabling survey
-      if (data.type === 'CABLING') {
-        try {
-          const cablingResponse = await fetch(`/api/site-surveys/${id}/cabling`);
-          if (cablingResponse.ok) {
-            const cablingData = await cablingResponse.json();
-            setBuildings(cablingData.data?.buildings || []);
-          }
-        } catch (cablingError) {
-          console.error('Error fetching cabling data:', cablingError);
-        }
-      }
     } catch (error) {
       console.error("Error fetching survey details:", error);
       toast.error("Failed to load survey details");
@@ -387,15 +288,6 @@ export default function SiteSurveyDetailsPage() {
     }
   };
 
-  const handleGenerateWord = async () => {
-    try {
-      // TODO: Implement Word document generation
-      toast.info("Word document generation coming soon!");
-    } catch (error) {
-      console.error("Error generating Word document:", error);
-      toast.error("Failed to generate Word document");
-    }
-  };
 
   if (loading) {
     return (
@@ -441,8 +333,8 @@ export default function SiteSurveyDetailsPage() {
                 <h1 className="text-[14px] font-bold uppercase tracking-tight">
                   {survey.title}
                 </h1>
-                <Badge className={getTypeBadgeColor(survey.type)}>
-                  {survey.type}
+                <Badge variant="outline" className="bg-primary/10 text-primary">
+                  SITE SURVEY
                 </Badge>
                 <Badge variant={survey.status === "Completed" ? "default" : "secondary"}>
                   {survey.status}
@@ -468,7 +360,12 @@ export default function SiteSurveyDetailsPage() {
                   <FileText className="h-3 w-3" />
                   <span className="text-[10px]">PROJECT INFORMATION</span>
                 </div>
-                <Button variant="outline" size="sm" className="h-5 px-1 text-[8px]">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-5 px-1 text-[8px]"
+                  onClick={() => setShowEditProjectModal(true)}
+                >
                   <Edit className="h-2 w-2 mr-1" />
                   Edit
                 </Button>
@@ -511,7 +408,12 @@ export default function SiteSurveyDetailsPage() {
                   <Building2 className="h-3 w-3" />
                   <span className="text-[10px]">CUSTOMER INFORMATION</span>
                 </div>
-                <Button variant="outline" size="sm" className="h-5 px-1 text-[8px]">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-5 px-1 text-[8px]"
+                  onClick={() => setShowEditCustomerModal(true)}
+                >
                   <Edit className="h-2 w-2 mr-1" />
                   Edit
                 </Button>
@@ -568,8 +470,8 @@ export default function SiteSurveyDetailsPage() {
           </Card>
         </div>
 
-        {/* Site Survey Wizard */}
-        <SiteSurveyWizard
+        {/* Comprehensive Infrastructure Wizard */}
+        <ComprehensiveInfrastructureWizard
           siteSurveyId={id}
           siteSurveyData={survey}
           onComplete={() => {
@@ -578,621 +480,62 @@ export default function SiteSurveyDetailsPage() {
           }}
         />
 
-        {/* Legacy Tabs and Navigation - Hidden but kept for reference */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 hidden">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">OVERVIEW</TabsTrigger>
-            <TabsTrigger value="details">DETAILS</TabsTrigger>
-            <TabsTrigger value="infrastructure">INFRASTRUCTURE</TabsTrigger>
-            <TabsTrigger value="equipment">EQUIPMENT</TabsTrigger>
-            <TabsTrigger value="bom">BOM</TabsTrigger>
-            <TabsTrigger value="files">FILES</TabsTrigger>
-            <TabsTrigger value="history">HISTORY</TabsTrigger>
-          </TabsList>
+        {/* Action Buttons */}
+        <div className="flex gap-2 justify-end mb-6">
+          <Button
+            variant="outline"
+            onClick={generateWordDocument}
+            disabled={generatingWord}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={downloadBOM}
+            disabled={downloadingBOM}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
+          </Button>
+        </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center py-4 border-t bg-gray-50 rounded-lg px-4">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  console.log('PREVIOUS button clicked, current activeTab:', activeTab);
-                  if (activeTab === 'infrastructure') {
-                    setActiveTab('overview');
-                    toast.success('Back to Overview tab');
-                  } else if (activeTab === 'equipment') {
-                    setActiveTab('infrastructure');
-                    toast.success('Back to Infrastructure tab');
-                  } else if (activeTab === 'bom') {
-                    setActiveTab('equipment');
-                    toast.success('Back to Equipment tab');
-                  }
-                }}
-                disabled={activeTab === 'overview' || activeTab === 'details'}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                PREVIOUS
-              </Button>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                onClick={async () => {
-                  console.log('NEXT button clicked, current activeTab:', activeTab);
-                  if (activeTab === 'overview') {
-                    setActiveTab('infrastructure');
-                    toast.success('Moving to Infrastructure tab...');
-                  } else if (activeTab === 'infrastructure') {
-                    setActiveTab('equipment');
-                    toast.success('Moving to Equipment tab...');
-                  } else if (activeTab === 'equipment') {
-                    setActiveTab('bom');
-                    toast.success('Moving to BOM tab...');
-                  }
-                }}
-                disabled={activeTab === 'bom' || activeTab === 'files' || activeTab === 'history'}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {activeTab === 'overview' ? 'NEXT → INFRASTRUCTURE' : 
-                 activeTab === 'infrastructure' ? 'NEXT → EQUIPMENT' : 
-                 activeTab === 'equipment' ? 'NEXT → BOM' : 'NEXT'}
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Action Buttons Row */}
-          <div className="flex gap-2 justify-end">
-            {survey.type === "VOIP" && (
-              <Button
-                variant="outline"
-                onClick={() => setVoipDialogOpen(true)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                EDIT VOIP DETAILS
-              </Button>
-            )}
-            {survey.type === "CABLING" && (
-              <Button
-                variant="outline"
-                onClick={() => setCablingDialogOpen(true)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                EDIT CABLING DETAILS
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={generateWordDocument}
-              disabled={generatingWord}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={downloadBOM}
-              disabled={downloadingBOM}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setNetworkDiagramOpen(true)}
-            >
-              <Network className="h-4 w-4 mr-2" />
-              NETWORK DIAGRAM
-            </Button>
-          </div>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="space-y-2">
-              {/* Empty overview tab - all info is displayed above */}
-            </div>
-          </TabsContent>
-
-          {/* Details Tab */}
-          <TabsContent value="details" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>SURVEY DETAILS</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {survey.type === "VOIP" && survey.voipSurvey ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">VOIP Survey Data</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Old PBX Model</label>
-                        <p>{survey.voipSurvey.oldPbxModel || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Provider Name</label>
-                        <p>{survey.voipSurvey.providerName || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Internet Feed Type</label>
-                        <p>{survey.voipSurvey.internetFeedType || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Internet Feed Speed</label>
-                        <p>{survey.voipSurvey.internetFeedSpeed || "Not specified"}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : survey.type === "CABLING" && survey.cablingSurvey ? (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Cabling Survey Data</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">General Notes</label>
-                        <p>{survey.cablingSurvey.generalNotes || "No notes"}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Project Scope</label>
-                        <p>{survey.cablingSurvey.projectScope || "Not specified"}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No detailed survey data available.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Infrastructure Tab */}
-          <TabsContent value="infrastructure" className="space-y-6">
-            {survey.type === "CABLING" && survey.buildings && survey.buildings.length > 0 ? (
-              <CablingHierarchyForm
-                siteSurveyId={survey.id}
-                onSuccess={() => {
-                  fetchSurveyDetails();
-                  toast.success("Infrastructure updated successfully");
-                }}
-                onEquipmentUpdate={(equipmentData) => {
-                  console.log('Equipment updated in parent:', equipmentData);
-                  setEquipment(equipmentData);
-                }}
-              />
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <Network className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No infrastructure data available for this survey type.</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Equipment Tab */}
-          <TabsContent value="equipment" className="space-y-6">
-            {survey.type === 'CABLING' && buildings.length > 0 ? (
-              <CablingHierarchyForm
-                siteSurveyId={survey.id}
-                onSuccess={() => {
-                  fetchSurveyDetails();
-                  toast.success("Infrastructure updated successfully");
-                }}
-                onEquipmentUpdate={(equipmentData) => {
-                  console.log('Equipment updated in parent:', equipmentData);
-                  setEquipment(equipmentData);
-                }}
-              />
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <Server className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    {survey.type === 'CABLING' 
-                      ? 'No equipment added yet. Add equipment to the site survey infrastructure.'
-                      : 'Equipment management is only available for cabling surveys.'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* BOM Tab */}
-          <TabsContent value="bom" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Bill of Materials
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const testEquipment = [
-                          {
-                            id: 'test-1',
-                            type: 'product' as const,
-                            itemId: 'test',
-                            name: 'Test Product',
-                            brand: 'Test Brand',
-                            category: 'Test Category',
-                            unit: 'Each',
-                            quantity: 2,
-                            price: 100,
-                            margin: 20,
-                            totalPrice: 240,
-                            notes: 'Test notes'
-                          }
-                        ];
-                        setEquipment(testEquipment);
-                        toast.success('Added test equipment');
-                      }}
-                    >
-                      Add Test Equipment
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={downloadBOM}
-                      disabled={downloadingBOM || equipment.length === 0}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Excel
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {equipment.length > 0 ? (
-                  <div className="space-y-6">
-                    {/* Products Table */}
-                    {equipment.filter(e => e.type === 'product').length > 0 && (
-                      <div>
-                        <h3 className="font-semibold mb-3 text-blue-800">PRODUCTS</h3>
-                        <div className="border rounded-lg overflow-hidden">
-                          <table className="w-full text-sm">
-                            <thead className="bg-blue-50">
-                              <tr>
-                                <th className="text-left p-2 font-semibold border-b">#</th>
-                                <th className="text-left p-2 font-semibold border-b">Product Name</th>
-                                <th className="text-left p-2 font-semibold border-b">Brand</th>
-                                <th className="text-left p-2 font-semibold border-b">Category</th>
-                                <th className="text-center p-2 font-semibold border-b">Qty</th>
-                                <th className="text-right p-2 font-semibold border-b">Unit Price (€)</th>
-                                <th className="text-right p-2 font-semibold border-b">Margin (%)</th>
-                                <th className="text-right p-2 font-semibold border-b">Total (€)</th>
-                                <th className="text-left p-2 font-semibold border-b">Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {equipment.filter(e => e.type === 'product').map((item, idx) => (
-                                <tr key={item.id} className="hover:bg-gray-50">
-                                  <td className="p-2 border-b">{idx + 1}</td>
-                                  <td className="p-2 border-b font-medium">{item.name}</td>
-                                  <td className="p-2 border-b">{item.brand || '-'}</td>
-                                  <td className="p-2 border-b">{item.category}</td>
-                                  <td className="p-2 border-b text-center">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={item.quantity}
-                                      onChange={(e) => {
-                                        const newQuantity = parseInt(e.target.value) || 1;
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id 
-                                            ? { ...eq, quantity: newQuantity, totalPrice: eq.price * newQuantity * (1 + (eq.margin || 0) / 100) }
-                                            : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      className="h-8 w-16 text-center"
-                                    />
-                                  </td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={item.price || 0}
-                                      onChange={(e) => {
-                                        const newPrice = parseFloat(e.target.value) || 0;
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id 
-                                            ? { ...eq, price: newPrice, totalPrice: newPrice * eq.quantity * (1 + (eq.margin || 0) / 100) }
-                                            : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      className="h-8 w-24 text-right"
-                                    />
-                                  </td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      step="0.1"
-                                      value={item.margin || 0}
-                                      onChange={(e) => {
-                                        const newMargin = parseFloat(e.target.value) || 0;
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id 
-                                            ? { ...eq, margin: newMargin, totalPrice: eq.price * eq.quantity * (1 + newMargin / 100) }
-                                            : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      className="h-8 w-20 text-right"
-                                    />
-                                  </td>
-                                  <td className="p-2 border-b text-right font-semibold">
-                                    {item.totalPrice.toFixed(2)}
-                                  </td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="text"
-                                      value={item.notes || ''}
-                                      onChange={(e) => {
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id ? { ...eq, notes: e.target.value } : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      placeholder="Notes..."
-                                      className="h-8 w-32 text-xs"
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr className="bg-blue-100 font-semibold">
-                                <td colSpan={7} className="p-2 text-right">Products Subtotal:</td>
-                                <td className="p-2 text-right">
-                                  €{equipment.filter(e => e.type === 'product').reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
-                                </td>
-                                <td></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Services Table */}
-                    {equipment.filter(e => e.type === 'service').length > 0 && (
-                      <div>
-                        <h3 className="font-semibold mb-3 text-green-800">SERVICES</h3>
-                        <div className="border rounded-lg overflow-hidden">
-                          <table className="w-full text-sm">
-                            <thead className="bg-green-50">
-                              <tr>
-                                <th className="text-left p-2 font-semibold border-b">#</th>
-                                <th className="text-left p-2 font-semibold border-b">Service Name</th>
-                                <th className="text-left p-2 font-semibold border-b">Category</th>
-                                <th className="text-center p-2 font-semibold border-b">Qty</th>
-                                <th className="text-right p-2 font-semibold border-b">Unit Price (€)</th>
-                                <th className="text-right p-2 font-semibold border-b">Margin (%)</th>
-                                <th className="text-right p-2 font-semibold border-b">Total (€)</th>
-                                <th className="text-left p-2 font-semibold border-b">Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {equipment.filter(e => e.type === 'service').map((item, idx) => (
-                                <tr key={item.id} className="hover:bg-gray-50">
-                                  <td className="p-2 border-b">{idx + 1}</td>
-                                  <td className="p-2 border-b font-medium">{item.name}</td>
-                                  <td className="p-2 border-b">{item.category}</td>
-                                  <td className="p-2 border-b text-center">{item.quantity}</td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={item.price || 0}
-                                      onChange={(e) => {
-                                        const newPrice = parseFloat(e.target.value) || 0;
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id 
-                                            ? { ...eq, price: newPrice, totalPrice: newPrice * eq.quantity * (1 + (eq.margin || 0) / 100) }
-                                            : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      className="h-8 w-24 text-right"
-                                    />
-                                  </td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      step="0.1"
-                                      value={item.margin || 0}
-                                      onChange={(e) => {
-                                        const newMargin = parseFloat(e.target.value) || 0;
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id 
-                                            ? { ...eq, margin: newMargin, totalPrice: eq.price * eq.quantity * (1 + newMargin / 100) }
-                                            : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      className="h-8 w-20 text-right"
-                                    />
-                                  </td>
-                                  <td className="p-2 border-b text-right font-semibold">
-                                    {item.totalPrice.toFixed(2)}
-                                  </td>
-                                  <td className="p-2 border-b">
-                                    <Input
-                                      type="text"
-                                      value={item.notes || ''}
-                                      onChange={(e) => {
-                                        const updated = equipment.map(eq => 
-                                          eq.id === item.id ? { ...eq, notes: e.target.value } : eq
-                                        );
-                                        setEquipment(updated);
-                                      }}
-                                      placeholder="Notes..."
-                                      className="h-8 w-32 text-xs"
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr className="bg-green-100 font-semibold">
-                                <td colSpan={6} className="p-2 text-right">Services Subtotal:</td>
-                                <td className="p-2 text-right">
-                                  €{equipment.filter(e => e.type === 'service').reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
-                                </td>
-                                <td></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Grand Total */}
-                    <div className="bg-gray-100 p-4 rounded-lg border-2 border-gray-300">
-                      <div className="flex justify-between items-center text-xl font-bold">
-                        <span>GRAND TOTAL:</span>
-                        <span className="text-green-700">
-                          €{equipment.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-sm text-muted-foreground flex justify-between">
-                        <span>Total Items: {equipment.length}</span>
-                        <span>Products: {equipment.filter(e => e.type === 'product').length} | Services: {equipment.filter(e => e.type === 'service').length}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                    <p className="text-lg font-medium">No equipment added yet</p>
-                    <p className="text-sm mb-4">Add products and services in the Infrastructure → Equipment tab</p>
-                    <Button
-                      onClick={() => {
-                        const testEquipment = [
-                          {
-                            id: 'test-product-1',
-                            type: 'product' as const,
-                            itemId: 'test-1',
-                            name: 'Cat6 Cable',
-                            brand: 'Cisco',
-                            category: 'Cables',
-                            unit: 'Meter',
-                            quantity: 100,
-                            price: 2.50,
-                            margin: 25,
-                            totalPrice: 312.50,
-                            notes: 'Test cable for BOM'
-                          },
-                          {
-                            id: 'test-service-1',
-                            type: 'service' as const,
-                            itemId: 'test-2',
-                            name: 'Installation Service',
-                            brand: undefined,
-                            category: 'Installation',
-                            unit: 'Hour',
-                            quantity: 8,
-                            price: 50,
-                            margin: 30,
-                            totalPrice: 520,
-                            notes: 'Test installation service'
-                          }
-                        ];
-                        setEquipment(testEquipment);
-                        toast.success('Added test equipment to BOM');
-                      }}
-                      className="mt-4"
-                    >
-                      Add Test Equipment
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Files Tab */}
-          <TabsContent value="files" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileImage className="h-5 w-5" />
-                  ATTACHED FILES & BLUEPRINTS
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FilesList
-                  entityId={survey.id}
-                  entityType="SITESURVEY"
-                  refreshTrigger={filesRefreshTrigger}
-                  onFileDeleted={() => setFilesRefreshTrigger((prev) => prev + 1)}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>HISTORY & TIMESTAMPS</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Created</label>
-                    <p className="font-semibold">
-                      {new Date(survey.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
-                    <p className="font-semibold">
-                      {new Date(survey.updatedAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Files Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileImage className="h-5 w-5" />
+              ATTACHED FILES & BLUEPRINTS
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FilesList
+              entityId={survey.id}
+              entityType="SITESURVEY"
+              refreshTrigger={filesRefreshTrigger}
+              onFileDeleted={() => setFilesRefreshTrigger((prev) => prev + 1)}
+            />
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Dialogs */}
-      {survey.type === "VOIP" && (
-        <VoipSurveyForm
-          open={voipDialogOpen}
-          onClose={(refresh) => {
-            setVoipDialogOpen(false);
-            if (refresh) {
-              fetchSurveyDetails();
-            }
-          }}
-          siteSurveyId={survey.id}
-          siteSurveyTitle={survey.title}
-        />
+      {/* Edit Modals */}
+      {survey && (
+        <>
+          <EditProjectInfoModal
+            isOpen={showEditProjectModal}
+            onClose={() => setShowEditProjectModal(false)}
+            projectData={survey}
+            onSave={handleSaveProjectInfo}
+          />
+          <EditCustomerInfoModal
+            isOpen={showEditCustomerModal}
+            onClose={() => setShowEditCustomerModal(false)}
+            customerData={survey.customer}
+            onSave={handleSaveCustomerInfo}
+          />
+        </>
       )}
-
-      {survey.type === "CABLING" && (
-        <CablingHierarchyForm
-          siteSurveyId={survey.id}
-          onSuccess={() => {
-            fetchSurveyDetails();
-            setCablingDialogOpen(false);
-          }}
-        />
-      )}
-
-      <NetworkDiagramModal
-        open={networkDiagramOpen}
-        onClose={() => setNetworkDiagramOpen(false)}
-        buildings={survey.buildings || []}
-        buildingConnections={[]}
-      />
     </div>
   );
 }

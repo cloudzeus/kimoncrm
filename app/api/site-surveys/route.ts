@@ -9,7 +9,7 @@ import { sendEmailAsUser } from "@/lib/microsoft/app-auth";
 const createSiteSurveySchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  type: z.enum(["VOIP", "CABLING", "WIFI", "DIGITAL_SIGNAGE", "HOTEL_TV", "NETWORK", "CCTV", "IOT"]),
+  type: z.enum(["COMPREHENSIVE", "VOIP", "CABLING", "WIFI", "DIGITAL_SIGNAGE", "HOTEL_TV", "NETWORK", "CCTV", "IOT"]).default("COMPREHENSIVE"), // Support legacy types but default to COMPREHENSIVE
   customerId: z.string().min(1, "Customer is required"),
   contactId: z.string().optional().nullable(),
   arrangedDate: z.string().optional().nullable(),

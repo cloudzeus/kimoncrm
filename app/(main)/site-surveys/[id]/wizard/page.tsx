@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { SiteSurveyWizard } from "@/components/site-surveys/site-survey-wizard";
+import { ComprehensiveInfrastructureWizard } from "@/components/site-surveys/comprehensive-infrastructure-wizard";
 import { toast } from "sonner";
 
 interface SiteSurvey {
@@ -115,8 +115,8 @@ export default function SiteSurveyWizardPage() {
         </div>
       </div>
 
-      {/* Wizard */}
-      <SiteSurveyWizard
+      {/* Comprehensive Infrastructure Wizard */}
+      <ComprehensiveInfrastructureWizard
         siteSurveyId={id}
         siteSurveyData={siteSurvey}
         onComplete={handleWizardComplete}

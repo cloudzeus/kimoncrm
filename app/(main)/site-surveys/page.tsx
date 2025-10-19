@@ -594,7 +594,6 @@ export default function SiteSurveysPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="font-semibold">TITLE</TableHead>
-              <TableHead className="font-semibold">TYPE</TableHead>
               <TableHead className="font-semibold">CUSTOMER</TableHead>
               <TableHead className="font-semibold">ASSIGNED TO</TableHead>
               <TableHead className="font-semibold">ARRANGED DATE & TIME</TableHead>
@@ -605,14 +604,14 @@ export default function SiteSurveysPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   Loading site surveys...
                 </TableCell>
               </TableRow>
             ) : siteSurveys.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No site surveys found
@@ -622,11 +621,6 @@ export default function SiteSurveysPage() {
               siteSurveys.map((survey) => (
                 <TableRow key={survey.id}>
                   <TableCell className="font-medium">{survey.title}</TableCell>
-                  <TableCell>
-                    <Badge className={getTypeBadgeColor(survey.type)}>
-                      {survey.type}
-                    </Badge>
-                  </TableCell>
                   <TableCell>{survey.customer.name}</TableCell>
                   <TableCell>
                     {survey.assignTo ? survey.assignTo.name : "-"}
@@ -674,34 +668,6 @@ export default function SiteSurveysPage() {
                           <Mail className="h-4 w-4 mr-2" />
                           NOTIFY PEOPLE
                         </DropdownMenuItem>
-                        {survey.type === "VOIP" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedVoipSurvey(survey);
-                              setVoipDialogOpen(true);
-                            }}>
-                              <Phone className="h-4 w-4 mr-2" />
-                              VOIP DETAILS
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {survey.type === "CABLING" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedCablingSurvey(survey);
-                              setCablingDialogOpen(true);
-                            }}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              CABLING DETAILS
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleShowDiagram(survey.id)}>
-                              <Network className="h-4 w-4 mr-2" />
-                              SHOW DIAGRAM
-                            </DropdownMenuItem>
-                          </>
-                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleDelete(survey)}

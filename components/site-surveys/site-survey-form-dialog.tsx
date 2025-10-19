@@ -42,7 +42,7 @@ import { FileText } from "lucide-react";
 const siteSurveyFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  type: z.enum(["VOIP", "CABLING", "WIFI", "DIGITAL_SIGNAGE", "HOTEL_TV", "NETWORK", "CCTV", "IOT"]),
+  // Type removed from schema - will be added as "COMPREHENSIVE" during submission
   customerId: z.string().min(1, "Customer is required"),
   contactId: z.string().optional(),
   arrangedDate: z.string().optional(),
@@ -99,7 +99,7 @@ export function SiteSurveyFormDialog({
     defaultValues: {
       title: "",
       description: "",
-      type: "VOIP" as any,
+      // Type removed from form - will be added during submission
       customerId: customerId || "",
       contactId: "",
       arrangedDate: "",
@@ -243,10 +243,16 @@ export function SiteSurveyFormDialog({
         : "/api/site-surveys";
       const method = siteSurvey ? "PATCH" : "POST";
 
+      // Add COMPREHENSIVE type to the payload
+      const payload = {
+        ...values,
+        type: "COMPREHENSIVE",
+      };
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -346,40 +352,8 @@ export function SiteSurveyFormDialog({
                 )}
               />
 
-              {/* Type and Status */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="uppercase">TYPE *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="VOIP">VOIP</SelectItem>
-                          <SelectItem value="CABLING">CABLING</SelectItem>
-                          <SelectItem value="WIFI">WIFI</SelectItem>
-                          <SelectItem value="DIGITAL_SIGNAGE">DIGITAL SIGNAGE</SelectItem>
-                          <SelectItem value="HOTEL_TV">HOTEL TV</SelectItem>
-                          <SelectItem value="NETWORK">NETWORK</SelectItem>
-                          <SelectItem value="CCTV">CCTV</SelectItem>
-                          <SelectItem value="IOT">IOT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+              {/* Status Only - Type is now always COMPREHENSIVE */}
+              <div className="grid grid-cols-1 gap-4">
                 <FormField
                   control={form.control}
                   name="status"

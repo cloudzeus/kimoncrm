@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,33 @@ export function EquipmentStep({
   const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
 
+  // Sync equipment prop with local state and deduplicate by ID
+  useEffect(() => {
+    // Deduplicate equipment items by ID (keep the first occurrence)
+    const seenIds = new Set<string>();
+    const deduplicated = equipment.filter(item => {
+      if (seenIds.has(item.id)) {
+        console.warn(`Duplicate equipment ID found: ${item.id}`);
+        return false;
+      }
+      seenIds.add(item.id);
+      return true;
+    });
+    setLocalEquipment(deduplicated);
+  }, [equipment]);
+
   const updateEquipment = (newEquipment: EquipmentItem[]) => {
-    setLocalEquipment(newEquipment);
-    onUpdate(newEquipment);
+    // Deduplicate before updating
+    const seenIds = new Set<string>();
+    const deduplicated = newEquipment.filter(item => {
+      if (seenIds.has(item.id)) {
+        return false;
+      }
+      seenIds.add(item.id);
+      return true;
+    });
+    setLocalEquipment(deduplicated);
+    onUpdate(deduplicated);
   };
 
   const handleAddEquipment = () => {

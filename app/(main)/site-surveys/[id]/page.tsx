@@ -310,7 +310,7 @@ export default function SiteSurveyDetailPage() {
 
       {/* Badges */}
       <div className="flex gap-2">
-        <Badge className={getTypeBadgeColor(survey.type)}>{survey.type}</Badge>
+        <Badge variant="outline" className="bg-primary/10 text-primary">SITE SURVEY</Badge>
         <Badge variant={survey.status === "Completed" ? "default" : "secondary"}>
           {survey.status}
         </Badge>

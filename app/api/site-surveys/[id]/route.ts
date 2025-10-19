@@ -7,7 +7,7 @@ import { z } from "zod";
 const updateSiteSurveySchema = z.object({
   title: z.string().min(1, "Title is required").optional(),
   description: z.string().optional().nullable(),
-  type: z.enum(["VOIP", "CABLING", "WIFI", "DIGITAL_SIGNAGE", "HOTEL_TV", "NETWORK", "CCTV", "IOT"]).optional(),
+  type: z.enum(["COMPREHENSIVE", "VOIP", "CABLING", "WIFI", "DIGITAL_SIGNAGE", "HOTEL_TV", "NETWORK", "CCTV", "IOT"]).optional(),
   customerId: z.string().optional(),
   contactId: z.string().optional().nullable(),
   arrangedDate: z.string().optional().nullable(),
