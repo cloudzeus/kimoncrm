@@ -32,6 +32,7 @@ import {
   Camera,
   Monitor,
   FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BuildingData, FloorData, CentralRackData, CableTerminationData, TrunkLineData, RouterInterfaceData, RouterConnectionData, SwitchPortData, SwitchConnectionData, VirtualMachineData } from "../comprehensive-infrastructure-wizard";
 import { generateBuildingExcelReport } from "@/lib/excel/building-report-excel";
+import { ImageUploadButton } from "@/components/site-surveys/image-upload-button";
 
 interface BuildingTreeViewProps {
   building: BuildingData;
