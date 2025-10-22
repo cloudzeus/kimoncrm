@@ -16,10 +16,12 @@ import {
   ArrowLeft, 
   ArrowRight,
   Save,
-  CheckCircle
+  CheckCircle,
+  Package
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuildingsStep } from "./wizard-steps/buildings-step";
+import { EquipmentAssignmentStep } from "./wizard-steps/equipment-assignment-step";
 import { CentralRackStep } from "./wizard-steps/central-rack-step";
 import { FloorsStep } from "./wizard-steps/floors-step";
 import { RoomsStep } from "./wizard-steps/rooms-step";
@@ -292,6 +294,7 @@ export interface FloorRackData {
   units?: number;
   location?: string;
   notes?: string;
+  isFutureProposal?: boolean; // Mark as future proposal/upgrade
   cableTerminations?: CableTerminationData[];
   connections: ConnectionData[];
   switches: SwitchData[];
@@ -404,30 +407,36 @@ const STEPS = [
   },
   {
     id: 2,
+    title: "Equipment & Products",
+    description: "Assign products and services to infrastructure elements",
+    icon: Package,
+  },
+  {
+    id: 3,
     title: "Central Rack",
     description: "Configure central rack equipment and connections",
     icon: Server,
   },
   {
-    id: 3,
+    id: 4,
     title: "Floors",
     description: "Set up floors with typical floor support",
     icon: Wifi,
   },
   {
-    id: 4,
+    id: 5,
     title: "Rooms",
     description: "Configure rooms, outlets, and devices",
     icon: Phone,
   },
   {
-    id: 5,
+    id: 6,
     title: "Site Connections",
     description: "Define inter-building connections",
     icon: Cable,
   },
   {
-    id: 6,
+    id: 7,
     title: "Future Proposals",
     description: "Plan future infrastructure improvements",
     icon: CheckCircle,
@@ -610,27 +619,34 @@ export function ComprehensiveInfrastructureWizard({
               />
             )}
             {currentStep === 2 && (
-              <CentralRackStep
+              <EquipmentAssignmentStep
                 buildings={wizardData.buildings}
                 onUpdate={handleBuildingsUpdate}
                 siteSurveyId={siteSurveyId}
               />
             )}
             {currentStep === 3 && (
-              <FloorsStep
+              <CentralRackStep
                 buildings={wizardData.buildings}
                 onUpdate={handleBuildingsUpdate}
                 siteSurveyId={siteSurveyId}
               />
             )}
             {currentStep === 4 && (
-              <RoomsStep
+              <FloorsStep
                 buildings={wizardData.buildings}
                 onUpdate={handleBuildingsUpdate}
                 siteSurveyId={siteSurveyId}
               />
             )}
             {currentStep === 5 && (
+              <RoomsStep
+                buildings={wizardData.buildings}
+                onUpdate={handleBuildingsUpdate}
+                siteSurveyId={siteSurveyId}
+              />
+            )}
+            {currentStep === 6 && (
               <SiteConnectionsStep
                 siteConnections={wizardData.siteConnections}
                 buildings={wizardData.buildings}
@@ -638,7 +654,7 @@ export function ComprehensiveInfrastructureWizard({
                 siteSurveyId={siteSurveyId}
               />
             )}
-            {currentStep === 6 && (
+            {currentStep === 7 && (
               <FutureProposalsStep
                 futureBuildings={[]}
                 futureEquipment={[]}
