@@ -13,6 +13,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Building2,
   Plus,
   Trash2,
@@ -3829,6 +3835,23 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                 Typical × {floor.repeatCount || 1}
                               </Badge>
                             )}
+                            {/* Floor Totals */}
+                            <Badge variant="outline" className="text-xs">
+                              <Server className="h-3 w-3 mr-1" />
+                              {floor.racks?.length || 0} Rack{floor.racks?.length !== 1 ? 's' : ''}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              <Home className="h-3 w-3 mr-1" />
+                              {floor.rooms?.length || 0} Room{floor.rooms?.length !== 1 ? 's' : ''}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              <Monitor className="h-3 w-3 mr-1" />
+                              {floor.rooms?.reduce((sum, room) => sum + (room.devices?.length || 0), 0) || 0} Device{floor.rooms?.reduce((sum, room) => sum + (room.devices?.length || 0), 0) !== 1 ? 's' : ''}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              <Cable className="h-3 w-3 mr-1" />
+                              {floor.rooms?.reduce((sum, room) => sum + (room.outlets?.length || 0), 0) || 0} Outlet{floor.rooms?.reduce((sum, room) => sum + (room.outlets?.length || 0), 0) !== 1 ? 's' : ''}
+                            </Badge>
                           </div>
                         <div className="flex items-center gap-2">
                           <Button
@@ -3951,6 +3974,66 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                         </div>
                       </div>
                       </div>
+
+                      {/* Image and Blueprint Thumbnails */}
+                      {((floor.images && floor.images.length > 0) || (floor.blueprints && floor.blueprints.length > 0)) && (
+                        <div className="px-3 pb-2">
+                          <div className="flex gap-2 flex-wrap">
+                            {/* Images */}
+                            {floor.images && floor.images.map((image, idx) => (
+                              <TooltipProvider key={`img-${idx}`}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="relative group cursor-pointer">
+                                      <img
+                                        src={image.url}
+                                        alt={image.name || `Floor image ${idx + 1}`}
+                                        className="w-16 h-16 object-cover rounded border-2 border-blue-300 hover:border-blue-500 transition-all"
+                                      />
+                                      <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] px-1 rounded-bl">
+                                        IMG
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="p-0">
+                                    <img
+                                      src={image.url}
+                                      alt={image.name || `Floor image ${idx + 1}`}
+                                      className="w-[500px] h-[500px] object-contain"
+                                    />
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
+                            {/* Blueprints */}
+                            {floor.blueprints && floor.blueprints.map((blueprint, idx) => (
+                              <TooltipProvider key={`bp-${idx}`}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="relative group cursor-pointer">
+                                      <img
+                                        src={blueprint.url}
+                                        alt={blueprint.name || `Blueprint ${idx + 1}`}
+                                        className="w-16 h-16 object-cover rounded border-2 border-purple-300 hover:border-purple-500 transition-all"
+                                      />
+                                      <div className="absolute top-0 right-0 bg-purple-500 text-white text-[8px] px-1 rounded-bl">
+                                        BP
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="p-0">
+                                    <img
+                                      src={blueprint.url}
+                                      alt={blueprint.name || `Blueprint ${idx + 1}`}
+                                      className="w-[500px] h-[500px] object-contain"
+                                    />
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {expandedFloors.has(floor.id) && (
                         <div className="px-3 pb-3">
