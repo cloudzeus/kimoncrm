@@ -150,10 +150,13 @@ export function EquipmentAssignmentStep({
   const fetchProducts = async () => {
     try {
       setLoadingProducts(true);
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products?limit=1000'); // Get more products for selection
       if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
+        const result = await response.json();
+        console.log('📦 Products loaded:', result.data?.length || 0);
+        setProducts(result.data || []); // API returns { success: true, data: [...] }
+      } else {
+        console.error('Failed to fetch products:', response.status);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -166,10 +169,13 @@ export function EquipmentAssignmentStep({
   const fetchServices = async () => {
     try {
       setLoadingServices(true);
-      const response = await fetch('/api/services');
+      const response = await fetch('/api/services?limit=1000'); // Get more services for selection
       if (response.ok) {
-        const data = await response.json();
-        setServices(data.services || []);
+        const result = await response.json();
+        console.log('🔧 Services loaded:', result.data?.length || 0);
+        setServices(result.data || []); // API returns { success: true, data: [...] }
+      } else {
+        console.error('Failed to fetch services:', response.status);
       }
     } catch (error) {
       console.error('Error fetching services:', error);
