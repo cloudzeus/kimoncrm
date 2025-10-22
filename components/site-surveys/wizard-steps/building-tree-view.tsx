@@ -4509,6 +4509,11 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                       {room.type && (
                                         <Badge variant="secondary" className="text-xs">{room.type}</Badge>
                                       )}
+                                      {room.isTypical && (
+                                        <Badge variant="default" className="text-xs bg-purple-600">
+                                          Typical × {room.repeatCount || 1}
+                                        </Badge>
+                                      )}
                                       <Badge variant="default" className="text-xs bg-blue-500">
                                         {room.devices?.length || 0} Device{room.devices?.length !== 1 ? 's' : ''}
                                       </Badge>
@@ -4557,6 +4562,37 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                             placeholder="e.g., Office, Meeting"
                                             className="h-7 text-xs"
                                           />
+                                        </div>
+                                      </div>
+
+                                      {/* Typical Room Settings */}
+                                      <div className="mb-3 pb-3 border-b">
+                                        <div className="flex items-center gap-4">
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              id={`typical-room-${room.id}`}
+                                              checked={room.isTypical || false}
+                                              onChange={(e) => updateRoom(floor.id, room.id, { isTypical: e.target.checked })}
+                                              className="h-4 w-4"
+                                            />
+                                            <Label htmlFor={`typical-room-${room.id}`} className="text-xs cursor-pointer font-semibold">
+                                              Typical Room (Same layout repeated)
+                                            </Label>
+                                          </div>
+                                          {room.isTypical && (
+                                            <div className="flex items-center gap-2">
+                                              <Label className="text-xs">Repeat Count:</Label>
+                                              <Input
+                                                type="number"
+                                                min="1"
+                                                value={room.repeatCount || 1}
+                                                onChange={(e) => updateRoom(floor.id, room.id, { repeatCount: parseInt(e.target.value) || 1 })}
+                                                className="h-7 w-20 text-xs"
+                                              />
+                                              <span className="text-xs text-muted-foreground">rooms on this floor</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
 

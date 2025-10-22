@@ -277,6 +277,16 @@ export function EquipmentAssignmentStep({
     return floor.isTypical && floor.repeatCount ? floor.repeatCount : 1;
   };
 
+  // Helper to calculate multiplier for typical rooms
+  const getRoomMultiplier = (room: RoomData) => {
+    return room.isTypical && room.repeatCount ? room.repeatCount : 1;
+  };
+
+  // Helper to calculate total multiplier (floor × room)
+  const getTotalMultiplier = (floor: FloorData, room: RoomData) => {
+    return getFloorMultiplier(floor) * getRoomMultiplier(room);
+  };
+
   // Add NEW device to existing room
   const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string) => {
     const newDevice: any = {
@@ -1370,12 +1380,15 @@ export function EquipmentAssignmentStep({
                                               {room.devices.map((device) => (
                                                 <div key={device.id} className="p-2 bg-muted/30 rounded">
                                                   <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 flex-wrap">
                                                       <Monitor className="h-3 w-3" />
                                                       <span className="text-xs">{device.type} × {device.quantity}</span>
-                                                      {getFloorMultiplier(floor) > 1 && (
-                                                        <Badge variant="outline" className="text-xs text-purple-600">
-                                                          × {getFloorMultiplier(floor)} floors = {device.quantity * getFloorMultiplier(floor)} total
+                                                      {getTotalMultiplier(floor, room) > 1 && (
+                                                        <Badge variant="outline" className="text-xs text-purple-600 font-semibold">
+                                                          {getFloorMultiplier(floor) > 1 && `${getFloorMultiplier(floor)} floors`}
+                                                          {getFloorMultiplier(floor) > 1 && getRoomMultiplier(room) > 1 && ' × '}
+                                                          {getRoomMultiplier(room) > 1 && `${getRoomMultiplier(room)} rooms`}
+                                                          = {device.quantity * getTotalMultiplier(floor, room)} total
                                                         </Badge>
                                                       )}
                                                       {isNewElement(device) ? (
@@ -1433,9 +1446,12 @@ export function EquipmentAssignmentStep({
                                                   <div className="flex items-center gap-2 flex-wrap">
                                                     <Cable className="h-3 w-3" />
                                                     <span className="text-xs">{outlet.type} {outlet.label} × {outlet.quantity}</span>
-                                                    {getFloorMultiplier(floor) > 1 && (
-                                                      <Badge variant="outline" className="text-xs text-purple-600">
-                                                        × {getFloorMultiplier(floor)} floors = {outlet.quantity * getFloorMultiplier(floor)} total
+                                                    {getTotalMultiplier(floor, room) > 1 && (
+                                                      <Badge variant="outline" className="text-xs text-purple-600 font-semibold">
+                                                        {getFloorMultiplier(floor) > 1 && `${getFloorMultiplier(floor)} floors`}
+                                                        {getFloorMultiplier(floor) > 1 && getRoomMultiplier(room) > 1 && ' × '}
+                                                        {getRoomMultiplier(room) > 1 && `${getRoomMultiplier(room)} rooms`}
+                                                        = {outlet.quantity * getTotalMultiplier(floor, room)} total
                                                       </Badge>
                                                     )}
                                                     {isNewElement(outlet) ? (

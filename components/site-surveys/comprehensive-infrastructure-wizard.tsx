@@ -312,6 +312,8 @@ export interface RoomData {
   number?: string;
   type: string;
   notes?: string;
+  isTypical?: boolean; // Mark as typical room
+  repeatCount?: number; // Number of same rooms on this floor
   outlets: OutletData[];
   devices: DeviceData[];
   connections: ConnectionData[];
