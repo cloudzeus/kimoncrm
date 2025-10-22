@@ -1124,23 +1124,23 @@ export async function generateBuildingExcelReport(building: BuildingData) {
   });
 
   // Calculate device type summary
-  const deviceTypeCount: { [key: string]: { count: number; floors: Set<string> } } = {};
+  const pivotDeviceTypeCount: { [key: string]: { count: number; floors: Set<string> } } = {};
   building.floors.forEach(floor => {
     floor.rooms.forEach(room => {
       room.devices.forEach(device => {
-        if (!deviceTypeCount[device.type]) {
-          deviceTypeCount[device.type] = { count: 0, floors: new Set() };
+        if (!pivotDeviceTypeCount[device.type]) {
+          pivotDeviceTypeCount[device.type] = { count: 0, floors: new Set() };
         }
-        deviceTypeCount[device.type].count += device.quantity || 1;
-        deviceTypeCount[device.type].floors.add(floor.name);
+        pivotDeviceTypeCount[device.type].count += device.quantity || 1;
+        pivotDeviceTypeCount[device.type].floors.add(floor.name);
       });
     });
   });
 
-  const totalDevices = Object.values(deviceTypeCount).reduce((sum, data) => sum + data.count, 0);
+  const totalPivotDevices = Object.values(pivotDeviceTypeCount).reduce((sum, data) => sum + data.count, 0);
   
-  Object.entries(deviceTypeCount).forEach(([type, data], index) => {
-    const percentage = ((data.count / totalDevices) * 100).toFixed(1);
+  Object.entries(pivotDeviceTypeCount).forEach(([type, data], index) => {
+    const percentage = ((data.count / totalPivotDevices) * 100).toFixed(1);
     const floors = Array.from(data.floors).join(', ');
     
     const row = pivotSheet.addRow([type, data.count, `${percentage}%`, floors]);
