@@ -95,7 +95,8 @@ export function CentralRackStep({
       ip: "",
       vlans: [],
       ports: [],
-      poePorts: 0,
+      poeEnabled: false,
+      poePortsCount: 0,
       connections: [],
       services: [], // Add services array
     };
@@ -115,6 +116,7 @@ export function CentralRackStep({
       model: "",
       ip: "",
       vlans: [],
+      interfaces: [],
       connections: [],
       services: [], // Add services array
     };
@@ -130,6 +132,7 @@ export function CentralRackStep({
       brand: "",
       type: 'SIP',
       extensions: [],
+      trunkLines: [],
     };
 
     updateCentralRack(buildingId, { pbx: newPBX });
@@ -176,6 +179,7 @@ export function CentralRackStep({
       model: "",
       ip: "",
       notes: "",
+      virtualMachines: [],
       services: [], // Add services array
     };
 
@@ -457,10 +461,10 @@ export function CentralRackStep({
                             <Label>PoE Ports</Label>
                             <Input
                               type="number"
-                              value={switchDevice.poePorts}
+                              value={switchDevice.poePortsCount || 0}
                               onChange={(e) => {
                                 const updatedSwitches = selectedBuilding.centralRack?.switches?.map(s => 
-                                  s.id === switchDevice.id ? { ...s, poePorts: parseInt(e.target.value) || 0 } : s
+                                  s.id === switchDevice.id ? { ...s, poePortsCount: parseInt(e.target.value) || 0 } : s
                                 ) || [];
                                 updateCentralRack(selectedBuilding.id, { switches: updatedSwitches });
                               }}
@@ -581,7 +585,8 @@ export function CentralRackStep({
                                   id: selectedBuilding.centralRack?.pbx?.id || `pbx-${Date.now()}`,
                                   brand: e.target.value,
                                   type: selectedBuilding.centralRack?.pbx?.type || 'SIP',
-                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || []
+                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || [],
+                                  trunkLines: selectedBuilding.centralRack?.pbx?.trunkLines || []
                                 }
                               })}
                               placeholder="PBX brand"
@@ -595,15 +600,16 @@ export function CentralRackStep({
                                 pbx: { 
                                   id: selectedBuilding.centralRack?.pbx?.id || `pbx-${Date.now()}`,
                                   brand: selectedBuilding.centralRack?.pbx?.brand || '',
-                                  type: e.target.value as 'SIP' | 'ANALOG' | 'IP',
-                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || []
+                                  type: e.target.value as 'SIP' | 'ANALOG' | 'DIGITAL',
+                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || [],
+                                  trunkLines: selectedBuilding.centralRack?.pbx?.trunkLines || []
                                 }
                               })}
                               className="w-full p-2 border rounded-md"
                             >
                               <option value="SIP">SIP</option>
                               <option value="ANALOG">Analog</option>
-                              <option value="IP">IP</option>
+                              <option value="DIGITAL">Digital</option>
                             </select>
                           </div>
                         </div>

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { BuildingData } from './comprehensive-infrastructure-wizard';
+import { BuildingData } from '@/components/site-surveys/comprehensive-infrastructure-wizard';
 
 export async function generateBuildingExcelReport(building: BuildingData) {
   const workbook = new ExcelJS.Workbook();
