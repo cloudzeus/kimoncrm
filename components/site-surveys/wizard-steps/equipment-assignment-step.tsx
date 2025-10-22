@@ -287,6 +287,95 @@ export function EquipmentAssignmentStep({
     return getFloorMultiplier(floor) * getRoomMultiplier(room);
   };
 
+  // Delete NEW element
+  const deleteNewElement = (buildingId: string, floorId: string | undefined, rackId: string | undefined, roomId: string | undefined, elementType: string, elementId: string) => {
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+
+      // Handle central rack
+      if (!floorId && building.centralRack) {
+        if (elementType === 'switch') {
+          return { ...building, centralRack: { ...building.centralRack, switches: building.centralRack.switches.filter(sw => sw.id !== elementId) } };
+        }
+        if (elementType === 'router') {
+          return { ...building, centralRack: { ...building.centralRack, routers: building.centralRack.routers.filter(r => r.id !== elementId) } };
+        }
+        if (elementType === 'termination') {
+          return { ...building, centralRack: { ...building.centralRack, cableTerminations: building.centralRack.cableTerminations.filter(t => t.id !== elementId) } };
+        }
+      }
+
+      // Handle floor-level elements
+      if (floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+
+          // Handle rack elements
+          if (rackId) {
+            const updatedRacks = (floor.racks || []).map(rack => {
+              if (rack.id !== rackId) return rack;
+              if (elementType === 'switch') return { ...rack, switches: rack.switches.filter(sw => sw.id !== elementId) };
+              if (elementType === 'router') return { ...rack, routers: (rack.routers || []).filter(r => r.id !== elementId) };
+              if (elementType === 'termination') return { ...rack, cableTerminations: (rack.cableTerminations || []).filter(t => t.id !== elementId) };
+              if (elementType === 'connection') return { ...rack, connections: rack.connections.filter(c => c.id !== elementId) };
+              return rack;
+            });
+            return { ...floor, racks: updatedRacks };
+          }
+
+          // Handle room elements
+          if (roomId) {
+            const updatedRooms = floor.rooms.map(room => {
+              if (room.id !== roomId) return room;
+              if (elementType === 'device') return { ...room, devices: room.devices.filter(d => d.id !== elementId) };
+              if (elementType === 'outlet') return { ...room, outlets: room.outlets.filter(o => o.id !== elementId) };
+              return room;
+            });
+            return { ...floor, rooms: updatedRooms };
+          }
+
+          return floor;
+        });
+        return { ...building, floors: updatedFloors };
+      }
+
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "Element deleted" });
+  };
+
+  // Update NEW element properties
+  const updateNewElement = (buildingId: string, floorId: string | undefined, rackId: string | undefined, roomId: string | undefined, elementType: string, elementId: string, updates: any) => {
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+
+      if (floorId && rackId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            if (elementType === 'termination') {
+              return { ...rack, cableTerminations: (rack.cableTerminations || []).map(t => t.id === elementId ? { ...t, ...updates } : t) };
+            }
+            return rack;
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+  };
+
   // Add NEW device to existing room
   const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string) => {
     const newDevice: any = {
@@ -1257,28 +1346,59 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold mb-2 block">Cable Terminations</Label>
                                             <div className="space-y-1">
                                               {rack.cableTerminations.map((termination) => (
-                                                <div key={termination.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                                    <Cable className="h-3 w-3" />
-                                                    <span className="text-xs">{termination.cableType} × {termination.quantity}</span>
-                                                    {isNewElement(termination) ? (
-                                                      <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                                    ) : (
-                                                      <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
-                                                    )}
-                                        </div>
-                                                  <div className="flex gap-1">
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openProductDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
-                                                      <Package className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
-                                                      <Wrench className="h-3 w-3" />
-                                        </Button>
+                                                <div key={termination.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2 flex-1">
+                                                      <Cable className="h-3 w-3" />
+                                                      {isNewElement(termination) ? (
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                          <select
+                                                            value={termination.cableType}
+                                                            onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { cableType: e.target.value })}
+                                                            className="h-6 text-xs border rounded px-1"
+                                                          >
+                                                            <option value="CAT6">CAT6</option>
+                                                            <option value="CAT6A">CAT6A</option>
+                                                            <option value="CAT5e">CAT5e</option>
+                                                            <option value="FIBER_SM">Fiber SM</option>
+                                                            <option value="FIBER_MM">Fiber MM</option>
+                                                          </select>
+                                                          <span className="text-xs">×</span>
+                                                          <Input
+                                                            type="number"
+                                                            value={termination.quantity}
+                                                            onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { quantity: parseInt(e.target.value) || 0 })}
+                                                            className="h-6 w-16 text-xs"
+                                                            min="0"
+                                                          />
+                                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                        </div>
+                                                      ) : (
+                                                        <>
+                                                          <span className="text-xs">{termination.cableType} × {termination.quantity}</span>
+                                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(termination) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
-                                      </div>
-                                    ))}
+                                                </div>
+                                              ))}
                                   </div>
                                 </div>
                               )}
@@ -1301,6 +1421,12 @@ export function EquipmentAssignmentStep({
                                                       )}
                                                     </div>
                                                     <div className="flex gap-1">
+                                                      {isNewElement(sw) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'switch', sw.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
                                                       <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openProductDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
                                                         <Package className="h-3 w-3" />
@@ -1429,6 +1555,12 @@ export function EquipmentAssignmentStep({
                                                       )}
                                                     </div>
                                                     <div className="flex gap-1">
+                                                      {isNewElement(device) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, undefined, room.id, 'device', device.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
                                                       <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openProductDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
                                                         <Package className="h-3 w-3" />
