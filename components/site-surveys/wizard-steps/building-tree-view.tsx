@@ -64,6 +64,12 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
   // Track which sections are expanded within central rack
   const [expandedCentralRackSections, setExpandedCentralRackSections] = useState<Set<string>>(new Set(['terminations']));
   
+  // Track which floor racks are expanded
+  const [expandedFloorRacks, setExpandedFloorRacks] = useState<Set<string>>(new Set());
+  
+  // Track which sections are expanded within each floor rack (rackId -> Set of sectionIds)
+  const [expandedFloorRackSections, setExpandedFloorRackSections] = useState<Map<string, Set<string>>>(new Map());
+  
   // Track selected ports for bulk operations (switchId -> Set of portIds)
   const [selectedPorts, setSelectedPorts] = useState<Map<string, Set<string>>>(new Map());
   
@@ -116,6 +122,32 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       } else {
         next.add(section);
       }
+      return next;
+    });
+  };
+  
+  const toggleFloorRack = (rackId: string) => {
+    setExpandedFloorRacks(prev => {
+      const next = new Set(prev);
+      if (next.has(rackId)) {
+        next.delete(rackId);
+      } else {
+        next.add(rackId);
+      }
+      return next;
+    });
+  };
+  
+  const toggleFloorRackSection = (rackId: string, section: string) => {
+    setExpandedFloorRackSections(prev => {
+      const next = new Map(prev);
+      const rackSections = next.get(rackId) || new Set();
+      if (rackSections.has(section)) {
+        rackSections.delete(section);
+      } else {
+        rackSections.add(section);
+      }
+      next.set(rackId, rackSections);
       return next;
     });
   };
@@ -283,6 +315,115 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       floor.id === floorId ? {
         ...floor,
         racks: (floor.racks || []).filter(rack => rack.id !== rackId)
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add cable termination to floor rack
+  const addFloorRackTermination = (floorId: string, rackId: string) => {
+    const newTermination: CableTerminationData = {
+      id: `termination-${Date.now()}`,
+      cableType: 'CAT6',
+      quantity: 0,
+      services: [],
+      isFutureProposal: isFutureMode,
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            cableTerminations: [...(rack.cableTerminations || []), newTermination]
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Update cable termination in floor rack
+  const updateFloorRackTermination = (floorId: string, rackId: string, terminationId: string, updates: Partial<CableTerminationData>) => {
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            cableTerminations: (rack.cableTerminations || []).map(term =>
+              term.id === terminationId ? { ...term, ...updates } : term
+            )
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Delete cable termination from floor rack
+  const deleteFloorRackTermination = (floorId: string, rackId: string, terminationId: string) => {
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            cableTerminations: (rack.cableTerminations || []).filter(term => term.id !== terminationId)
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add switch to floor rack
+  const addFloorRackSwitch = (floorId: string, rackId: string) => {
+    const newSwitch: any = {
+      id: `sw-${Date.now()}`,
+      brand: '',
+      model: '',
+      ip: '',
+      vlans: [],
+      ports: [],
+      poePorts: 0,
+      poeEnabled: false,
+      connections: [],
+      services: [],
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            switches: [...(rack.switches || []), newSwitch]
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add connection to floor rack
+  const addFloorRackConnection = (floorId: string, rackId: string) => {
+    const newConn: any = {
+      id: `conn-${Date.now()}`,
+      fromDevice: '',
+      toDevice: '',
+      connectionType: 'ETHERNET',
+      cableType: '',
+      length: 0,
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            connections: [...(rack.connections || []), newConn]
+          } : rack
+        )
       } : floor
     );
     onUpdate({ ...building, floors: updatedFloors });
@@ -3718,114 +3859,370 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                         </Badge>
                       </div>
 
-                      {/* Floor Racks Section */}
-                      <div className="mt-4 pt-4 border-t">
-                        <h5 className="text-xs font-semibold mb-3 flex items-center gap-2">
-                          <Server className="h-3 w-3 text-purple-600" />
-                          Floor Racks ({floor.racks?.length || 0})
-                        </h5>
-                        {floor.racks && floor.racks.length > 0 ? (
+                      {/* Floor Racks Section - Collapsible Tree Structure */}
+                      {floor.racks && floor.racks.length > 0 && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h5 className="text-xs font-semibold mb-3 flex items-center gap-2">
+                            <Server className="h-3 w-3 text-purple-600" />
+                            Floor Racks ({floor.racks.length})
+                          </h5>
                           <div className="space-y-3">
-                            {floor.racks.map((rack, rackIdx) => (
-                              <Card key={rack.id} className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex-1 grid grid-cols-3 gap-2">
-                                    <div>
-                                      <Label className="text-xs">Rack Name</Label>
-                                      <Input
-                                        value={rack.name || ''}
-                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { name: e.target.value })}
-                                        placeholder="Rack name"
-                                        className="h-7 text-xs"
-                                      />
+                            {floor.racks.map((rack) => (
+                              <Collapsible 
+                                key={rack.id}
+                                open={expandedFloorRacks.has(rack.id)} 
+                                onOpenChange={() => toggleFloorRack(rack.id)}
+                              >
+                                <div className="border border-purple-200 dark:border-purple-800 rounded-lg bg-purple-50/50 dark:bg-purple-950/20">
+                                  <CollapsibleTrigger asChild>
+                                    <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors">
+                                      <div className="flex items-center gap-2">
+                                        {expandedFloorRacks.has(rack.id) ? (
+                                          <ChevronDown className="h-4 w-4" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4" />
+                                        )}
+                                        <Server className="h-4 w-4 text-purple-600" />
+                                        <span className="font-semibold text-sm">{rack.name || 'Floor Rack'}</span>
+                                        {rack.location && (
+                                          <Badge variant="outline" className="text-xs">{rack.location}</Badge>
+                                        )}
+                                        <Badge variant="secondary" className="ml-2">
+                                          {rack.cableTerminations?.length || 0} Terminations
+                                        </Badge>
+                                        <Badge variant="secondary">
+                                          {rack.switches?.length || 0} Switches
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                            >
+                                              <Plus className="h-3 w-3 mr-1" />
+                                              Add
+                                              <ChevronDown className="h-3 w-3 ml-1" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Add to {rack.name || 'Rack'}</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => { addFloorRackTermination(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Cable className="h-4 w-4 mr-2" />
+                                              Cable Termination
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackSwitch(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Network className="h-4 w-4 mr-2" />
+                                              Switch
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackConnection(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Cable className="h-4 w-4 mr-2" />
+                                              Connection
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={(e) => { e.stopPropagation(); deleteFloorRack(floor.id, rack.id); }}
+                                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <Label className="text-xs">Location</Label>
-                                      <Input
-                                        value={rack.location || ''}
-                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { location: e.target.value })}
-                                        placeholder="Location"
-                                        className="h-7 text-xs"
-                                      />
+                                  </CollapsibleTrigger>
+
+                                  <CollapsibleContent className="px-3 pb-3">
+                                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                                      {/* Rack Basic Info */}
+                                      <div>
+                                        <Label className="text-xs">Rack Name</Label>
+                                        <Input
+                                          value={rack.name || ''}
+                                          onChange={(e) => updateFloorRack(floor.id, rack.id, { name: e.target.value })}
+                                          placeholder="Rack name"
+                                          className="h-9"
+                                        />
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <Label className="text-xs">Location</Label>
+                                          <Input
+                                            value={rack.location || ''}
+                                            onChange={(e) => updateFloorRack(floor.id, rack.id, { location: e.target.value })}
+                                            placeholder="e.g., Corner A, Near elevator"
+                                            className="h-9"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs">Units (U)</Label>
+                                          <Input
+                                            type="number"
+                                            value={rack.units || ''}
+                                            onChange={(e) => updateFloorRack(floor.id, rack.id, { units: parseInt(e.target.value) || 42 })}
+                                            placeholder="42"
+                                            className="h-9"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Cable Terminations */}
+                                      {rack.cableTerminations && rack.cableTerminations.length > 0 && (
+                                        <div className="mt-4">
+                                          <Collapsible 
+                                            open={expandedFloorRackSections.get(rack.id)?.has('terminations') || false}
+                                            onOpenChange={() => toggleFloorRackSection(rack.id, 'terminations')}
+                                          >
+                                            <CollapsibleTrigger asChild>
+                                              <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                                <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                  {expandedFloorRackSections.get(rack.id)?.has('terminations') ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                  ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                  )}
+                                                  <Cable className="h-4 w-4" />
+                                                  Cable Terminations
+                                                  <Badge variant="secondary" className="ml-2">
+                                                    {rack.cableTerminations.length}
+                                                  </Badge>
+                                                </Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+
+                                            <CollapsibleContent>
+                                              <div className="space-y-2 pl-6">
+                                                {rack.cableTerminations.map((termination) => (
+                                                  <div 
+                                                    key={termination.id} 
+                                                    className={`p-2 rounded border ${
+                                                      termination.isFutureProposal 
+                                                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' 
+                                                        : 'bg-muted/30 border-border'
+                                                    }`}
+                                                  >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                      <Badge 
+                                                        variant={termination.isFutureProposal ? "default" : "secondary"}
+                                                        className="text-xs"
+                                                      >
+                                                        {termination.isFutureProposal ? '🔮 Future Proposal' : '📦 Existing'}
+                                                      </Badge>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => deleteFloorRackTermination(floor.id, rack.id, termination.id)}
+                                                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                                      >
+                                                        <Trash2 className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-12 gap-2 items-center">
+                                                      <div className="col-span-3">
+                                                        <Label className="text-xs">Cable Type</Label>
+                                                        <select
+                                                          value={termination.cableType}
+                                                          onChange={(e) => updateFloorRackTermination(floor.id, rack.id, termination.id, {
+                                                            cableType: e.target.value as CableTerminationData['cableType']
+                                                          })}
+                                                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm"
+                                                        >
+                                                          <option value="CAT5e">CAT5e</option>
+                                                          <option value="CAT6">CAT6</option>
+                                                          <option value="CAT6A">CAT6A</option>
+                                                          <option value="CAT7">CAT7</option>
+                                                          <option value="FIBER_SM">Fiber (SM)</option>
+                                                          <option value="FIBER_MM">Fiber (MM)</option>
+                                                          <option value="COAX">Coax</option>
+                                                          <option value="RJ11">RJ11 (Phone)</option>
+                                                          <option value="OTHER">Other</option>
+                                                        </select>
+                                                      </div>
+                                                      <div className="col-span-2">
+                                                        <Label className="text-xs">Qty</Label>
+                                                        <Input
+                                                          type="number"
+                                                          value={termination.quantity}
+                                                          onChange={(e) => updateFloorRackTermination(floor.id, rack.id, termination.id, {
+                                                            quantity: parseInt(e.target.value) || 0
+                                                          })}
+                                                          className="h-8"
+                                                          min="0"
+                                                        />
+                                                      </div>
+                                                      <div className="col-span-3">
+                                                        <Label className="text-xs">From</Label>
+                                                        <Input
+                                                          value={termination.fromLocation || ''}
+                                                          onChange={(e) => updateFloorRackTermination(floor.id, rack.id, termination.id, {
+                                                            fromLocation: e.target.value
+                                                          })}
+                                                          placeholder="Source"
+                                                          className="h-8"
+                                                        />
+                                                      </div>
+                                                      <div className="col-span-4">
+                                                        <Label className="text-xs">To</Label>
+                                                        <Input
+                                                          value={termination.toLocation || ''}
+                                                          onChange={(e) => updateFloorRackTermination(floor.id, rack.id, termination.id, {
+                                                            toLocation: e.target.value
+                                                          })}
+                                                          placeholder="Destination"
+                                                          className="h-8"
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        </div>
+                                      )}
+
+                                      {/* Switches */}
+                                      {rack.switches && rack.switches.length > 0 && (
+                                        <div className="mt-4">
+                                          <Collapsible 
+                                            open={expandedFloorRackSections.get(rack.id)?.has('switches') || false}
+                                            onOpenChange={() => toggleFloorRackSection(rack.id, 'switches')}
+                                          >
+                                            <CollapsibleTrigger asChild>
+                                              <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                                <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                  {expandedFloorRackSections.get(rack.id)?.has('switches') ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                  ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                  )}
+                                                  <Network className="h-4 w-4" />
+                                                  Switches
+                                                  <Badge variant="secondary" className="ml-2">
+                                                    {rack.switches.length}
+                                                  </Badge>
+                                                </Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+
+                                            <CollapsibleContent>
+                                              <div className="space-y-2 pl-6">
+                                                {rack.switches.map((sw) => (
+                                                  <div key={sw.id} className="p-2 rounded border bg-muted/30">
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs">Brand</Label>
+                                                        <Input
+                                                          value={sw.brand || ''}
+                                                          placeholder="e.g., Cisco"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">Model</Label>
+                                                        <Input
+                                                          value={sw.model || ''}
+                                                          placeholder="Model"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">IP</Label>
+                                                        <Input
+                                                          value={sw.ip || ''}
+                                                          placeholder="192.168.1.x"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        </div>
+                                      )}
+
+                                      {/* Connections */}
+                                      {rack.connections && rack.connections.length > 0 && (
+                                        <div className="mt-4">
+                                          <Collapsible 
+                                            open={expandedFloorRackSections.get(rack.id)?.has('connections') || false}
+                                            onOpenChange={() => toggleFloorRackSection(rack.id, 'connections')}
+                                          >
+                                            <CollapsibleTrigger asChild>
+                                              <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                                <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                  {expandedFloorRackSections.get(rack.id)?.has('connections') ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                  ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                  )}
+                                                  <Cable className="h-4 w-4" />
+                                                  Connections
+                                                  <Badge variant="secondary" className="ml-2">
+                                                    {rack.connections.length}
+                                                  </Badge>
+                                                </Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+
+                                            <CollapsibleContent>
+                                              <div className="space-y-2 pl-6">
+                                                {rack.connections.map((conn) => (
+                                                  <div key={conn.id} className="p-2 rounded border bg-muted/30">
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs">From</Label>
+                                                        <Input
+                                                          value={conn.fromDevice || ''}
+                                                          placeholder="Source"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">To</Label>
+                                                        <Input
+                                                          value={conn.toDevice || ''}
+                                                          placeholder="Destination"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">Type</Label>
+                                                        <Input
+                                                          value={conn.connectionType || ''}
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        </div>
+                                      )}
                                     </div>
-                                    <div>
-                                      <Label className="text-xs">Units</Label>
-                                      <Input
-                                        type="number"
-                                        value={rack.units || 42}
-                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { units: parseInt(e.target.value) || 42 })}
-                                        className="h-7 text-xs"
-                                      />
-                                    </div>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => deleteFloorRack(floor.id, rack.id)}
-                                    className="text-destructive h-7 w-7 p-0 ml-2"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  </CollapsibleContent>
                                 </div>
-                                
-                                {/* Rack Action Buttons - Same as Central Rack */}
-                                <div className="flex gap-2 flex-wrap mt-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const newSwitch: any = {
-                                        id: `sw-${Date.now()}`,
-                                        brand: '',
-                                        model: '',
-                                        ip: '',
-                                        vlans: [],
-                                        ports: [],
-                                        poePorts: 0,
-                                        poeEnabled: false,
-                                        connections: [],
-                                        services: [],
-                                      };
-                                      updateFloorRack(floor.id, rack.id, { switches: [...(rack.switches || []), newSwitch] });
-                                    }}
-                                    className="h-6 text-xs"
-                                  >
-                                    <Network className="h-3 w-3 mr-1" />
-                                    Add Switch
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const newConn: any = {
-                                        id: `conn-${Date.now()}`,
-                                        fromDevice: '',
-                                        toDevice: '',
-                                        connectionType: 'ETHERNET',
-                                        cableType: '',
-                                        length: 0,
-                                      };
-                                      updateFloorRack(floor.id, rack.id, { connections: [...(rack.connections || []), newConn] });
-                                    }}
-                                    className="h-6 text-xs"
-                                  >
-                                    <Cable className="h-3 w-3 mr-1" />
-                                    Add Connection
-                                  </Button>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {rack.switches?.length || 0} Switches
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {rack.connections?.length || 0} Connections
-                                  </Badge>
-                                </div>
-                              </Card>
+                              </Collapsible>
                             ))}
                           </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground italic">No racks added yet. Use the dropdown menu to add a rack.</p>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Rooms Section */}
                       {floor.rooms.length > 0 && (

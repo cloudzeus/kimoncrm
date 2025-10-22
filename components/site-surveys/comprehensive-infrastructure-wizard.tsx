@@ -271,6 +271,7 @@ export interface FloorRackData {
   units?: number;
   location?: string;
   notes?: string;
+  cableTerminations?: CableTerminationData[];
   connections: ConnectionData[];
   ata?: ATAData;
   switches: SwitchData[];
