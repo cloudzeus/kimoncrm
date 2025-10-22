@@ -245,6 +245,148 @@ export function EquipmentAssignmentStep({
     return element?.isFutureProposal || element?.id?.includes('proposal');
   };
 
+  // Add NEW device to existing room
+  const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string) => {
+    const newDevice: any = {
+      id: `device-proposal-${Date.now()}`,
+      type: '',
+      quantity: 1,
+      brand: '',
+      model: '',
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      const updatedFloors = building.floors.map(floor => {
+        if (floor.id !== floorId) return floor;
+        
+        const updatedRooms = floor.rooms.map(room => {
+          if (room.id !== roomId) return room;
+          return {
+            ...room,
+            devices: [...(room.devices || []), newDevice],
+          };
+        });
+        
+        return { ...floor, rooms: updatedRooms };
+      });
+      
+      return { ...building, floors: updatedFloors };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    toast({ title: "Success", description: "New device added as future proposal" });
+  };
+
+  // Add NEW outlet to existing room
+  const addNewOutletToRoom = (buildingId: string, floorId: string, roomId: string) => {
+    const newOutlet: any = {
+      id: `outlet-proposal-${Date.now()}`,
+      label: '',
+      type: '',
+      quantity: 1,
+      connection: {
+        id: `conn-${Date.now()}`,
+        fromDevice: '',
+        toDevice: '',
+        connectionType: '',
+        cableType: '',
+      },
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      const updatedFloors = building.floors.map(floor => {
+        if (floor.id !== floorId) return floor;
+        
+        const updatedRooms = floor.rooms.map(room => {
+          if (room.id !== roomId) return room;
+          return {
+            ...room,
+            outlets: [...(room.outlets || []), newOutlet],
+          };
+        });
+        
+        return { ...floor, rooms: updatedRooms };
+      });
+      
+      return { ...building, floors: updatedFloors };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    toast({ title: "Success", description: "New outlet added as future proposal" });
+  };
+
+  // Add NEW switch to existing rack
+  const addNewSwitchToRack = (buildingId: string, floorId: string | undefined, rackId: string) => {
+    const newSwitch: any = {
+      id: `switch-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      ip: '',
+      vlans: [],
+      ports: [],
+      poeEnabled: false,
+      poePortsCount: 0,
+      connections: [],
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            switches: [...(building.centralRack.switches || []), newSwitch],
+          },
+        };
+      } else if (floorId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return {
+              ...rack,
+              switches: [...(rack.switches || []), newSwitch],
+            };
+          });
+          
+          return { ...floor, racks: updatedRacks };
+        });
+        
+        return { ...building, floors: updatedFloors };
+      }
+      
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    toast({ title: "Success", description: "New switch added as future proposal" });
+  };
+
   // Open dialogs
   const openProductDialog = (elementInfo: typeof selectedElement) => {
     setSelectedElement(elementInfo);
