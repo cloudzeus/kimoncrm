@@ -341,6 +341,9 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       } : floor
     );
     onUpdate({ ...building, floors: updatedFloors });
+    
+    // Auto-expand the terminations section
+    toggleFloorRackSection(rackId, 'terminations');
   };
 
   // Update cable termination in floor rack
@@ -403,6 +406,9 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       } : floor
     );
     onUpdate({ ...building, floors: updatedFloors });
+    
+    // Auto-expand the switches section
+    toggleFloorRackSection(rackId, 'switches');
   };
 
   // Add connection to floor rack
@@ -427,6 +433,9 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       } : floor
     );
     onUpdate({ ...building, floors: updatedFloors });
+    
+    // Auto-expand the connections section
+    toggleFloorRackSection(rackId, 'connections');
   };
 
   // Update room
