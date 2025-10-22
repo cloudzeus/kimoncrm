@@ -387,6 +387,165 @@ export function EquipmentAssignmentStep({
     toast({ title: "Success", description: "New switch added as future proposal" });
   };
 
+  // Add NEW router to rack
+  const addNewRouterToRack = (buildingId: string, floorId: string | undefined, rackId: string) => {
+    const newRouter: any = {
+      id: `router-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      ip: '',
+      vlans: [],
+      interfaces: [],
+      connections: [],
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            routers: [...(building.centralRack.routers || []), newRouter],
+          },
+        };
+      } else if (floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, routers: [...(rack.routers || []), newRouter] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New router added as future proposal" });
+  };
+
+  // Add NEW server to rack
+  const addNewServerToRack = (buildingId: string) => {
+    const newServer: any = {
+      id: `server-proposal-${Date.now()}`,
+      name: '',
+      type: '',
+      brand: '',
+      model: '',
+      virtualMachines: [],
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId && building.centralRack) return building;
+      return {
+        ...building,
+        centralRack: building.centralRack ? {
+          ...building.centralRack,
+          servers: [...(building.centralRack.servers || []), newServer],
+        } : building.centralRack,
+      };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New server added as future proposal" });
+  };
+
+  // Add NEW cable termination to rack
+  const addNewTerminationToRack = (buildingId: string, floorId: string | undefined, rackId: string) => {
+    const newTermination: any = {
+      id: `termination-proposal-${Date.now()}`,
+      cableType: 'CAT6',
+      quantity: 0,
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            cableTerminations: [...(building.centralRack.cableTerminations || []), newTermination],
+          },
+        };
+      } else if (floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, cableTerminations: [...(rack.cableTerminations || []), newTermination] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New cable termination added as future proposal" });
+  };
+
+  // Add NEW connection to rack
+  const addNewConnectionToRack = (buildingId: string, floorId: string | undefined, rackId: string) => {
+    const newConnection: any = {
+      id: `connection-proposal-${Date.now()}`,
+      fromDevice: '',
+      toDevice: '',
+      connectionType: 'ETHERNET',
+      cableType: '',
+      length: 0,
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            connections: [...(building.centralRack.connections || []), newConnection],
+          },
+        };
+      } else if (floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, connections: [...(rack.connections || []), newConnection] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New connection added as future proposal" });
+  };
+
   // Open dialogs
   const openProductDialog = (elementInfo: typeof selectedElement) => {
     setSelectedElement(elementInfo);
@@ -631,7 +790,7 @@ export function EquipmentAssignmentStep({
         <div className="flex items-start gap-3">
           <div className="bg-blue-600 rounded-full p-2">
             <Package className="h-5 w-5 text-white" />
-          </div>
+      </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">How This Step Works</h3>
             <ul className="text-sm text-muted-foreground space-y-1">
@@ -641,8 +800,8 @@ export function EquipmentAssignmentStep({
               <li>• <strong>Assign services</strong> (installation, cabling, etc.) to any element</li>
               <li>• <strong>Changes auto-save</strong> - Go back to Step 1 anytime to modify infrastructure</li>
             </ul>
-          </div>
-        </div>
+            </div>
+            </div>
       </div>
 
       <Card>
@@ -671,50 +830,90 @@ export function EquipmentAssignmentStep({
               <p>No buildings defined yet. Go back to Step 1 to add buildings.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+      <div className="space-y-4">
               {localBuildings.map((building) => (
                 <Card key={building.id} className="border-2">
                   <div className="p-4">
                     {/* Building Header */}
                     <div className="flex items-center justify-between mb-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                         onClick={() => toggleBuilding(building.id)}
                         className="flex items-center gap-2"
-                      >
+                  >
                         {expandedBuildings.has(building.id) ? (
                           <ChevronDown className="h-4 w-4" />
-                        ) : (
+                    ) : (
                           <ChevronRight className="h-4 w-4" />
-                        )}
-                        <Building2 className="h-5 w-5 text-blue-600" />
+                    )}
+                  <Building2 className="h-5 w-5 text-blue-600" />
                         <span className="font-semibold text-lg">{building.name}</span>
                       </Button>
                       <div className="flex gap-2">
-                        <Badge variant="outline">
+                  <Badge variant="outline">
                           {building.floors.length} Floor{building.floors.length !== 1 ? 's' : ''}
-                        </Badge>
+                  </Badge>
                         {building.centralRack && (
                           <Badge variant="secondary">Has Central Rack</Badge>
-                        )}
-                      </div>
-                    </div>
+                  )}
+                </div>
+              </div>
 
                     {/* Building Content */}
                     {expandedBuildings.has(building.id) && (
                       <div className="pl-6 space-y-4 border-l-2 border-blue-200">
                         {/* Central Rack */}
                         {building.centralRack && (
-                          <Card className="bg-blue-50/50 dark:bg-blue-950/20">
+                          <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-300">
                             <CardHeader className="pb-3">
-                              <CardTitle className="text-sm flex items-center gap-2">
-                                <Server className="h-4 w-4" />
-                                Central Rack
-                                <Badge variant="secondary" className="ml-2">
-                                  {building.centralRack.cableTerminations?.length || 0} Terminations
-                                </Badge>
-                              </CardTitle>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Server className="h-4 w-4" />
+                                  <span className="font-semibold text-sm">Central Rack</span>
+                                  <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.cableTerminations?.length || 0} Terms
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.switches?.length || 0} SW
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.routers?.length || 0} Routers
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.servers?.length || 0} Servers
+                                  </Badge>
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs">
+                                      <Plus className="h-3 w-3 mr-1" />Add New
+                                      <ChevronDown className="h-3 w-3 ml-1" />
+                                </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Add to Central Rack</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => addNewTerminationToRack(building.id, undefined, 'central')}>
+                                      <Cable className="h-4 w-4 mr-2" />Cable Termination
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewSwitchToRack(building.id, undefined, 'central')}>
+                                      <Network className="h-4 w-4 mr-2" />Switch
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewRouterToRack(building.id, undefined, 'central')}>
+                                      <Wifi className="h-4 w-4 mr-2" />Router
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewServerToRack(building.id)}>
+                                      <Server className="h-4 w-4 mr-2" />Server
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => addNewConnectionToRack(building.id, undefined, 'central')}>
+                                      <Cable className="h-4 w-4 mr-2" />Connection
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </CardHeader>
                             <CardContent>
                               {/* Cable Terminations */}
@@ -733,24 +932,24 @@ export function EquipmentAssignmentStep({
                                             <Badge variant="default" className="text-xs">🔮 Proposal</Badge>
                                           )}
                                           {termination.productId && (
-                                            <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs">
                                               <Package className="h-3 w-3 mr-1" />
                                               Product Assigned
-                                            </Badge>
-                                          )}
-                                        </div>
+                                  </Badge>
+                                )}
+                              </div>
                                         <div className="flex gap-1">
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
+                              <Button
+                                size="sm"
+                                variant="outline"
                                             className="h-7 text-xs"
                                             onClick={() => openProductDialog({
                                               type: 'termination',
                                               buildingId: building.id,
                                               elementId: termination.id,
                                             })}
-                                          >
-                                            <Package className="h-3 w-3 mr-1" />
+                              >
+                                <Package className="h-3 w-3 mr-1" />
                                             Assign Product
                                           </Button>
                                           <Button
@@ -765,8 +964,8 @@ export function EquipmentAssignmentStep({
                                           >
                                             <Wrench className="h-3 w-3 mr-1" />
                                             Add Service
-                                          </Button>
-                                        </div>
+                              </Button>
+                            </div>
                                       </div>
                                       {/* Show assigned services */}
                                       {termination.services && termination.services.length > 0 && (
@@ -777,23 +976,23 @@ export function EquipmentAssignmentStep({
                                               <Badge key={service.id} variant="secondary" className="text-xs">
                                                 {service.serviceId} × {service.quantity}
                                               </Badge>
-                                            ))}
-                                          </div>
+                                ))}
+                              </div>
                                         </div>
-                                      )}
+                          )}
                                     </div>
-                                  ))}
-                                </div>
+                      ))}
+                  </div>
                               )}
                             </CardContent>
                           </Card>
-                        )}
+                )}
 
-                        {/* Floors */}
+                {/* Floors */}
                         {building.floors.map((floor) => (
                           <Card key={floor.id} className="bg-green-50/50 dark:bg-green-950/20">
                             <CardHeader className="pb-3">
-                              <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -815,21 +1014,21 @@ export function EquipmentAssignmentStep({
                                   <Badge variant="outline" className="text-xs">
                                     {floor.rooms?.length || 0} Room{floor.rooms?.length !== 1 ? 's' : ''}
                                   </Badge>
-                                  <Button
-                                    size="sm"
+                              <Button
+                                size="sm"
                                     variant="default"
                                     className="h-7 text-xs"
                                     onClick={() => openNewRackDialog(building.id, floor.id)}
                                   >
                                     <Plus className="h-3 w-3 mr-1" />
                                     Add New Rack
-                                  </Button>
+                              </Button>
                                 </div>
-                              </div>
-                            </CardHeader>
+                            </div>
+                          </CardHeader>
                             {expandedFloors.has(floor.id) && (
                               <CardContent className="space-y-3">
-                                {/* Floor Racks */}
+                              {/* Floor Racks */}
                                 {floor.racks && floor.racks.map((rack) => (
                                   <div key={rack.id} className={`p-3 rounded border ${
                                     rack.isFutureProposal 
@@ -861,8 +1060,18 @@ export function EquipmentAssignmentStep({
                                         <DropdownMenuContent align="end">
                                           <DropdownMenuLabel>Add to {rack.name || 'Rack'}</DropdownMenuLabel>
                                           <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => addNewTerminationToRack(building.id, floor.id, rack.id)}>
+                                            <Cable className="h-4 w-4 mr-2" />Cable Termination
+                                          </DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => addNewSwitchToRack(building.id, floor.id, rack.id)}>
-                                            <Network className="h-4 w-4 mr-2" />New Switch
+                                            <Network className="h-4 w-4 mr-2" />Switch
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewRouterToRack(building.id, floor.id, rack.id)}>
+                                            <Wifi className="h-4 w-4 mr-2" />Router
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem onClick={() => addNewConnectionToRack(building.id, floor.id, rack.id)}>
+                                            <Cable className="h-4 w-4 mr-2" />Connection
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
@@ -873,12 +1082,12 @@ export function EquipmentAssignmentStep({
                                       <div className="mt-3 space-y-3 pl-4 border-l-2 border-purple-200">
                                         {/* Terminations */}
                                         {rack.cableTerminations && rack.cableTerminations.length > 0 && (
-                                          <div>
+                                <div>
                                             <Label className="text-xs font-semibold mb-2 block">Cable Terminations</Label>
                                             <div className="space-y-1">
                                               {rack.cableTerminations.map((termination) => (
                                                 <div key={termination.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
                                                     <Cable className="h-3 w-3" />
                                                     <span className="text-xs">{termination.cableType} × {termination.quantity}</span>
                                                     {isNewElement(termination) ? (
@@ -886,7 +1095,7 @@ export function EquipmentAssignmentStep({
                                                     ) : (
                                                       <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                     )}
-                                                  </div>
+                                        </div>
                                                   <div className="flex gap-1">
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openProductDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
@@ -895,22 +1104,22 @@ export function EquipmentAssignmentStep({
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                       <Wrench className="h-3 w-3" />
-                                                    </Button>
+                                        </Button>
                                                   </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
                                         {/* Switches */}
                                         {rack.switches && rack.switches.length > 0 && (
-                                          <div>
+                                <div>
                                             <Label className="text-xs font-semibold mb-2 block">Switches</Label>
                                             <div className="space-y-1">
                                               {rack.switches.map((sw) => (
                                                 <div key={sw.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
                                                     <Network className="h-3 w-3" />
                                                     <span className="text-xs">{sw.brand} {sw.model}</span>
                                                     {isNewElement(sw) ? (
@@ -918,7 +1127,7 @@ export function EquipmentAssignmentStep({
                                                     ) : (
                                                       <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                     )}
-                                                  </div>
+                                        </div>
                                                   <div className="flex gap-1">
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openProductDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
@@ -927,13 +1136,13 @@ export function EquipmentAssignmentStep({
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openServiceDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
                                                       <Wrench className="h-3 w-3" />
-                                                    </Button>
+                                        </Button>
                                                   </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
 
                                         {/* Connections */}
                                         {rack.connections && rack.connections.length > 0 && (
@@ -956,10 +1165,10 @@ export function EquipmentAssignmentStep({
                                                     <Wrench className="h-3 w-3" />
                                                   </Button>
                                                 </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
+                      ))}
+                    </div>
+                  </div>
+                )}
                                       </div>
                                     )}
                                   </div>
@@ -994,8 +1203,8 @@ export function EquipmentAssignmentStep({
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
-                                    </div>
-                                    
+      </div>
+
                                     {/* Room Details */}
                                     {expandedRooms.has(room.id) && (
                                       <div className="mt-2 space-y-3 pl-4 border-l-2 border-amber-200">
@@ -1014,7 +1223,7 @@ export function EquipmentAssignmentStep({
                                                     ) : (
                                                       <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                     )}
-                                                  </div>
+                  </div>
                                                   <div className="flex gap-1">
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openProductDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
@@ -1023,11 +1232,11 @@ export function EquipmentAssignmentStep({
                                                     <Button size="sm" variant="ghost" className="h-6 px-2"
                                                       onClick={() => openServiceDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
                                                       <Wrench className="h-3 w-3" />
-                                                    </Button>
+                  </Button>
                                                   </div>
-                                                </div>
-                                              ))}
-                                            </div>
+                </div>
+              ))}
+            </div>
                                           </div>
                                         )}
                                         
@@ -1088,9 +1297,9 @@ export function EquipmentAssignmentStep({
                                     )}
                                   </div>
                                 ))}
-                              </CardContent>
+          </CardContent>
                             )}
-                          </Card>
+        </Card>
                         ))}
                       </div>
                     )}
