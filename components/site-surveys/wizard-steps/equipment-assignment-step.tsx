@@ -994,19 +994,45 @@ export function EquipmentAssignmentStep({
                               </Button>
                             </div>
                                       </div>
+                                      {/* Show assigned product */}
+                                      {termination.productId && (
+                                        <div className="mt-2 pt-2 border-t">
+                                          <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                          <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                            <Package className="h-4 w-4 text-blue-600" />
+                                            <div className="flex-1">
+                                              <div className="text-sm font-medium">
+                                                {products.find(p => p.id === termination.productId)?.name || termination.productId}
+                                              </div>
+                                              <div className="text-xs text-muted-foreground">
+                                                {products.find(p => p.id === termination.productId)?.code} × {termination.quantity || 1}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
                                       {/* Show assigned services */}
                                       {termination.services && termination.services.length > 0 && (
                                         <div className="mt-2 pt-2 border-t">
-                                          <Label className="text-xs">Associated Services:</Label>
-                                          <div className="flex gap-1 flex-wrap mt-1">
-                                            {termination.services.map((service) => (
-                                              <Badge key={service.id} variant="secondary" className="text-xs">
-                                                {service.serviceId} × {service.quantity}
-                                              </Badge>
-                                ))}
-                              </div>
+                                          <Label className="text-xs font-semibold">Associated Services:</Label>
+                                          <div className="space-y-1 mt-1">
+                                            {termination.services.map((svc) => (
+                                              <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                <Wrench className="h-3 w-3 text-green-600" />
+                                                <div className="flex-1">
+                                                  <div className="text-xs font-medium">
+                                                    {services.find(s => s.id === svc.serviceId)?.name || svc.serviceId}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    Qty: {svc.quantity}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
-                          )}
+                                      )}
                                     </div>
                       ))}
                   </div>
@@ -1241,28 +1267,52 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold mb-2 block">Devices</Label>
                                             <div className="space-y-1">
                                               {room.devices.map((device) => (
-                                                <div key={device.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
-                                                    <Monitor className="h-3 w-3" />
-                                                    <span className="text-xs">{device.type} × {device.quantity}</span>
-                                                    {isNewElement(device) ? (
-                                                      <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                                    ) : (
-                                                      <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
-                                                    )}
-                  </div>
-                                                  <div className="flex gap-1">
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openProductDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
-                                                      <Package className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openServiceDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
-                                                      <Wrench className="h-3 w-3" />
-                  </Button>
+                                                <div key={device.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Monitor className="h-3 w-3" />
+                                                      <span className="text-xs">{device.type} × {device.quantity}</span>
+                                                      {isNewElement(device) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
-                </div>
-              ))}
+                                                  {/* Show assigned product */}
+                                                  {device.productId && (
+                                                    <div className="pl-4 mb-1">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                        <Package className="h-3 w-3 text-blue-600" />
+                                                        <span className="font-medium">{products.find(p => p.id === device.productId)?.name || 'Product'}</span>
+                                                        <span className="text-muted-foreground">× {device.quantity}</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {/* Show assigned services */}
+                                                  {device.services && device.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {device.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
             </div>
                                           </div>
                                         )}
