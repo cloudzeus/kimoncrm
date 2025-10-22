@@ -728,6 +728,13 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
+    console.log('✅ Product assigned:', {
+      elementType: selectedElement.type,
+      productName: product.name,
+      quantity: productQuantity,
+      updatedBuildings
+    });
+    
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     setIsProductDialogOpen(false);
@@ -1282,28 +1289,52 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold mb-2 block">Switches</Label>
                                             <div className="space-y-1">
                                               {rack.switches.map((sw) => (
-                                                <div key={sw.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                                    <Network className="h-3 w-3" />
-                                                    <span className="text-xs">{sw.brand} {sw.model}</span>
-                                                    {isNewElement(sw) ? (
-                                                      <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                                    ) : (
-                                                      <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
-                                                    )}
-                                        </div>
-                                                  <div className="flex gap-1">
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openProductDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
-                                                      <Package className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openServiceDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
-                                                      <Wrench className="h-3 w-3" />
-                                        </Button>
+                                                <div key={sw.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Network className="h-3 w-3" />
+                                                      <span className="text-xs">{sw.brand} {sw.model}</span>
+                                                      {isNewElement(sw) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
-                                      </div>
-                                    ))}
+                                                  {/* Show assigned product */}
+                                                  {sw.productId && (
+                                                    <div className="pl-4 mb-1">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                        <Package className="h-3 w-3 text-blue-600" />
+                                                        <span className="font-medium">{products.find(p => p.id === sw.productId)?.name || 'Product'}</span>
+                                                        <span className="text-muted-foreground">× {sw.quantity}</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {/* Show assigned services */}
+                                                  {sw.services && sw.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {sw.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
                                   </div>
                                 </div>
                               )}
