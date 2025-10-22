@@ -272,6 +272,11 @@ export function EquipmentAssignmentStep({
     return element?.isFutureProposal || element?.id?.includes('proposal');
   };
 
+  // Helper to calculate multiplier for typical floors/rooms
+  const getFloorMultiplier = (floor: FloorData) => {
+    return floor.isTypical && floor.repeatCount ? floor.repeatCount : 1;
+  };
+
   // Add NEW device to existing room
   const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string) => {
     const newDevice: any = {
@@ -1368,6 +1373,11 @@ export function EquipmentAssignmentStep({
                                                     <div className="flex items-center gap-2">
                                                       <Monitor className="h-3 w-3" />
                                                       <span className="text-xs">{device.type} × {device.quantity}</span>
+                                                      {getFloorMultiplier(floor) > 1 && (
+                                                        <Badge variant="outline" className="text-xs text-purple-600">
+                                                          × {getFloorMultiplier(floor)} floors = {device.quantity * getFloorMultiplier(floor)} total
+                                                        </Badge>
+                                                      )}
                                                       {isNewElement(device) ? (
                                                         <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
                                                       ) : (
@@ -1420,9 +1430,14 @@ export function EquipmentAssignmentStep({
                                             <div className="space-y-1">
                                               {room.outlets.map((outlet) => (
                                                 <div key={outlet.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
+                                                  <div className="flex items-center gap-2 flex-wrap">
                                                     <Cable className="h-3 w-3" />
                                                     <span className="text-xs">{outlet.type} {outlet.label} × {outlet.quantity}</span>
+                                                    {getFloorMultiplier(floor) > 1 && (
+                                                      <Badge variant="outline" className="text-xs text-purple-600">
+                                                        × {getFloorMultiplier(floor)} floors = {outlet.quantity * getFloorMultiplier(floor)} total
+                                                      </Badge>
+                                                    )}
                                                     {isNewElement(outlet) ? (
                                                       <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
                                                     ) : (
