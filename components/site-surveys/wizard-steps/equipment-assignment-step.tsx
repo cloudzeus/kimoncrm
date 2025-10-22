@@ -51,15 +51,26 @@ import {
   Monitor,
   Package,
   Wrench,
+  Sparkles,
+  FileText,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { BuildingData, FloorData, CableTerminationData, ServiceAssociationData } from "../comprehensive-infrastructure-wizard";
 import { useToast } from "@/hooks/use-toast";
+import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
+import ProductTranslationsDialog from "@/components/products/product-translations-dialog";
+import ProductImagesDialog from "@/components/products/product-images-dialog";
 
 interface Product {
   id: string;
   name: string;
   code: string;
   category?: string;
+  description?: string;
+  images?: any[];
+  specifications?: any[];
+  translations?: any[];
 }
 
 interface Service {
@@ -129,6 +140,12 @@ export function EquipmentAssignmentStep({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceQuantity, setServiceQuantity] = useState(1);
   
+  // Product enhancement dialogs
+  const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
+  const [translationsDialogOpen, setTranslationsDialogOpen] = useState(false);
+  const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
   // New rack form
   const [newRackName, setNewRackName] = useState("");
   const [newRackLocation, setNewRackLocation] = useState("");
@@ -154,6 +171,7 @@ export function EquipmentAssignmentStep({
       if (response.ok) {
         const result = await response.json();
         console.log('📦 Products loaded:', result.data?.length || 0);
+        // Products already include images, specifications, translations from API
         setProducts(result.data || []); // API returns { success: true, data: [...] }
       } else {
         console.error('Failed to fetch products:', response.status);
@@ -1342,6 +1360,90 @@ export function EquipmentAssignmentStep({
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Product Enhancement Icons */}
+            {selectedProductId && (() => {
+              const product = products.find(p => p.id === selectedProductId);
+              if (!product) return null;
+              
+              const hasImages = product.images && product.images.length > 0;
+              const hasSpecs = product.specifications && product.specifications.length > 0;
+              const hasTranslations = product.translations && product.translations.length > 0;
+              
+              return (
+                <div className="flex gap-2 p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold mb-2">Enhance Product Data:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {!hasImages && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setImagesDialogOpen(true);
+                          }}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          Add Images
+                          <Badge variant="destructive" className="ml-2 text-xs">!</Badge>
+                        </Button>
+                      )}
+                      {hasImages && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setImagesDialogOpen(true);
+                          }}
+                        >
+                          <ImageIcon className="h-3 w-3 mr-1" />
+                          {product.images.length} Images
+                        </Button>
+                      )}
+                      {!hasSpecs && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setSpecificationsDialogOpen(true);
+                          }}
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Generate Specs
+                          <Badge variant="destructive" className="ml-2 text-xs">!</Badge>
+                        </Button>
+                      )}
+                      {!hasTranslations && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setTranslationsDialogOpen(true);
+                          }}
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          Generate Translations
+                          <Badge variant="destructive" className="ml-2 text-xs">!</Badge>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            
             <div>
               <Label>Quantity</Label>
               <Input
@@ -1465,6 +1567,36 @@ export function EquipmentAssignmentStep({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Product Enhancement Dialogs */}
+      {selectedProduct && (
+        <>
+          <ProductImagesDialog
+            open={imagesDialogOpen}
+            onOpenChange={setImagesDialogOpen}
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+          />
+          
+          <ProductSpecificationsDialog
+            open={specificationsDialogOpen}
+            onOpenChange={setSpecificationsDialogOpen}
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+          />
+          
+          <ProductTranslationsDialog
+            open={translationsDialogOpen}
+            onOpenChange={setTranslationsDialogOpen}
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+            onSuccess={() => {
+              // Refresh products to get updated translations
+              fetchProducts();
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
