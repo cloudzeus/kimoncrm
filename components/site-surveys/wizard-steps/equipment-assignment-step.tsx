@@ -55,6 +55,7 @@ import {
   FileText,
   Upload,
   Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { BuildingData, FloorData, CableTerminationData, ServiceAssociationData } from "../comprehensive-infrastructure-wizard";
 import { useToast } from "@/hooks/use-toast";
@@ -137,8 +138,10 @@ export function EquipmentAssignmentStep({
   
   const [selectedProductId, setSelectedProductId] = useState("");
   const [productQuantity, setProductQuantity] = useState(1);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceQuantity, setServiceQuantity] = useState(1);
+  const [serviceSearchTerm, setServiceSearchTerm] = useState("");
   
   // Product enhancement dialogs
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
@@ -1347,18 +1350,59 @@ export function EquipmentAssignmentStep({
           <div className="space-y-4 py-4">
             <div>
               <Label>Product</Label>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.code} - {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Input
+                  type="text"
+                  placeholder="Search products by name or code..."
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                />
+                {selectedProductId && (
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-sm">{products.find(p => p.id === selectedProductId)?.code}</div>
+                      <div className="text-xs text-muted-foreground">{products.find(p => p.id === selectedProductId)?.name}</div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => { setSelectedProductId(''); setProductSearchTerm(''); }}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                {!selectedProductId && (
+                  <div className="max-h-60 overflow-y-auto border rounded-md bg-background">
+                    {products
+                      .filter(product => {
+                        if (!productSearchTerm) return true;
+                        const search = productSearchTerm.toLowerCase();
+                        return product.name.toLowerCase().includes(search) || 
+                               product.code.toLowerCase().includes(search);
+                      })
+                      .map((product) => (
+                        <div
+                          key={product.id}
+                          className="p-2 cursor-pointer hover:bg-muted/50 border-b transition-colors"
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setProductSearchTerm('');
+                          }}
+                        >
+                          <div className="font-medium text-sm">{product.code}</div>
+                          <div className="text-xs text-muted-foreground">{product.name}</div>
+                        </div>
+                      ))}
+                    {products.filter(product => {
+                      if (!productSearchTerm) return true;
+                      const search = productSearchTerm.toLowerCase();
+                      return product.name.toLowerCase().includes(search) || 
+                             product.code.toLowerCase().includes(search);
+                    }).length === 0 && (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No products found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Product Enhancement Icons */}
@@ -1477,18 +1521,59 @@ export function EquipmentAssignmentStep({
           <div className="space-y-4 py-4">
             <div>
               <Label>Service</Label>
-              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.code} - {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Input
+                  type="text"
+                  placeholder="Search services by name or code..."
+                  value={serviceSearchTerm}
+                  onChange={(e) => setServiceSearchTerm(e.target.value)}
+                />
+                {selectedServiceId && (
+                  <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded border border-green-200 flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-sm">{services.find(s => s.id === selectedServiceId)?.code}</div>
+                      <div className="text-xs text-muted-foreground">{services.find(s => s.id === selectedServiceId)?.name}</div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => { setSelectedServiceId(''); setServiceSearchTerm(''); }}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                {!selectedServiceId && (
+                  <div className="max-h-60 overflow-y-auto border rounded-md bg-background">
+                    {services
+                      .filter(service => {
+                        if (!serviceSearchTerm) return true;
+                        const search = serviceSearchTerm.toLowerCase();
+                        return service.name.toLowerCase().includes(search) || 
+                               service.code.toLowerCase().includes(search);
+                      })
+                      .map((service) => (
+                        <div
+                          key={service.id}
+                          className="p-2 cursor-pointer hover:bg-muted/50 border-b transition-colors"
+                          onClick={() => {
+                            setSelectedServiceId(service.id);
+                            setServiceSearchTerm('');
+                          }}
+                        >
+                          <div className="font-medium text-sm">{service.code}</div>
+                          <div className="text-xs text-muted-foreground">{service.name}</div>
+                        </div>
+                      ))}
+                    {services.filter(service => {
+                      if (!serviceSearchTerm) return true;
+                      const search = serviceSearchTerm.toLowerCase();
+                      return service.name.toLowerCase().includes(search) || 
+                             service.code.toLowerCase().includes(search);
+                    }).length === 0 && (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No services found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <Label>Quantity</Label>
