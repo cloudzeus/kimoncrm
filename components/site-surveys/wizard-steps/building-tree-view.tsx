@@ -247,6 +247,47 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
     onUpdate({ ...building, floors: updatedFloors });
   };
 
+  // Add floor rack
+  const addFloorRack = (floorId: string) => {
+    const floor = building.floors.find(f => f.id === floorId);
+    const newRack: any = {
+      id: `rack-${Date.now()}`,
+      name: `Rack ${(floor?.racks?.length || 0) + 1}`,
+      units: 42,
+      location: '',
+      switches: [],
+      connections: [],
+    };
+    const updatedFloors = building.floors.map(f =>
+      f.id === floorId ? { ...f, racks: [...(f.racks || []), newRack] } : f
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Update floor rack
+  const updateFloorRack = (floorId: string, rackId: string, updates: any) => {
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? { ...rack, ...updates } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Delete floor rack
+  const deleteFloorRack = (floorId: string, rackId: string) => {
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).filter(rack => rack.id !== rackId)
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
   // Update room
   const updateRoom = (floorId: string, roomId: string, updates: any) => {
     const updatedFloors = building.floors.map(floor =>
@@ -3526,7 +3567,7 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // TODO: Add floor rack functionality
+                                addFloorRack(floor.id);
                               }}>
                                 <Server className="h-4 w-4 mr-2" />
                                 Floor Rack
@@ -3539,13 +3580,72 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                 Room
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }}>
+                              <DropdownMenuItem onClick={(e) => { 
+                                e.stopPropagation(); 
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = async (ev: any) => {
+                                  const file = ev.target?.files?.[0];
+                                  if (file) {
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    formData.append('entityType', 'floor');
+                                    formData.append('entityId', floor.id);
+                                    try {
+                                      const res = await fetch('/api/upload/cabling-image', { method: 'POST', body: formData });
+                                      const data = await res.json();
+                                      if (data.url) {
+                                        updateFloor(floor.id, { 
+                                          images: [...(floor.images || []), { id: `img-${Date.now()}`, url: data.url, name: file.name, type: 'IMAGE', size: file.size, uploadedAt: new Date().toISOString() }] 
+                                        });
+                                      }
+                                    } catch (err) { console.error(err); }
+                                  }
+                                };
+                                input.click();
+                              }}>
                                 <FileImage className="h-4 w-4 mr-2" />
-                                Images
+                                Upload Image
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); }}>
+                              <DropdownMenuItem onClick={(e) => { 
+                                e.stopPropagation(); 
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*,.pdf';
+                                input.onchange = async (ev: any) => {
+                                  const file = ev.target?.files?.[0];
+                                  if (file) {
+                                    const formData = new FormData();
+                                    formData.append('file', file);
+                                    formData.append('entityType', 'floor');
+                                    formData.append('entityId', floor.id);
+                                    try {
+                                      const res = await fetch('/api/upload/cabling-image', { method: 'POST', body: formData });
+                                      const data = await res.json();
+                                      if (data.url) {
+                                        updateFloor(floor.id, { 
+                                          blueprints: [...(floor.blueprints || []), { id: `bp-${Date.now()}`, url: data.url, name: file.name, type: 'BLUEPRINT', size: file.size, uploadedAt: new Date().toISOString() }] 
+                                        });
+                                      }
+                                    } catch (err) { console.error(err); }
+                                  }
+                                };
+                                input.click();
+                              }}>
                                 <MapPin className="h-4 w-4 mr-2" />
-                                Blueprints
+                                Upload Blueprint
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { 
+                                e.stopPropagation(); 
+                                const notes = prompt('Enter floor notes:', floor.notes || '');
+                                if (notes !== null) {
+                                  updateFloor(floor.id, { notes });
+                                }
+                              }}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                {floor.notes ? 'Edit' : 'Add'} Notes
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -3599,15 +3699,15 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                         )}
                       </div>
 
-                      <div className="mt-3">
-                        <Label className="text-xs">Notes</Label>
-                        <Textarea
-                          value={floor.notes || ''}
-                          onChange={(e) => updateFloor(floor.id, { notes: e.target.value })}
-                          placeholder="Floor notes..."
-                          className="h-16 resize-none text-xs"
-                        />
-                      </div>
+                      {/* Optional Notes Display */}
+                      {floor.notes && floor.notes.trim() && (
+                        <div className="mt-3">
+                          <Label className="text-xs">Notes</Label>
+                          <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-xs">{floor.notes}</p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mt-3 flex gap-2">
                         <Badge variant="outline" className="text-xs">
@@ -3616,6 +3716,115 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                         <Badge variant="outline" className="text-xs">
                           {floor.rooms.length} {floor.rooms.length === 1 ? 'Room' : 'Rooms'}
                         </Badge>
+                      </div>
+
+                      {/* Floor Racks Section */}
+                      <div className="mt-4 pt-4 border-t">
+                        <h5 className="text-xs font-semibold mb-3 flex items-center gap-2">
+                          <Server className="h-3 w-3 text-purple-600" />
+                          Floor Racks ({floor.racks?.length || 0})
+                        </h5>
+                        {floor.racks && floor.racks.length > 0 ? (
+                          <div className="space-y-3">
+                            {floor.racks.map((rack, rackIdx) => (
+                              <Card key={rack.id} className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex-1 grid grid-cols-3 gap-2">
+                                    <div>
+                                      <Label className="text-xs">Rack Name</Label>
+                                      <Input
+                                        value={rack.name || ''}
+                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { name: e.target.value })}
+                                        placeholder="Rack name"
+                                        className="h-7 text-xs"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">Location</Label>
+                                      <Input
+                                        value={rack.location || ''}
+                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { location: e.target.value })}
+                                        placeholder="Location"
+                                        className="h-7 text-xs"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">Units</Label>
+                                      <Input
+                                        type="number"
+                                        value={rack.units || 42}
+                                        onChange={(e) => updateFloorRack(floor.id, rack.id, { units: parseInt(e.target.value) || 42 })}
+                                        className="h-7 text-xs"
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteFloorRack(floor.id, rack.id)}
+                                    className="text-destructive h-7 w-7 p-0 ml-2"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                
+                                {/* Rack Action Buttons - Same as Central Rack */}
+                                <div className="flex gap-2 flex-wrap mt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const newSwitch: any = {
+                                        id: `sw-${Date.now()}`,
+                                        brand: '',
+                                        model: '',
+                                        ip: '',
+                                        vlans: [],
+                                        ports: [],
+                                        poePorts: 0,
+                                        poeEnabled: false,
+                                        connections: [],
+                                        services: [],
+                                      };
+                                      updateFloorRack(floor.id, rack.id, { switches: [...(rack.switches || []), newSwitch] });
+                                    }}
+                                    className="h-6 text-xs"
+                                  >
+                                    <Network className="h-3 w-3 mr-1" />
+                                    Add Switch
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const newConn: any = {
+                                        id: `conn-${Date.now()}`,
+                                        fromDevice: '',
+                                        toDevice: '',
+                                        connectionType: 'ETHERNET',
+                                        cableType: '',
+                                        length: 0,
+                                      };
+                                      updateFloorRack(floor.id, rack.id, { connections: [...(rack.connections || []), newConn] });
+                                    }}
+                                    className="h-6 text-xs"
+                                  >
+                                    <Cable className="h-3 w-3 mr-1" />
+                                    Add Connection
+                                  </Button>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {rack.switches?.length || 0} Switches
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {rack.connections?.length || 0} Connections
+                                  </Badge>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">No racks added yet. Use the dropdown menu to add a rack.</p>
+                        )}
                       </div>
 
                       {/* Rooms Section */}
@@ -3627,69 +3836,74 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                           </h5>
                           <div className="space-y-3">
                             {floor.rooms.map((room, roomIdx) => (
-                              <Card key={room.id} className="p-3 bg-muted/30">
-                                {/* Room Header */}
-                                <div className="grid grid-cols-12 gap-2 mb-2">
-                                  <div className="col-span-4">
-                                    <Label className="text-xs">Room Name</Label>
-                                    <Input
-                                      value={room.name ?? ''}
-                                      onChange={(e) => updateRoom(floor.id, room.id, { name: e.target.value })}
-                                      placeholder="e.g., Conference Room A"
-                                      className="h-7 text-xs"
-                                    />
-                                  </div>
-                                  <div className="col-span-2">
-                                    <Label className="text-xs">Number</Label>
-                                    <Input
-                                      value={room.number ?? ''}
-                                      onChange={(e) => updateRoom(floor.id, room.id, { number: e.target.value })}
-                                      placeholder="e.g., 101"
-                                      className="h-7 text-xs"
-                                    />
-                                  </div>
-                                  <div className="col-span-3">
-                                    <Label className="text-xs">Type</Label>
-                                    <Input
-                                      value={room.type ?? ''}
-                                      onChange={(e) => updateRoom(floor.id, room.id, { type: e.target.value })}
-                                      placeholder="e.g., Office, Meeting"
-                                      className="h-7 text-xs"
-                                    />
-                                  </div>
-                                  <div className="col-span-2">
-                                    <Label className="text-xs">Stats</Label>
-                                    <div className="flex gap-1 mt-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {room.outlets?.length || 0} outlets
+                              <Collapsible key={room.id}>
+                                <Card className="p-3 bg-muted/30">
+                                  {/* Room Accordion Header */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <CollapsibleTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                          <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                      </CollapsibleTrigger>
+                                      <Home className="h-4 w-4" />
+                                      <span className="font-semibold text-sm">{room.name || 'Unnamed Room'}</span>
+                                      {room.number && (
+                                        <Badge variant="outline" className="text-xs">#{room.number}</Badge>
+                                      )}
+                                      {room.type && (
+                                        <Badge variant="secondary" className="text-xs">{room.type}</Badge>
+                                      )}
+                                      <Badge variant="default" className="text-xs bg-blue-500">
+                                        {room.devices?.length || 0} Device{room.devices?.length !== 1 ? 's' : ''}
                                       </Badge>
-                                      <Badge variant="outline" className="text-xs">
-                                        {room.devices?.length || 0} devices
+                                      <Badge variant="default" className="text-xs bg-green-500">
+                                        {room.outlets?.length || 0} Outlet{room.outlets?.length !== 1 ? 's' : ''}
                                       </Badge>
                                     </div>
-                                  </div>
-                                  <div className="col-span-1 flex items-end">
                                     <Button
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => deleteRoom(floor.id, room.id)}
-                                      className="h-7 w-7 p-0 text-destructive"
+                                      className="h-6 w-6 p-0 text-destructive"
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
                                   </div>
-                                </div>
 
-                                {/* Room Notes */}
-                                <div className="mb-3">
-                                  <Label className="text-xs">Notes</Label>
-                                  <Textarea
-                                    value={room.notes ?? ''}
-                                    onChange={(e) => updateRoom(floor.id, room.id, { notes: e.target.value })}
-                                    placeholder="Additional room details..."
-                                    className="h-12 resize-none text-xs"
-                                  />
-                                </div>
+                                  {/* Room Expandable Content */}
+                                  <CollapsibleContent>
+                                    <div className="mt-3 pt-3 border-t">
+                                      {/* Room Basic Info */}
+                                      <div className="grid grid-cols-3 gap-2 mb-3">
+                                        <div>
+                                          <Label className="text-xs">Room Name</Label>
+                                          <Input
+                                            value={room.name ?? ''}
+                                            onChange={(e) => updateRoom(floor.id, room.id, { name: e.target.value })}
+                                            placeholder="e.g., Conference Room A"
+                                            className="h-7 text-xs"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs">Number</Label>
+                                          <Input
+                                            value={room.number ?? ''}
+                                            onChange={(e) => updateRoom(floor.id, room.id, { number: e.target.value })}
+                                            placeholder="e.g., 101"
+                                            className="h-7 text-xs"
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs">Type</Label>
+                                          <Input
+                                            value={room.type ?? ''}
+                                            onChange={(e) => updateRoom(floor.id, room.id, { type: e.target.value })}
+                                            placeholder="e.g., Office, Meeting"
+                                            className="h-7 text-xs"
+                                          />
+                                        </div>
+                                      </div>
 
                                 {/* Outlets Section */}
                                 <div className="mb-3 pb-3 border-t pt-3">
@@ -4019,7 +4233,10 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                     </CollapsibleContent>
                                   </Collapsible>
                                 </div>
-                              </Card>
+                                    </div>
+                                  </CollapsibleContent>
+                                </Card>
+                              </Collapsible>
                             ))}
                           </div>
                         </div>
