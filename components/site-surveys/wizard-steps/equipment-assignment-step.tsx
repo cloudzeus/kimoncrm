@@ -128,7 +128,7 @@ export function EquipmentAssignmentStep({
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isAddNewRackDialogOpen, setIsAddNewRackDialogOpen] = useState(false);
   const [selectedElement, setSelectedElement] = useState<{
-    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack';
+    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack' | 'connection';
     buildingId: string;
     floorId?: string;
     rackId?: string;
@@ -645,9 +645,64 @@ export function EquipmentAssignmentStep({
                 return { ...rack, cableTerminations: updatedTerminations };
               }
 
+              if (selectedElement.type === 'switch' && rack.switches) {
+                const updatedSwitches = rack.switches.map(sw => {
+                  if (sw.id === selectedElement.elementId) {
+                    return {
+                      ...sw,
+                      isFutureProposal: true,
+                      productId: selectedProductId,
+                      quantity: productQuantity,
+                    };
+                  }
+                  return sw;
+                });
+                return { ...rack, switches: updatedSwitches };
+              }
+
+              if (selectedElement.type === 'router' && rack.routers) {
+                const updatedRouters = rack.routers.map(router => {
+                  if (router.id === selectedElement.elementId) {
+                    return {
+                      ...router,
+                      isFutureProposal: true,
+                      productId: selectedProductId,
+                      quantity: productQuantity,
+                    };
+                  }
+                  return router;
+                });
+                return { ...rack, routers: updatedRouters };
+              }
+
               return rack;
             });
             return { ...floor, racks: updatedRacks };
+          }
+
+          // Handle room elements
+          if (selectedElement.roomId) {
+            const updatedRooms = floor.rooms.map(room => {
+              if (room.id !== selectedElement.roomId) return room;
+
+              if (selectedElement.type === 'device') {
+                const updatedDevices = room.devices.map(device => {
+                  if (device.id === selectedElement.elementId) {
+                    return {
+                      ...device,
+                      isFutureProposal: true,
+                      productId: selectedProductId,
+                      quantity: productQuantity,
+                    };
+                  }
+                  return device;
+                });
+                return { ...room, devices: updatedDevices };
+              }
+
+              return room;
+            });
+            return { ...floor, rooms: updatedRooms };
           }
 
           return floor;
@@ -767,30 +822,71 @@ export function EquipmentAssignmentStep({
         };
       }
 
-      // Handle floor rack terminations
-      if (selectedElement.floorId && selectedElement.rackId) {
+      // Handle floor-level elements
+      if (selectedElement.floorId) {
         const updatedFloors = building.floors.map(floor => {
           if (floor.id !== selectedElement.floorId) return floor;
 
-          const updatedRacks = (floor.racks || []).map(rack => {
-            if (rack.id !== selectedElement.rackId) return rack;
+          // Handle rack elements
+          if (selectedElement.rackId) {
+            const updatedRacks = (floor.racks || []).map(rack => {
+              if (rack.id !== selectedElement.rackId) return rack;
 
-            if (selectedElement.type === 'termination' && rack.cableTerminations) {
-              const updatedTerminations = rack.cableTerminations.map(term => {
-                if (term.id === selectedElement.elementId) {
-                  return {
-                    ...term,
-                    services: [...(term.services || []), newService],
-                  };
-                }
-                return term;
-              });
-              return { ...rack, cableTerminations: updatedTerminations };
-            }
+              if (selectedElement.type === 'termination' && rack.cableTerminations) {
+                const updatedTerminations = rack.cableTerminations.map(term => {
+                  if (term.id === selectedElement.elementId) {
+                    return {
+                      ...term,
+                      services: [...(term.services || []), newService],
+                    };
+                  }
+                  return term;
+                });
+                return { ...rack, cableTerminations: updatedTerminations };
+              }
 
-            return rack;
-          });
-          return { ...floor, racks: updatedRacks };
+              if (selectedElement.type === 'switch' && rack.switches) {
+                const updatedSwitches = rack.switches.map(sw => {
+                  if (sw.id === selectedElement.elementId) {
+                    return {
+                      ...sw,
+                      services: [...(sw.services || []), newService],
+                    };
+                  }
+                  return sw;
+                });
+                return { ...rack, switches: updatedSwitches };
+              }
+
+              return rack;
+            });
+            return { ...floor, racks: updatedRacks };
+          }
+
+          // Handle room elements
+          if (selectedElement.roomId) {
+            const updatedRooms = floor.rooms.map(room => {
+              if (room.id !== selectedElement.roomId) return room;
+
+              if (selectedElement.type === 'device') {
+                const updatedDevices = room.devices.map(device => {
+                  if (device.id === selectedElement.elementId) {
+                    return {
+                      ...device,
+                      services: [...(device.services || []), newService],
+                    };
+                  }
+                  return device;
+                });
+                return { ...room, devices: updatedDevices };
+              }
+
+              return room;
+            });
+            return { ...floor, rooms: updatedRooms };
+          }
+
+          return floor;
         });
         return { ...building, floors: updatedFloors };
       }
@@ -1497,7 +1593,7 @@ export function EquipmentAssignmentStep({
                           }}
                         >
                           <ImageIcon className="h-3 w-3 mr-1" />
-                          {product.images.length} Images
+                          {product.images?.length || 0} Images
                         </Button>
                       )}
                       {!hasSpecs && (
