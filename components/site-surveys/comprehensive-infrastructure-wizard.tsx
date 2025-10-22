@@ -250,6 +250,27 @@ export interface PhoneLineData {
   phoneNumbers: string[];
 }
 
+export interface HeadendData {
+  id: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  channels?: number;
+  type?: 'CATV' | 'IPTV' | 'SATELLITE' | 'OTHER';
+  notes?: string;
+}
+
+export interface LoRaWANGatewayData {
+  id: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  eui?: string; // Gateway EUI (unique identifier)
+  frequency?: string; // e.g., EU868, US915
+  ip?: string;
+  notes?: string;
+}
+
 export interface FloorData {
   id: string;
   name: string;
@@ -273,8 +294,13 @@ export interface FloorRackData {
   notes?: string;
   cableTerminations?: CableTerminationData[];
   connections: ConnectionData[];
-  ata?: ATAData;
   switches: SwitchData[];
+  routers?: RouterData[];
+  ata?: ATAData;
+  nvr?: NVRData;
+  servers?: ServerData[];
+  headend?: HeadendData;
+  loraWanGateway?: LoRaWANGatewayData;
 }
 
 export interface RoomData {

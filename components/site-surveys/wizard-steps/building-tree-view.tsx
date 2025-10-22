@@ -438,6 +438,147 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
     toggleFloorRackSection(rackId, 'connections');
   };
 
+  // Add router to floor rack
+  const addFloorRackRouter = (floorId: string, rackId: string) => {
+    const newRouter: any = {
+      id: `router-${Date.now()}`,
+      brand: '',
+      model: '',
+      ip: '',
+      interfaces: [],
+      connections: [],
+      services: [],
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            routers: [...(rack.routers || []), newRouter]
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+    toggleFloorRackSection(rackId, 'routers');
+  };
+
+  // Add server to floor rack
+  const addFloorRackServer = (floorId: string, rackId: string) => {
+    const newServer: any = {
+      id: `server-${Date.now()}`,
+      name: '',
+      type: '',
+      virtualMachines: [],
+      services: [],
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            servers: [...(rack.servers || []), newServer]
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+    toggleFloorRackSection(rackId, 'servers');
+  };
+
+  // Add ATA to floor rack
+  const addFloorRackATA = (floorId: string, rackId: string) => {
+    const newATA: any = {
+      id: `ata-${Date.now()}`,
+      brand: '',
+      model: '',
+      ports: 0,
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            ata: newATA
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add NVR to floor rack
+  const addFloorRackNVR = (floorId: string, rackId: string) => {
+    const newNVR: any = {
+      id: `nvr-${Date.now()}`,
+      channels: 0,
+      vms: '',
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            nvr: newNVR
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add Headend to floor rack
+  const addFloorRackHeadend = (floorId: string, rackId: string) => {
+    const newHeadend: any = {
+      id: `headend-${Date.now()}`,
+      name: '',
+      brand: '',
+      model: '',
+      channels: 0,
+      type: 'IPTV',
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            headend: newHeadend
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
+  // Add LoRaWAN Gateway to floor rack
+  const addFloorRackLoRaWAN = (floorId: string, rackId: string) => {
+    const newGateway: any = {
+      id: `lorawan-${Date.now()}`,
+      name: '',
+      brand: '',
+      model: '',
+      eui: '',
+      frequency: 'EU868',
+    };
+    const updatedFloors = building.floors.map(floor =>
+      floor.id === floorId ? {
+        ...floor,
+        racks: (floor.racks || []).map(rack =>
+          rack.id === rackId ? {
+            ...rack,
+            loraWanGateway: newGateway
+          } : rack
+        )
+      } : floor
+    );
+    onUpdate({ ...building, floors: updatedFloors });
+  };
+
   // Update room
   const updateRoom = (floorId: string, roomId: string, updates: any) => {
     const updatedFloors = building.floors.map(floor =>
@@ -3927,6 +4068,31 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                               <Network className="h-4 w-4 mr-2" />
                                               Switch
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackRouter(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Wifi className="h-4 w-4 mr-2" />
+                                              Router
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackServer(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Server className="h-4 w-4 mr-2" />
+                                              Server
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackATA(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Phone className="h-4 w-4 mr-2" />
+                                              ATA
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackNVR(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Camera className="h-4 w-4 mr-2" />
+                                              NVR
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackHeadend(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Monitor className="h-4 w-4 mr-2" />
+                                              Headend
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => { addFloorRackLoRaWAN(floor.id, rack.id); toggleFloorRack(rack.id); }}>
+                                              <Wifi className="h-4 w-4 mr-2" />
+                                              LoRaWAN Gateway
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => { addFloorRackConnection(floor.id, rack.id); toggleFloorRack(rack.id); }}>
                                               <Cable className="h-4 w-4 mr-2" />
                                               Connection
