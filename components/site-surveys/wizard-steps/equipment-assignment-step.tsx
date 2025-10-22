@@ -56,6 +56,9 @@ import {
   Upload,
   Image as ImageIcon,
   X,
+  Tv,
+  Cpu,
+  Box,
 } from "lucide-react";
 import { BuildingData, FloorData, CableTerminationData, ServiceAssociationData } from "../comprehensive-infrastructure-wizard";
 import { useToast } from "@/hooks/use-toast";
@@ -148,6 +151,11 @@ export function EquipmentAssignmentStep({
   const [translationsDialogOpen, setTranslationsDialogOpen] = useState(false);
   const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Device type selection dialog
+  const [deviceTypeDialogOpen, setDeviceTypeDialogOpen] = useState(false);
+  const [selectedDeviceType, setSelectedDeviceType] = useState<'PHONE' | 'VOIP_PHONE' | 'PC' | 'TV' | 'AP' | 'CAMERA' | 'IOT' | 'OTHER'>('PC');
+  const [pendingRoomInfo, setPendingRoomInfo] = useState<{ buildingId: string; floorId: string; roomId: string } | null>(null);
   
   // New rack form
   const [newRackName, setNewRackName] = useState("");
@@ -377,14 +385,15 @@ export function EquipmentAssignmentStep({
   };
 
   // Add NEW device to existing room
-  const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string) => {
+  const addNewDeviceToRoom = (buildingId: string, floorId: string, roomId: string, deviceType: 'PHONE' | 'VOIP_PHONE' | 'PC' | 'TV' | 'AP' | 'CAMERA' | 'IOT' | 'OTHER') => {
     const newDevice: any = {
       id: `device-proposal-${Date.now()}`,
-      type: '',
+      type: deviceType,
       quantity: 1,
       brand: '',
       model: '',
       isFutureProposal: true,
+      services: [],
     };
 
     const updatedBuildings = localBuildings.map(building => {
@@ -1586,7 +1595,10 @@ export function EquipmentAssignmentStep({
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                          <DropdownMenuItem onClick={() => addNewDeviceToRoom(building.id, floor.id, room.id)}>
+                                          <DropdownMenuItem onClick={() => {
+                                            setPendingRoomInfo({ buildingId: building.id, floorId: floor.id, roomId: room.id });
+                                            setDeviceTypeDialogOpen(true);
+                                          }}>
                                             <Monitor className="h-4 w-4 mr-2" />New Device
                                           </DropdownMenuItem>
                                           <DropdownMenuItem onClick={() => addNewOutletToRoom(building.id, floor.id, room.id)}>
@@ -2092,6 +2104,102 @@ export function EquipmentAssignmentStep({
           />
         </>
       )}
+
+      {/* Device Type Selection Dialog */}
+      <Dialog open={deviceTypeDialogOpen} onOpenChange={setDeviceTypeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Device Type</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant={selectedDeviceType === 'PC' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('PC')}
+              >
+                <Monitor className="h-6 w-6" />
+                <span>Computer / PC</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'PHONE' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('PHONE')}
+              >
+                <Phone className="h-6 w-6" />
+                <span>Phone</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'VOIP_PHONE' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('VOIP_PHONE')}
+              >
+                <Phone className="h-6 w-6" />
+                <span>VoIP Phone</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'TV' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('TV')}
+              >
+                <Tv className="h-6 w-6" />
+                <span>TV / Display</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'AP' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('AP')}
+              >
+                <Wifi className="h-6 w-6" />
+                <span>Access Point</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'CAMERA' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('CAMERA')}
+              >
+                <Camera className="h-6 w-6" />
+                <span>Camera</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'IOT' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('IOT')}
+              >
+                <Cpu className="h-6 w-6" />
+                <span>IoT / Sensor</span>
+              </Button>
+              <Button
+                variant={selectedDeviceType === 'OTHER' ? 'default' : 'outline'}
+                className="h-20 flex-col gap-2"
+                onClick={() => setSelectedDeviceType('OTHER')}
+              >
+                <Box className="h-6 w-6" />
+                <span>Other Device</span>
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeviceTypeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              if (pendingRoomInfo) {
+                addNewDeviceToRoom(
+                  pendingRoomInfo.buildingId,
+                  pendingRoomInfo.floorId,
+                  pendingRoomInfo.roomId,
+                  selectedDeviceType
+                );
+                setDeviceTypeDialogOpen(false);
+                setPendingRoomInfo(null);
+              }
+            }}>
+              Add Device
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
