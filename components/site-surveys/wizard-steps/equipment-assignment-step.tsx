@@ -1445,6 +1445,28 @@ export function EquipmentAssignmentStep({
                                                       </Button>
                                                     </div>
                                                   </div>
+                                                  {/* Show assigned product */}
+                                                  {termination.productId && (
+                                                    <div className="pl-4 mb-1">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                        <Package className="h-3 w-3 text-blue-600" />
+                                                        <span className="font-medium">{products.find(p => p.id === termination.productId)?.name || 'Product'}</span>
+                                                        <span className="text-muted-foreground">× {termination.quantity}</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {/* Show assigned services */}
+                                                  {termination.services && termination.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {termination.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
                                                 </div>
                                               ))}
                                   </div>
