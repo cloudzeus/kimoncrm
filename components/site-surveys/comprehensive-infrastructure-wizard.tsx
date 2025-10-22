@@ -511,10 +511,17 @@ export function ComprehensiveInfrastructureWizard({
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < STEPS.length) {
+      // Auto-save before moving to next step (especially important before Equipment step)
+      if (currentStep === 1) {
+        toast.info("Saving infrastructure data...");
+        await saveProgress();
+      }
       setCurrentStep(currentStep + 1);
-      saveProgress();
+      if (currentStep !== 1) {
+        saveProgress(); // Background save for other steps
+      }
     }
   };
 

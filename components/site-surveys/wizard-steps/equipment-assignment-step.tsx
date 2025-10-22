@@ -67,6 +67,24 @@ interface EquipmentAssignmentStepProps {
   siteSurveyId?: string;
 }
 
+// Auto-save function
+const autoSaveInfrastructure = async (siteSurveyId: string, buildings: BuildingData[]) => {
+  try {
+    await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        infrastructureData: {
+          buildings,
+        },
+      }),
+    });
+    console.log('✅ Infrastructure auto-saved');
+  } catch (error) {
+    console.error('Failed to auto-save infrastructure:', error);
+  }
+};
+
 export function EquipmentAssignmentStep({
   buildings,
   onUpdate,
@@ -111,6 +129,9 @@ export function EquipmentAssignmentStep({
     buildingId: string;
     floorId: string;
   } | null>(null);
+  
+  // Track last sync for debugging
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // Fetch products and services
   useEffect(() => {
@@ -150,9 +171,16 @@ export function EquipmentAssignmentStep({
     }
   };
 
-  // Sync local state with props
+  // Sync local state with props - ensures changes from Step 1 appear here
   useEffect(() => {
+    console.log('🔄 Equipment Step: Syncing buildings from Step 1', buildings.length, 'buildings');
     setLocalBuildings(buildings);
+    setLastSyncTime(new Date());
+    
+    // Auto-expand first building for better UX
+    if (buildings.length > 0 && expandedBuildings.size === 0) {
+      setExpandedBuildings(new Set([buildings[0].id]));
+    }
   }, [buildings]);
 
   // Toggle functions
@@ -292,7 +320,13 @@ export function EquipmentAssignmentStep({
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     setIsProductDialogOpen(false);
-    toast({ title: "Success", description: `Product "${product.name}" assigned` });
+    
+    // Auto-save
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    
+    toast({ title: "Success", description: `Product "${product.name}" assigned and saved` });
   };
 
   // Open new rack dialog
@@ -344,9 +378,15 @@ export function EquipmentAssignmentStep({
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     setIsAddNewRackDialogOpen(false);
+    
+    // Auto-save the new infrastructure
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    
     toast({ 
       title: "Success", 
-      description: `New rack "${newRackName}" added as future proposal` 
+      description: `New rack "${newRackName}" added as future proposal and saved` 
     });
   };
 
@@ -420,16 +460,49 @@ export function EquipmentAssignmentStep({
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     setIsServiceDialogOpen(false);
-    toast({ title: "Success", description: `Service "${service.name}" assigned` });
+    
+    // Auto-save
+    if (siteSurveyId) {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }
+    
+    toast({ title: "Success", description: `Service "${service.name}" assigned and saved` });
   };
 
   return (
     <div className="space-y-6">
+      {/* Info Banner */}
+      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-blue-600 rounded-full p-2">
+            <Package className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm mb-1">How This Step Works</h3>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• <strong>Review</strong> your infrastructure from Step 1 (automatically synced)</li>
+              <li>• <strong>Add NEW elements</strong> (marked as ⚡ Future Proposals) using "Add New Rack" buttons</li>
+              <li>• <strong>Assign products</strong> from catalog to existing or new elements</li>
+              <li>• <strong>Assign services</strong> (installation, cabling, etc.) to any element</li>
+              <li>• <strong>Changes auto-save</strong> - Go back to Step 1 anytime to modify infrastructure</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Equipment & Product Assignment
+            <Badge variant="secondary" className="ml-2">
+              {localBuildings.length} Building{localBuildings.length !== 1 ? 's' : ''}
+            </Badge>
+            {lastSyncTime && (
+              <Badge variant="outline" className="text-xs text-green-600">
+                ✓ Synced {lastSyncTime.toLocaleTimeString()}
+              </Badge>
+            )}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Review your infrastructure and assign products/services to each element. 
