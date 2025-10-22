@@ -1484,9 +1484,14 @@ export function EquipmentAssignmentStep({
 
                                         {/* Switches */}
                                         {rack.switches && rack.switches.length > 0 && (
-                                <div>
-                                            <Label className="text-xs font-semibold mb-2 block">Switches</Label>
-                                            <div className="space-y-1">
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">Switches ({rack.switches.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1">
                                               {rack.switches.map((sw) => (
                                                 <div key={sw.id} className="p-2 bg-muted/30 rounded">
                                                   <div className="flex items-center justify-between mb-2">
@@ -1540,9 +1545,9 @@ export function EquipmentAssignmentStep({
                                                   )}
                                                 </div>
                                               ))}
-                                  </div>
-                                </div>
-                              )}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
 
                                         {/* Connections */}
                                         {rack.connections && rack.connections.length > 0 && (
