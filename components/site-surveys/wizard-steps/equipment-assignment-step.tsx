@@ -1351,27 +1351,75 @@ export function EquipmentAssignmentStep({
                                                     <div className="flex items-center gap-2 flex-1">
                                                       <Cable className="h-3 w-3" />
                                                       {isNewElement(termination) ? (
-                                                        <div className="flex items-center gap-2 flex-1">
-                                                          <select
-                                                            value={termination.cableType}
-                                                            onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { cableType: e.target.value })}
-                                                            className="h-6 text-xs border rounded px-1"
-                                                          >
-                                                            <option value="CAT6">CAT6</option>
-                                                            <option value="CAT6A">CAT6A</option>
-                                                            <option value="CAT5e">CAT5e</option>
-                                                            <option value="FIBER_SM">Fiber SM</option>
-                                                            <option value="FIBER_MM">Fiber MM</option>
-                                                          </select>
-                                                          <span className="text-xs">×</span>
-                                                          <Input
-                                                            type="number"
-                                                            value={termination.quantity}
-                                                            onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { quantity: parseInt(e.target.value) || 0 })}
-                                                            className="h-6 w-16 text-xs"
-                                                            min="0"
-                                                          />
-                                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                        <div className="flex-1">
+                                                          <div className="flex items-center gap-2 mb-2">
+                                                            <select
+                                                              value={termination.cableType}
+                                                              onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { cableType: e.target.value })}
+                                                              className="h-6 text-xs border rounded px-1"
+                                                            >
+                                                              <option value="CAT6">CAT6</option>
+                                                              <option value="CAT6A">CAT6A</option>
+                                                              <option value="CAT5e">CAT5e</option>
+                                                              <option value="FIBER_SM">Fiber SM</option>
+                                                              <option value="FIBER_MM">Fiber MM</option>
+                                                            </select>
+                                                            <span className="text-xs">×</span>
+                                                            <Input
+                                                              type="number"
+                                                              value={termination.quantity}
+                                                              onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { quantity: parseInt(e.target.value) || 0 })}
+                                                              className="h-6 w-16 text-xs"
+                                                              min="0"
+                                                            />
+                                                            <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                          </div>
+                                                          {(termination.cableType === 'FIBER_SM' || termination.cableType === 'FIBER_MM') && (
+                                                            <div className="grid grid-cols-2 gap-2 mb-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200">
+                                                              <div>
+                                                                <Label className="text-xs">Total Fibers</Label>
+                                                                <Input
+                                                                  type="number"
+                                                                  value={termination.totalFibers || ''}
+                                                                  onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { totalFibers: parseInt(e.target.value) || undefined })}
+                                                                  placeholder="e.g., 12, 24, 48"
+                                                                  className="h-6 text-xs"
+                                                                  min="1"
+                                                                />
+                                                              </div>
+                                                              <div>
+                                                                <Label className="text-xs">Terminated</Label>
+                                                                <Input
+                                                                  type="number"
+                                                                  value={termination.terminatedFibers || ''}
+                                                                  onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { terminatedFibers: parseInt(e.target.value) || undefined })}
+                                                                  placeholder="e.g., 8"
+                                                                  className="h-6 text-xs"
+                                                                  min="0"
+                                                                />
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                          <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                              <Label className="text-xs">From</Label>
+                                                              <Input
+                                                                value={termination.fromLocation || ''}
+                                                                onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { fromLocation: e.target.value })}
+                                                                placeholder="Source location"
+                                                                className="h-6 text-xs"
+                                                              />
+                                                            </div>
+                                                            <div>
+                                                              <Label className="text-xs">To</Label>
+                                                              <Input
+                                                                value={termination.toLocation || ''}
+                                                                onChange={(e) => updateNewElement(building.id, floor.id, rack.id, undefined, 'termination', termination.id, { toLocation: e.target.value })}
+                                                                placeholder="Destination"
+                                                                className="h-6 text-xs"
+                                                              />
+                                                            </div>
+                                                          </div>
                                                         </div>
                                                       ) : (
                                                         <>
