@@ -240,6 +240,11 @@ export function EquipmentAssignmentStep({
     });
   };
 
+  // Helper to check if element is new/proposal
+  const isNewElement = (element: any) => {
+    return element?.isFutureProposal || element?.id?.includes('proposal');
+  };
+
   // Open dialogs
   const openProductDialog = (elementInfo: typeof selectedElement) => {
     setSelectedElement(elementInfo);
