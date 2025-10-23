@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { FileText, Download, Building2, User, Phone, Mail, MapPin } from "lucide
 interface ProposalDocumentStepProps {
   buildings: BuildingData[];
   onComplete: () => void;
+  siteSurveyId: string;
 }
 
 interface CompanyDetails {
@@ -38,9 +39,11 @@ interface CustomerDetails {
 export default function ProposalDocumentStep({
   buildings,
   onComplete,
+  siteSurveyId
 }: ProposalDocumentStepProps) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Company details form
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({
@@ -61,6 +64,59 @@ export default function ProposalDocumentStep({
     phone: "",
     email: ""
   });
+
+  // Fetch company and customer data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch company details
+        const companyRes = await fetch('/api/settings/default-company');
+        if (companyRes.ok) {
+          const companyData = await companyRes.json();
+          if (companyData.data) {
+            setCompanyDetails({
+              name: companyData.data.companyName || "Your Company Name",
+              description: "Information Technology & Telecommunications Systems",
+              address: `${companyData.data.address || ''}, ${companyData.data.city || ''} ${companyData.data.zip || ''}`.trim(),
+              taxId: companyData.data.taxId || "N/A",
+              taxOffice: companyData.data.taxOffice || "N/A",
+              phone: companyData.data.phone1 || companyData.data.phone2 || "N/A",
+              email: companyData.data.email || "info@company.com"
+            });
+          }
+        }
+
+        // Fetch site survey with customer data
+        const surveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+        if (surveyRes.ok) {
+          const surveyData = await surveyRes.json();
+          if (surveyData.survey?.customer) {
+            const customer = surveyData.survey.customer;
+            setCustomerDetails({
+              name: customer.name || "",
+              address: customer.address || "",
+              contactPerson: surveyData.survey.contact?.name || "",
+              phone: customer.phone01 || customer.phone02 || "",
+              email: customer.email || ""
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Warning",
+          description: "Could not load company/customer details. Please fill them manually.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [siteSurveyId, toast]);
 
   const handleGenerateProposal = async () => {
     if (!customerDetails.name.trim()) {
@@ -207,6 +263,17 @@ export default function ProposalDocumentStep({
   };
 
   const summary = getProposedItemsSummary();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading company and customer details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

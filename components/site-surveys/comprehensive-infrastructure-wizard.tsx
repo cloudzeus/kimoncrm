@@ -622,12 +622,13 @@ export function ComprehensiveInfrastructureWizard({
                 siteSurveyId={siteSurveyId}
               />
             )}
-            {currentStep === 4 && (
-              <ProposalDocumentStep
-                buildings={wizardData.buildings}
-                onComplete={onComplete}
-              />
-            )}
+        {currentStep === 4 && (
+          <ProposalDocumentStep
+            buildings={wizardData.buildings}
+            onComplete={onComplete}
+            siteSurveyId={siteSurveyId}
+          />
+        )}
           </CardContent>
         </Card>
 
