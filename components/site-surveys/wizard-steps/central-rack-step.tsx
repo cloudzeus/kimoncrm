@@ -595,55 +595,48 @@ export function CentralRackStep({
 
   const handleGenerateBOM = async () => {
     try {
-      const response = await fetch('/api/proposals/generate', {
+      // Prepare products data with pricing
+      const productsWithPricing = Object.values(productsByBrand).flat().map((product: any) => {
+        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        return {
+          ...product,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice * product.quantity
+        };
+      });
+
+      // Prepare services data with pricing
+      const servicesWithPricing = collectedServices.map((service: any) => {
+        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        return {
+          ...service,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice * service.quantity
+        };
+      });
+
+      const response = await fetch('/api/site-surveys/generate-bom-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          building: buildings[0],
-          companyDetails: {
-            name: "Your Company",
-            description: "IT & Telecommunications",
-            address: "Your Address",
-            taxId: "123456789",
-            taxOffice: "Your Tax Office",
-            phone: "+30 210-1234567",
-            email: "info@yourcompany.com"
-          },
-          customerDetails: {
-            name: "Customer Name",
-            address: "Customer Address"
-          },
-          products: products.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: `${p.category} - ${p.name}`,
-            specifications: [`Brand: ${p.brand}`, `Category: ${p.category}`, `Locations: ${p.locations.join(', ')}`],
-            quantity: p.quantity,
-            unitPrice: productPricing.get(p.id)?.unitPrice || 0,
-            totalPrice: (productPricing.get(p.id)?.totalPrice || 0) * p.quantity,
-            brand: p.brand,
-            category: p.category
-          })),
-          services: services.map(s => ({
-            id: s.id,
-            name: s.name,
-            description: `${s.category} - ${s.name}`,
-            quantity: s.quantity,
-            unitPrice: servicePricing.get(s.id)?.unitPrice || 0,
-            totalPrice: (servicePricing.get(s.id)?.totalPrice || 0) * s.quantity
-          }))
-        }),
+          products: productsWithPricing,
+          services: servicesWithPricing,
+          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+        })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate BOM');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate BOM');
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `BOM-${new Date().toISOString().split('T')[0]}.docx`;
+      a.download = `BOM-${buildings[0]?.name || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -651,14 +644,14 @@ export function CentralRackStep({
 
       toast({
         title: "Success",
-        description: "BOM document generated successfully!",
+        description: "BOM Excel generated successfully!",
       });
 
     } catch (error) {
       console.error('Error generating BOM:', error);
       toast({
         title: "Error",
-        description: "Failed to generate BOM document",
+        description: error instanceof Error ? error.message : "Failed to generate BOM",
         variant: "destructive",
       });
     }
