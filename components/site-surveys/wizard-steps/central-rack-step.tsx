@@ -593,6 +593,48 @@ export function CentralRackStep({
     setServicePricing(new Map(servicePricing.set(serviceId, updated)));
   };
 
+  const handleGenerateInfrastructureExcel = async () => {
+    try {
+      const response = await fetch('/api/site-surveys/generate-infrastructure-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildings,
+          siteSurveyId,
+          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate infrastructure Excel');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Infrastructure-${buildings[0]?.name || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Infrastructure Excel generated successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error generating infrastructure Excel:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate infrastructure Excel",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleGenerateBOM = async () => {
     try {
       // Prepare products data with pricing
@@ -735,10 +777,16 @@ export function CentralRackStep({
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold">Προϊόντα ανά Μάρκα</h3>
-          <Button onClick={handleGenerateBOM} className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Δημιουργία BOM
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleGenerateInfrastructureExcel} variant="outline" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Υποδομή Excel
+            </Button>
+            <Button onClick={handleGenerateBOM} className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Δημιουργία BOM
+            </Button>
+          </div>
         </div>
 
         {Object.entries(productsByBrand).map(([brand, brandProducts]) => (
