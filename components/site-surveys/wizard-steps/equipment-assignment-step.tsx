@@ -1662,11 +1662,12 @@ export function EquipmentAssignmentStep({
                                                           <Trash2 className="h-3 w-3" />
                                                         </Button>
                                                       )}
-                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      {console.log('🔍 Rendering termination buttons:', { terminationId: termination.id, isNew: isNewElement(termination), hasProductId: !!termination.productId })}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2 bg-blue-500 text-white"
                                                         onClick={() => openProductDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                         <Package className="h-3 w-3" />
                                                       </Button>
-                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2 bg-green-500 text-white"
                                                         onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                         <Wrench className="h-3 w-3" />
                                                       </Button>
