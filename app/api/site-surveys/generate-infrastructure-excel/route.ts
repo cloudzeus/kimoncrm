@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate the Excel workbook for the first building
-    const buffer = await generateBuildingExcelReport(buildings[0]);
+    const workbook = await generateBuildingExcelReport(buildings[0]);
+    
+    // Convert workbook to buffer
+    const buffer = await workbook.xlsx.writeBuffer();
 
     // Return the file
     const filename = `Infrastructure-Report-${siteSurveyName || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;

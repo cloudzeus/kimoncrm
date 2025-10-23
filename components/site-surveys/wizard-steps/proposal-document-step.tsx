@@ -288,17 +288,114 @@ export default function ProposalDocumentStep({
     setIsGenerating(true);
 
     try {
+      // Load saved pricing from Step 3
+      let productPricingMap = new Map();
+      let servicePricingMap = new Map();
+      
+      try {
+        const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
+        const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
+        
+        if (savedProductPricing) {
+          productPricingMap = new Map(JSON.parse(savedProductPricing));
+        }
+        if (savedServicePricing) {
+          servicePricingMap = new Map(JSON.parse(savedServicePricing));
+        }
+      } catch (err) {
+        console.warn('Could not load pricing data:', err);
+      }
+
+      // Collect products and services with pricing
+      const products: any[] = [];
+      const services: any[] = [];
+      
+      buildings.forEach(building => {
+        // Central rack products
+        if (building.centralRack) {
+          building.centralRack.cableTerminations?.forEach(term => {
+            if (term.productId && term.isFutureProposal) {
+              const pricing = productPricingMap.get(term.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+              products.push({
+                id: term.productId,
+                name: `${term.cableType} Termination`,
+                description: `Cable termination for ${term.cableType}`,
+                specifications: [`Type: ${term.cableType}`, `Quantity: ${term.quantity || 1}`],
+                quantity: term.quantity || 1,
+                unitPrice: pricing.unitPrice,
+                totalPrice: pricing.totalPrice * (term.quantity || 1),
+                brand: 'Generic',
+                category: 'Cable Termination'
+              });
+            }
+            
+            term.services?.forEach(svc => {
+              const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+              services.push({
+                id: svc.serviceId,
+                name: 'Termination Service',
+                description: 'Installation service',
+                quantity: svc.quantity || 1,
+                unitPrice: pricing.unitPrice,
+                totalPrice: pricing.totalPrice * (svc.quantity || 1)
+              });
+            });
+          });
+        }
+
+        // Floor racks and rooms
+        building.floors?.forEach(floor => {
+          floor.racks?.forEach(rack => {
+            rack.switches?.forEach(sw => {
+              if (sw.productId && sw.isFutureProposal) {
+                const pricing = productPricingMap.get(sw.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: sw.productId,
+                  name: sw.model || 'Network Switch',
+                  description: `${sw.brand || 'Network'} Switch`,
+                  specifications: [`Brand: ${sw.brand}`, `Model: ${sw.model}`, `Ports: ${sw.ports}`],
+                  quantity: 1,
+                  unitPrice: pricing.unitPrice,
+                  totalPrice: pricing.totalPrice,
+                  brand: sw.brand || 'Generic',
+                  category: 'Network Switch'
+                });
+              }
+            });
+          });
+
+          floor.rooms?.forEach(room => {
+            room.devices?.forEach(device => {
+              if (device.productId && device.isFutureProposal) {
+                const pricing = productPricingMap.get(device.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: device.productId,
+                  name: device.model || device.type,
+                  description: `${device.type} Device`,
+                  specifications: [`Type: ${device.type}`, `Brand: ${device.brand}`, `Model: ${device.model}`],
+                  quantity: device.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  totalPrice: pricing.totalPrice * (device.quantity || 1),
+                  brand: device.brand || 'Generic',
+                  category: device.type
+                });
+              }
+            });
+          });
+        });
+      });
+
       const response = await fetch('/api/proposals/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          building: buildings[0], // Use first building for now
+          building: buildings[0],
           companyDetails,
           customerDetails,
-          products: [], // Will be populated from the infrastructure data
-          services: []  // Will be populated from the infrastructure data
+          products,
+          services
         }),
       });
 
