@@ -844,6 +844,14 @@ export function EquipmentAssignmentStep({
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
+    console.log('🔍 Adding product to element:', {
+      elementType: selectedElement.type,
+      productId: selectedProductId,
+      productName: product.name,
+      quantity: productQuantity,
+      element: selectedElement
+    });
+
     const updatedBuildings = localBuildings.map(building => {
       if (building.id !== selectedElement.buildingId) return building;
 
@@ -992,12 +1000,14 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
-    console.log('✅ Product assigned:', {
+    console.log('✅ Product assigned - Before update:', {
       elementType: selectedElement.type,
       productName: product.name,
       quantity: productQuantity,
-      updatedBuildings
+      selectedElement
     });
+
+    console.log('✅ Product assigned - Updated buildings:', updatedBuildings);
     
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
@@ -1009,6 +1019,8 @@ export function EquipmentAssignmentStep({
     }
     
     toast({ title: "Success", description: `Product "${product.name}" assigned and saved` });
+    
+    console.log('✅ Product assignment complete - Check if visible in DOM');
   };
 
   // Open new rack dialog
@@ -1084,6 +1096,14 @@ export function EquipmentAssignmentStep({
       serviceId: selectedServiceId,
       quantity: serviceQuantity,
     };
+
+    console.log('🔍 Adding service to element:', {
+      elementType: selectedElement.type,
+      serviceId: selectedServiceId,
+      serviceName: service.name,
+      quantity: serviceQuantity,
+      element: selectedElement
+    });
 
     const updatedBuildings = localBuildings.map(building => {
       if (building.id !== selectedElement.buildingId) return building;
@@ -1206,6 +1226,8 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
+    console.log('✅ Service assigned - Updated buildings:', updatedBuildings);
+    
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     setIsServiceDialogOpen(false);
@@ -1216,6 +1238,8 @@ export function EquipmentAssignmentStep({
     }
     
     toast({ title: "Success", description: `Service "${service.name}" assigned and saved` });
+    
+    console.log('✅ Service assignment complete - Check if visible in DOM');
   };
 
   return (
