@@ -114,7 +114,7 @@ export function EquipmentAssignmentStep({
   siteSurveyId,
 }: EquipmentAssignmentStepProps) {
   const { toast } = useToast();
-  const [localBuildings, setLocalBuildings] = useState<BuildingData[]>(buildings);
+  const [localBuildings, setLocalBuildings] = useState<BuildingData[]>([]);
   const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
   const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
   const [expandedRacks, setExpandedRacks] = useState<Set<string>>(new Set());
@@ -1790,9 +1790,15 @@ export function EquipmentAssignmentStep({
                                                   </div>
                                                   
                                                   {/* DEBUG: Always show this section */}
-                                                  <div className="pl-4 mb-1 border-2 border-red-500">
+                                                  <div className="pl-4 mb-1 border-2 border-red-500 p-2">
+                                                    <div className="text-xs font-bold text-red-600">
+                                                      DEBUG: termId = {termination.id}
+                                                    </div>
                                                     <div className="text-xs font-bold text-red-600">
                                                       DEBUG: productId = {termination.productId || 'NONE'}
+                                                    </div>
+                                                    <div className="text-xs font-bold text-blue-600">
+                                                      DEBUG: isNew = {termination.isFutureProposal ? 'YES' : 'NO'}
                                                     </div>
                                                   </div>
                                                   

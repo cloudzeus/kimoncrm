@@ -1314,8 +1314,8 @@ export default function ProposalDocumentStep({
                   {collectAssignedItems().products.map((item, index) => (
                     <TableRow key={`${item.id}-${index}`}>
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>{item.brand}</TableCell>
-                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{typeof item.brand === 'string' ? item.brand : item.brand?.name || 'N/A'}</TableCell>
+                      <TableCell>{typeof item.category === 'string' ? item.category : item.category?.name || 'N/A'}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>
                         {item.hasImages ? (
