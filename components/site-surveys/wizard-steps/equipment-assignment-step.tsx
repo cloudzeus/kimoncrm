@@ -515,6 +515,8 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
+    console.log('🔄 Element updated:', { buildingId, floorId, rackId, roomId, elementType, elementId, updates, updatedBuildings });
+    
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
