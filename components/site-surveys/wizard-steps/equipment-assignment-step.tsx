@@ -873,6 +873,7 @@ export function EquipmentAssignmentStep({
 
   // Open dialogs
   const openProductDialog = (elementInfo: typeof selectedElement) => {
+    console.log('🔍 Opening product dialog for:', elementInfo);
     setSelectedElement(elementInfo);
     setSelectedProductId("");
     setProductQuantity(1);
@@ -889,6 +890,8 @@ export function EquipmentAssignmentStep({
   // Add product to element
   const handleAddProduct = () => {
     if (!selectedElement || !selectedProductId) return;
+
+    console.log('🔍 handleAddProduct called with:', { selectedElement, selectedProductId, productQuantity });
 
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
