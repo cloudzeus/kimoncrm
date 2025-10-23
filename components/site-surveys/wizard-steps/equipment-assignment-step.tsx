@@ -233,16 +233,20 @@ export function EquipmentAssignmentStep({
   };
 
   // Sync local state with props - ensures changes from Step 1 appear here
+  // IMPORTANT: Only sync ONCE on mount, never overwrite after that
   useEffect(() => {
-    console.log('🔄 Equipment Step: Syncing buildings from Step 1', buildings.length, 'buildings');
-    setLocalBuildings(buildings);
-    setLastSyncTime(new Date());
-    
-    // Auto-expand first building for better UX
-    if (buildings.length > 0 && expandedBuildings.size === 0) {
+    // Only sync if localBuildings is empty (initial mount)
+    if (localBuildings.length === 0 && buildings.length > 0) {
+      console.log('🔄 Equipment Step: Initial sync from Step 1', buildings.length, 'buildings');
+      setLocalBuildings(buildings);
+      setLastSyncTime(new Date());
+      
+      // Auto-expand first building for better UX
       setExpandedBuildings(new Set([buildings[0].id]));
+    } else {
+      console.log('🔄 Equipment Step: Skipping sync - already have local data');
     }
-  }, [buildings]);
+  }, []); // Empty deps - only run once on mount
 
   // Toggle functions
   const toggleBuilding = (buildingId: string) => {
@@ -943,6 +947,7 @@ export function EquipmentAssignmentStep({
                 console.log('🔍 Processing termination update:', { 
                   rackId: rack.id, 
                   elementId: selectedElement.elementId, 
+                  productId: selectedProductId,
                   terminations: rack.cableTerminations.map(t => ({ id: t.id, productId: t.productId }))
                 });
                 const updatedTerminations = rack.cableTerminations.map(term => {
@@ -953,11 +958,11 @@ export function EquipmentAssignmentStep({
                       productId: selectedProductId,
                       quantity: productQuantity,
                     };
-                    console.log('✅ Updated termination:', { 
-                      oldTerm: term, 
-                      newTerm: updated,
-                      productId: selectedProductId,
-                      quantity: productQuantity
+                    console.log('✅ Updated termination - FOUND MATCH:', { 
+                      termId: term.id,
+                      oldProductId: term.productId,
+                      newProductId: selectedProductId,
+                      newTerm: updated
                     });
                     return updated;
                   }
@@ -1077,9 +1082,27 @@ export function EquipmentAssignmentStep({
     // Force deep copy to ensure React detects the change
     const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
     
+    console.log('🔍 Setting localBuildings with deepCopy');
     setLocalBuildings(deepCopy);
+    
+    console.log('🔍 Calling onUpdate to notify parent');
     onUpdate(deepCopy);
+    
+    console.log('🔍 Closing dialog');
     setIsProductDialogOpen(false);
+    
+    // Log the termination we just updated for verification
+    if (selectedElement.type === 'termination' && selectedElement.floorId && selectedElement.rackId) {
+      const updatedBuilding = deepCopy.find(b => b.id === selectedElement.buildingId);
+      const updatedFloor = updatedBuilding?.floors.find(f => f.id === selectedElement.floorId);
+      const updatedRack = updatedFloor?.racks?.find(r => r.id === selectedElement.rackId);
+      const updatedTerm = updatedRack?.cableTerminations?.find(t => t.id === selectedElement.elementId);
+      console.log('🔍 Verification - Updated termination in deepCopy:', {
+        termId: updatedTerm?.id,
+        productId: updatedTerm?.productId,
+        hasProduct: !!updatedTerm?.productId
+      });
+    }
     
     // Auto-save
     if (siteSurveyId) {
@@ -1653,7 +1676,19 @@ export function EquipmentAssignmentStep({
                                 <div>
                                             <Label className="text-xs font-semibold mb-2 block">Cable Terminations</Label>
                                             <div className="space-y-1">
-                                              {rack.cableTerminations.map((termination) => (
+                                              {rack.cableTerminations.map((termination) => {
+                                                const product = products.find(p => p.id === termination.productId);
+                                                console.log('🔍 Rendering termination:', { 
+                                                  id: termination.id, 
+                                                  productId: termination.productId,
+                                                  hasProduct: !!termination.productId,
+                                                  foundProduct: !!product,
+                                                  productName: product?.name,
+                                                  services: termination.services?.length || 0,
+                                                  totalProducts: products.length,
+                                                  termination: termination
+                                                });
+                                                return (
                                                 <div key={termination.id} className="p-2 bg-muted/30 rounded">
                                                   <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2 flex-1">
@@ -1753,12 +1788,20 @@ export function EquipmentAssignmentStep({
                                                       </Button>
                                                     </div>
                                                   </div>
+                                                  
+                                                  {/* DEBUG: Always show this section */}
+                                                  <div className="pl-4 mb-1 border-2 border-red-500">
+                                                    <div className="text-xs font-bold text-red-600">
+                                                      DEBUG: productId = {termination.productId || 'NONE'}
+                                                    </div>
+                                                  </div>
+                                                  
                                                   {/* Show assigned product */}
                                                   {termination.productId && (
                                                     <div className="pl-4 mb-1">
                                                       <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
-                                                        <span className="font-medium">{products.find(p => p.id === termination.productId)?.name || 'Product'}</span>
+                                                        <span className="font-medium">{product?.name || 'Product Not Found'}</span>
                                                         <span className="text-muted-foreground">× {termination.quantity}</span>
                                                       </div>
                                                     </div>
@@ -1776,7 +1819,8 @@ export function EquipmentAssignmentStep({
                                                     </div>
                                                   )}
                                                 </div>
-                                              ))}
+                                              );
+                                              })}
                                   </div>
                                 </div>
                               )}
