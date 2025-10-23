@@ -157,6 +157,24 @@ export function EquipmentAssignmentStep({
   const [selectedDeviceType, setSelectedDeviceType] = useState<'PHONE' | 'VOIP_PHONE' | 'PC' | 'TV' | 'AP' | 'CAMERA' | 'IOT' | 'OTHER'>('PC');
   const [pendingRoomInfo, setPendingRoomInfo] = useState<{ buildingId: string; floorId: string; roomId: string } | null>(null);
   
+  // Cable termination modal state
+  const [cableTerminationModalOpen, setCableTerminationModalOpen] = useState(false);
+  const [pendingTerminationData, setPendingTerminationData] = useState<{
+    buildingId: string;
+    floorId?: string;
+    rackId: string;
+  } | null>(null);
+  
+  // Cable termination form data
+  const [terminationForm, setTerminationForm] = useState({
+    cableType: 'CAT6',
+    quantity: 1,
+    totalFibers: undefined as number | undefined,
+    terminatedFibers: undefined as number | undefined,
+    fromLocation: '',
+    toLocation: ''
+  });
+  
   // New rack form
   const [newRackName, setNewRackName] = useState("");
   const [newRackLocation, setNewRackLocation] = useState("");
@@ -740,14 +758,30 @@ export function EquipmentAssignmentStep({
     toast({ title: "Success", description: "New server added as future proposal" });
   };
 
-  // Add NEW cable termination to rack
+  // Add NEW cable termination to rack - opens modal for configuration
   const addNewTerminationToRack = (buildingId: string, floorId: string | undefined, rackId: string) => {
+    setPendingTerminationData({ buildingId, floorId, rackId });
+    setCableTerminationModalOpen(true);
+  };
+
+  // Create termination from modal data
+  const createTerminationFromModal = () => {
+    if (!pendingTerminationData) return;
+
+    const { buildingId, floorId, rackId } = pendingTerminationData;
+    
     const newTermination: any = {
       id: `termination-proposal-${Date.now()}`,
-      cableType: 'CAT6',
-      quantity: 0,
+      cableType: terminationForm.cableType,
+      quantity: terminationForm.quantity,
       services: [],
       isFutureProposal: true,
+      ...(terminationForm.cableType === 'FIBER_SM' || terminationForm.cableType === 'FIBER_MM' ? {
+        totalFibers: terminationForm.totalFibers,
+        terminatedFibers: terminationForm.terminatedFibers,
+      } : {}),
+      fromLocation: terminationForm.fromLocation,
+      toLocation: terminationForm.toLocation,
     };
 
     const updatedBuildings = localBuildings.map(building => {
@@ -778,6 +812,19 @@ export function EquipmentAssignmentStep({
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    
+    // Reset form and close modal
+    setTerminationForm({
+      cableType: 'CAT6',
+      quantity: 1,
+      totalFibers: undefined,
+      terminatedFibers: undefined,
+      fromLocation: '',
+      toLocation: ''
+    });
+    setCableTerminationModalOpen(false);
+    setPendingTerminationData(null);
+    
     toast({ title: "Success", description: "New cable termination added as future proposal" });
   };
 
@@ -2495,6 +2542,110 @@ export function EquipmentAssignmentStep({
               }
             }}>
               Add Device
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cable Termination Configuration Modal */}
+      <Dialog open={cableTerminationModalOpen} onOpenChange={setCableTerminationModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Configure Cable Termination</DialogTitle>
+            <DialogDescription>
+              Set up the cable termination details before adding products and services.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="cableType">Cable Type</Label>
+                <Select
+                  value={terminationForm.cableType}
+                  onValueChange={(value) => setTerminationForm(prev => ({ ...prev, cableType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CAT6">CAT6</SelectItem>
+                    <SelectItem value="CAT6A">CAT6A</SelectItem>
+                    <SelectItem value="CAT5e">CAT5e</SelectItem>
+                    <SelectItem value="FIBER_SM">Fiber SM</SelectItem>
+                    <SelectItem value="FIBER_MM">Fiber MM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  value={terminationForm.quantity}
+                  onChange={(e) => setTerminationForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                  min="1"
+                />
+              </div>
+            </div>
+
+            {/* Fiber-specific fields */}
+            {(terminationForm.cableType === 'FIBER_SM' || terminationForm.cableType === 'FIBER_MM') && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+                <div>
+                  <Label htmlFor="totalFibers">Total Fibers</Label>
+                  <Input
+                    id="totalFibers"
+                    type="number"
+                    value={terminationForm.totalFibers || ''}
+                    onChange={(e) => setTerminationForm(prev => ({ ...prev, totalFibers: parseInt(e.target.value) || undefined }))}
+                    placeholder="e.g., 12, 24, 48"
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="terminatedFibers">Terminated Fibers</Label>
+                  <Input
+                    id="terminatedFibers"
+                    type="number"
+                    value={terminationForm.terminatedFibers || ''}
+                    onChange={(e) => setTerminationForm(prev => ({ ...prev, terminatedFibers: parseInt(e.target.value) || undefined }))}
+                    placeholder="e.g., 8"
+                    min="0"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fromLocation">From Location</Label>
+                <Input
+                  id="fromLocation"
+                  value={terminationForm.fromLocation}
+                  onChange={(e) => setTerminationForm(prev => ({ ...prev, fromLocation: e.target.value }))}
+                  placeholder="Source location"
+                />
+              </div>
+              <div>
+                <Label htmlFor="toLocation">To Location</Label>
+                <Input
+                  id="toLocation"
+                  value={terminationForm.toLocation}
+                  onChange={(e) => setTerminationForm(prev => ({ ...prev, toLocation: e.target.value }))}
+                  placeholder="Destination location"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => {
+              setCableTerminationModalOpen(false);
+              setPendingTerminationData(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={createTerminationFromModal}>
+              Create Termination
             </Button>
           </div>
         </DialogContent>
