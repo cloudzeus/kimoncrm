@@ -145,11 +145,6 @@ export function EquipmentAssignmentStep({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceQuantity, setServiceQuantity] = useState(1);
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
-
-  // Pricing state
-  const [showPricingTables, setShowPricingTables] = useState(false);
-  const [productPricing, setProductPricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
-  const [servicePricing, setServicePricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
   
   // Product enhancement dialogs
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
@@ -1406,7 +1401,7 @@ export function EquipmentAssignmentStep({
                                             Add Service
                               </Button>
                             </div>
-                                      </div>
+                              </div>
                                       {/* Show assigned product */}
                                       {termination.productId && (
                                         <div className="mt-2 pt-2 border-t">
@@ -1442,9 +1437,9 @@ export function EquipmentAssignmentStep({
                                                   </div>
                                                 </div>
                                               </div>
-                                            ))}
-                                          </div>
-                                        </div>
+                      ))}
+                    </div>
+                  </div>
                                       )}
                                     </div>
                       ))}
@@ -1683,10 +1678,10 @@ export function EquipmentAssignmentStep({
                                         {rack.switches && rack.switches.length > 0 && (
                                           <Collapsible>
                                             <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
-                                              <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
                                                 <ChevronRight className="h-4 w-4" />
                                                 <Label className="text-xs font-semibold cursor-pointer">Switches ({rack.switches.length})</Label>
-                                              </div>
+                                        </div>
                                             </CollapsibleTrigger>
                                             <CollapsibleContent className="mt-2 space-y-1 bg-white dark:bg-gray-900 p-2 rounded-md">
                                               {rack.switches.map((sw) => (
@@ -1715,7 +1710,7 @@ export function EquipmentAssignmentStep({
                                                       <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openServiceDialog({ type: 'switch', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: sw.id })}>
                                                         <Wrench className="h-3 w-3" />
-                                                      </Button>
+                                        </Button>
                                                     </div>
                                                   </div>
                                                   {/* Show assigned product */}
@@ -1736,24 +1731,24 @@ export function EquipmentAssignmentStep({
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
-                                                        </div>
-                                                      ))}
-                                                    </div>
+                                      </div>
+                                    ))}
+                                  </div>
                                                   )}
-                                                </div>
+                                </div>
                                               ))}
                                             </CollapsibleContent>
                                           </Collapsible>
-                                        )}
+                              )}
 
                                         {/* Connections */}
                                         {rack.connections && rack.connections.length > 0 && (
-                                          <div>
+                                <div>
                                             <Label className="text-xs font-semibold mb-2 block">Connections</Label>
                                             <div className="space-y-1">
                                               {rack.connections.map((conn) => (
                                                 <div key={conn.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2">
                                                     <Cable className="h-3 w-3" />
                                                     <span className="text-xs text-muted-foreground">{conn.fromDevice} → {conn.toDevice}</span>
                                                     {isNewElement(conn) ? (
@@ -1858,14 +1853,14 @@ export function EquipmentAssignmentStep({
                                                           {getFloorMultiplier(floor) > 1 && getRoomMultiplier(room) > 1 && ' × '}
                                                           {getRoomMultiplier(room) > 1 && `${getRoomMultiplier(room)} rooms`}
                                                           = {device.quantity * getTotalMultiplier(floor, room)} total
-                                                        </Badge>
+                                          </Badge>
                                                       )}
                                                       {isNewElement(device) ? (
                                                         <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
                                                       ) : (
                                                         <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                       )}
-                                                    </div>
+                                        </div>
                                                     <div className="flex gap-1">
                                                       {isNewElement(device) && (
                                                         <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
@@ -1880,7 +1875,7 @@ export function EquipmentAssignmentStep({
                                                       <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openServiceDialog({ type: 'device', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: device.id })}>
                                                         <Wrench className="h-3 w-3" />
-                                                      </Button>
+                                        </Button>
                                                     </div>
                                                   </div>
                                                   {/* Show assigned product */}
@@ -1905,11 +1900,11 @@ export function EquipmentAssignmentStep({
                                                       ))}
                                                     </div>
                                                   )}
-                                                </div>
-                                              ))}
-            </div>
-                                          </div>
-                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                                         
                                         {/* Outlets */}
                                         {room.outlets && room.outlets.length > 0 && (
@@ -1942,10 +1937,10 @@ export function EquipmentAssignmentStep({
                                                     </Button>
                                                   </div>
                                                 </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                                         {/* Connections */}
                                         {room.connections && room.connections.length > 0 && (
@@ -2004,11 +1999,11 @@ export function EquipmentAssignmentStep({
                                     )}
                                   </div>
                                 ))}
-          </CardContent>
-                            )}
-        </Card>
-                        ))}
-                      </div>
+              </CardContent>
+            )}
+          </Card>
+        ))}
+      </div>
                     )}
                   </div>
                 </Card>
@@ -2030,7 +2025,7 @@ export function EquipmentAssignmentStep({
           <div className="space-y-4 py-4">
             <div>
               <Label>Product</Label>
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Input
                   type="text"
                   placeholder="Search products by name or code..."
@@ -2042,7 +2037,7 @@ export function EquipmentAssignmentStep({
                     <div>
                       <div className="font-medium text-sm">{products.find(p => p.id === selectedProductId)?.code}</div>
                       <div className="text-xs text-muted-foreground">{products.find(p => p.id === selectedProductId)?.name}</div>
-                    </div>
+                  </div>
                     <Button size="sm" variant="ghost" onClick={() => { setSelectedProductId(''); setProductSearchTerm(''); }}>
                       <X className="h-3 w-3" />
                     </Button>
@@ -2100,10 +2095,10 @@ export function EquipmentAssignmentStep({
                     <p className="text-xs font-semibold mb-2">Enhance Product Data:</p>
                     <div className="flex gap-2 flex-wrap">
                       {!hasImages && (
-                        <Button
+                  <Button
                           type="button"
-                          size="sm"
-                          variant="outline"
+                    size="sm"
+                    variant="outline"
                           className="h-8 text-xs"
                           onClick={() => {
                             setSelectedProduct(product);
@@ -2113,7 +2108,7 @@ export function EquipmentAssignmentStep({
                           <Upload className="h-3 w-3 mr-1" />
                           Add Images
                           <Badge variant="destructive" className="ml-2 text-xs">!</Badge>
-                        </Button>
+                  </Button>
                       )}
                       {hasImages && (
                         <Button
@@ -2239,8 +2234,8 @@ export function EquipmentAssignmentStep({
                         >
                           <div className="font-medium text-sm">{service.code}</div>
                           <div className="text-xs text-muted-foreground">{service.name}</div>
-                        </div>
-                      ))}
+                </div>
+              ))}
                     {services.filter(service => {
                       if (!serviceSearchTerm) return true;
                       const search = serviceSearchTerm.toLowerCase();
@@ -2249,7 +2244,7 @@ export function EquipmentAssignmentStep({
                     }).length === 0 && (
                       <div className="p-4 text-center text-sm text-muted-foreground">
                         No services found
-                      </div>
+            </div>
                     )}
                   </div>
                 )}
@@ -2301,8 +2296,8 @@ export function EquipmentAssignmentStep({
                 value={newRackName}
                 onChange={(e) => setNewRackName(e.target.value)}
                 placeholder="e.g., Distribution Rack A"
-              />
-            </div>
+      />
+    </div>
             <div>
               <Label>Location</Label>
               <Input
@@ -2458,274 +2453,6 @@ export function EquipmentAssignmentStep({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Pricing Tables Section */}
-      <div className="mt-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Pricing & Margins</h3>
-          <Button
-            variant="outline"
-            onClick={() => setShowPricingTables(!showPricingTables)}
-            className="flex items-center gap-2"
-          >
-            <Package className="h-4 w-4" />
-            {showPricingTables ? 'Hide' : 'Show'} Pricing Tables
-          </Button>
-        </div>
-
-        {showPricingTables && (
-          <div className="space-y-6">
-            {/* Bulk AI Generation Button */}
-            <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200">
-              <CardContent className="pt-6 bg-white dark:bg-gray-900">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="h-6 w-6 text-blue-600" />
-                    <div>
-                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-                        Generate Product Data with AI
-                      </h4>
-                      <p className="text-sm text-blue-700 dark:text-blue-200">
-                        Automatically generate descriptions, specifications, and images for all assigned products
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={async () => {
-                      const { assignedProducts } = collectAssignedItems();
-                      const productIds = Array.from(assignedProducts.keys());
-                      
-                      if (productIds.length === 0) {
-                        toast({
-                          title: "No Products",
-                          description: "No products assigned yet. Please assign products first.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-
-                      try {
-                        // Generate data for each product
-                        for (const productId of productIds) {
-                          const product = products.find(p => p.id === productId);
-                          if (product) {
-                            // Generate specifications
-                            await fetch('/api/products/generate-specifications', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ productId: product.id }),
-                            });
-                            
-                            // Generate translations
-                            await fetch('/api/products/generate-translations', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ productId: product.id }),
-                            });
-                          }
-                        }
-
-                        toast({
-                          title: "Success",
-                          description: `Generated AI data for ${productIds.length} products`,
-                        });
-
-                        // Refresh products
-                        fetchProducts();
-                      } catch (error) {
-                        console.error('Error generating AI data:', error);
-                        toast({
-                          title: "Error",
-                          description: "Failed to generate AI data for some products",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate All Product Data
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Products Pricing Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Products Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="bg-white dark:bg-gray-900">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-semibold">Product</th>
-                        <th className="text-left p-3 font-semibold">Type</th>
-                        <th className="text-right p-3 font-semibold">Quantity</th>
-                        <th className="text-right p-3 font-semibold">Unit Price (€)</th>
-                        <th className="text-right p-3 font-semibold">Margin (%)</th>
-                        <th className="text-right p-3 font-semibold">Total Price (€)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from(collectAssignedItems().assignedProducts.values()).map((product) => {
-                        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                        return (
-                          <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className="p-3">
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-muted-foreground">{product.id}</div>
-                            </td>
-                            <td className="p-3">{product.type}</td>
-                            <td className="p-3 text-right">{product.quantity}</td>
-                            <td className="p-3">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={pricing.unitPrice}
-                                onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                className="w-24 text-right"
-                                placeholder="0.00"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <Input
-                                type="number"
-                                step="0.1"
-                                value={pricing.margin}
-                                onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
-                                className="w-20 text-right"
-                                placeholder="0"
-                              />
-                            </td>
-                            <td className="p-3 text-right font-semibold">
-                              €{(pricing.totalPrice * product.quantity).toFixed(2)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 font-semibold">
-                        <td colSpan={5} className="p-3 text-right">Products Subtotal:</td>
-                        <td className="p-3 text-right">
-                          €{Array.from(collectAssignedItems().assignedProducts.values()).reduce((sum, product) => {
-                            const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                            return sum + (pricing.totalPrice * product.quantity);
-                          }, 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Services Pricing Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Services Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="bg-white dark:bg-gray-900">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-semibold">Service</th>
-                        <th className="text-left p-3 font-semibold">Type</th>
-                        <th className="text-right p-3 font-semibold">Quantity</th>
-                        <th className="text-right p-3 font-semibold">Unit Price (€)</th>
-                        <th className="text-right p-3 font-semibold">Margin (%)</th>
-                        <th className="text-right p-3 font-semibold">Total Price (€)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from(collectAssignedItems().assignedServices.values()).map((service) => {
-                        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                        return (
-                          <tr key={service.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className="p-3">
-                              <div className="font-medium">{service.name}</div>
-                              <div className="text-sm text-muted-foreground">{service.id}</div>
-                            </td>
-                            <td className="p-3">{service.type}</td>
-                            <td className="p-3 text-right">{service.quantity}</td>
-                            <td className="p-3">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={pricing.unitPrice}
-                                onChange={(e) => updateServicePricing(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                className="w-24 text-right"
-                                placeholder="0.00"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <Input
-                                type="number"
-                                step="0.1"
-                                value={pricing.margin}
-                                onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
-                                className="w-20 text-right"
-                                placeholder="0"
-                              />
-                            </td>
-                            <td className="p-3 text-right font-semibold">
-                              €{(pricing.totalPrice * service.quantity).toFixed(2)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 font-semibold">
-                        <td colSpan={5} className="p-3 text-right">Services Subtotal:</td>
-                        <td className="p-3 text-right">
-                          €{Array.from(collectAssignedItems().assignedServices.values()).reduce((sum, service) => {
-                            const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                            return sum + (pricing.totalPrice * service.quantity);
-                          }, 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Grand Total */}
-            <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
-              <CardContent className="pt-6 bg-white dark:bg-gray-900">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-green-900 dark:text-green-100">
-                    Grand Total
-                  </h3>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    €{(
-                      Array.from(collectAssignedItems().assignedProducts.values()).reduce((sum, product) => {
-                        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                        return sum + (pricing.totalPrice * product.quantity);
-                      }, 0) +
-                      Array.from(collectAssignedItems().assignedServices.values()).reduce((sum, service) => {
-                        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-                        return sum + (pricing.totalPrice * service.quantity);
-                      }, 0)
-                    ).toFixed(2)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
-
