@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, Building2, User, Phone, Mail, MapPin } from "lucide-react";
+import { FileText, Download, Building2, User, Phone, Mail, MapPin, RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
+import ProductImagesDialog from "@/components/products/product-images-dialog";
 
 interface ProposalDocumentStepProps {
   buildings: BuildingData[];
@@ -44,6 +47,16 @@ export default function ProposalDocumentStep({
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+  
+  // Product enhancement states
+  const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
+  const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  
+  // Products and services data
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [servicesList, setServicesList] = useState<any[]>([]);
 
   // Company details form
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({
@@ -70,6 +83,22 @@ export default function ProposalDocumentStep({
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        
+        // Fetch products and services
+        const [productsRes, servicesRes] = await Promise.all([
+          fetch('/api/products?limit=1000&includeImages=true'),
+          fetch('/api/services?limit=1000')
+        ]);
+        
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          setProductsList(productsData.data || []);
+        }
+        
+        if (servicesRes.ok) {
+          const servicesData = await servicesRes.json();
+          setServicesList(servicesData.data || []);
+        }
         
         // Fetch company details
         const companyRes = await fetch('/api/settings/default-company');
@@ -117,6 +146,197 @@ export default function ProposalDocumentStep({
 
     fetchData();
   }, [siteSurveyId, toast]);
+
+  // Collect all assigned products and services
+  const collectAssignedItems = () => {
+    const products: any[] = [];
+    const services: any[] = [];
+    
+    buildings.forEach(building => {
+      // Central rack
+      if (building.centralRack) {
+        building.centralRack.cableTerminations?.forEach(term => {
+          if (term.productId && term.isFutureProposal) {
+            const product = productsList.find(p => p.id === term.productId);
+            products.push({
+              id: term.productId,
+              name: product?.name || `${term.cableType} Termination`,
+              brand: product?.brand || 'Generic',
+              category: product?.category || 'Cable Termination',
+              quantity: term.quantity || 1,
+              hasImages: product?.images && product.images.length > 0,
+              hasSpecs: product?.specifications && product.specifications.length > 0,
+              product: product
+            });
+          }
+          
+          term.services?.forEach(svc => {
+            const service = servicesList.find(s => s.id === svc.serviceId);
+            services.push({
+              id: svc.serviceId,
+              name: service?.name || 'Termination Service',
+              category: service?.category || 'Installation',
+              quantity: svc.quantity || 1,
+              service: service
+            });
+          });
+        });
+
+        building.centralRack.switches?.forEach(sw => {
+          if (sw.productId && sw.isFutureProposal) {
+            const product = productsList.find(p => p.id === sw.productId);
+            products.push({
+              id: sw.productId,
+              name: product?.name || sw.model || 'Network Switch',
+              brand: product?.brand || sw.brand || 'Generic',
+              category: product?.category || 'Network Switch',
+              quantity: 1,
+              hasImages: product?.images && product.images.length > 0,
+              hasSpecs: product?.specifications && product.specifications.length > 0,
+              product: product
+            });
+          }
+          
+          sw.services?.forEach(svc => {
+            const service = servicesList.find(s => s.id === svc.serviceId);
+            services.push({
+              id: svc.serviceId,
+              name: service?.name || 'Switch Configuration',
+              category: service?.category || 'Configuration',
+              quantity: svc.quantity || 1,
+              service: service
+            });
+          });
+        });
+      }
+
+      // Floors and rooms
+      building.floors?.forEach(floor => {
+        floor.racks?.forEach(rack => {
+          rack.cableTerminations?.forEach(term => {
+            if (term.productId && term.isFutureProposal) {
+              const product = productsList.find(p => p.id === term.productId);
+              products.push({
+                id: term.productId,
+                name: product?.name || `${term.cableType} Termination`,
+                brand: product?.brand || 'Generic',
+                category: product?.category || 'Cable Termination',
+                quantity: term.quantity || 1,
+                hasImages: product?.images && product.images.length > 0,
+                hasSpecs: product?.specifications && product.specifications.length > 0,
+                product: product
+              });
+            }
+            
+            term.services?.forEach(svc => {
+              const service = servicesList.find(s => s.id === svc.serviceId);
+              services.push({
+                id: svc.serviceId,
+                name: service?.name || 'Termination Service',
+                category: service?.category || 'Installation',
+                quantity: svc.quantity || 1,
+                service: service
+              });
+            });
+          });
+
+          rack.switches?.forEach(sw => {
+            if (sw.productId && sw.isFutureProposal) {
+              const product = productsList.find(p => p.id === sw.productId);
+              products.push({
+                id: sw.productId,
+                name: product?.name || sw.model || 'Network Switch',
+                brand: product?.brand || sw.brand || 'Generic',
+                category: product?.category || 'Network Switch',
+                quantity: 1,
+                hasImages: product?.images && product.images.length > 0,
+                hasSpecs: product?.specifications && product.specifications.length > 0,
+                product: product
+              });
+            }
+            
+            sw.services?.forEach(svc => {
+              const service = servicesList.find(s => s.id === svc.serviceId);
+              services.push({
+                id: svc.serviceId,
+                name: service?.name || 'Switch Configuration',
+                category: service?.category || 'Configuration',
+                quantity: svc.quantity || 1,
+                service: service
+              });
+            });
+          });
+        });
+
+        floor.rooms?.forEach(room => {
+          room.devices?.forEach(device => {
+            if (device.productId && device.isFutureProposal) {
+              const product = productsList.find(p => p.id === device.productId);
+              products.push({
+                id: device.productId,
+                name: product?.name || device.model || device.type,
+                brand: product?.brand || device.brand || 'Generic',
+                category: product?.category || device.type,
+                quantity: device.quantity || 1,
+                hasImages: product?.images && product.images.length > 0,
+                hasSpecs: product?.specifications && product.specifications.length > 0,
+                product: product
+              });
+            }
+            
+            device.services?.forEach(svc => {
+              const service = servicesList.find(s => s.id === svc.serviceId);
+              services.push({
+                id: svc.serviceId,
+                name: service?.name || 'Device Configuration',
+                category: service?.category || 'Configuration',
+                quantity: svc.quantity || 1,
+                service: service
+              });
+            });
+          });
+        });
+      });
+    });
+
+    return { products, services };
+  };
+
+  // Complete site survey
+  const handleCompleteSurvey = async () => {
+    try {
+      setIsCompleting(true);
+      
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'COMPLETED',
+          completedAt: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete survey');
+      }
+
+      toast({
+        title: "Success",
+        description: "Site survey completed successfully!",
+      });
+
+      onComplete();
+    } catch (error) {
+      console.error('Error completing survey:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete survey",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  };
 
   const handleGenerateInfrastructureExcel = async () => {
     try {
@@ -1062,6 +1282,161 @@ export default function ProposalDocumentStep({
         </CardContent>
       </Card>
 
+      {/* Conclusion Section */}
+      <Card className="bg-white dark:bg-gray-900">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            Συμπέρασμα & Ενίσχυση Προϊόντων
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Ελέγξτε και ενισχύστε τα προϊόντα και υπηρεσίες πριν την οριστικοποίηση
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Products Table */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Προϊόντα</h3>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Προϊόν</TableHead>
+                    <TableHead>Μάρκα</TableHead>
+                    <TableHead>Κατηγορία</TableHead>
+                    <TableHead>Ποσότητα</TableHead>
+                    <TableHead>Εικόνες</TableHead>
+                    <TableHead>Προδιαγραφές</TableHead>
+                    <TableHead>Ενέργειες</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {collectAssignedItems().products.map((item, index) => (
+                    <TableRow key={`${item.id}-${index}`}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.brand}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>
+                        {item.hasImages ? (
+                          <Badge variant="secondary" className="text-green-600">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            {item.product?.images?.length || 0}
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Χρειάζεται
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.hasSpecs ? (
+                          <Badge variant="secondary" className="text-green-600">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Υπάρχει
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Χρειάζεται
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedProduct(item.product);
+                              setImagesDialogOpen(true);
+                            }}
+                            disabled={!item.product}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Εικόνες
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedProduct(item.product);
+                              setSpecificationsDialogOpen(true);
+                            }}
+                            disabled={!item.product}
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Προδιαγραφές
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Services Table */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Υπηρεσίες</h3>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Υπηρεσία</TableHead>
+                    <TableHead>Κατηγορία</TableHead>
+                    <TableHead>Ποσότητα</TableHead>
+                    <TableHead>Περιγραφή</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {collectAssignedItems().services.map((item, index) => (
+                    <TableRow key={`${item.id}-${index}`}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.service?.description || 'Δεν υπάρχει περιγραφή'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Regenerate Documents Button */}
+          <div className="flex justify-center pt-4">
+            <Button
+              onClick={() => {
+                handleGenerateInfrastructureExcel();
+                handleGenerateBOM();
+                handleGenerateProposal();
+              }}
+              disabled={isGenerating}
+              className="flex items-center gap-2"
+              size="lg"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Επανεγγραφή Όλων των Εγγράφων
+            </Button>
+          </div>
+
+          {/* Complete Survey Button */}
+          <div className="flex justify-center pt-4 border-t">
+            <Button
+              onClick={handleCompleteSurvey}
+              disabled={isCompleting}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              size="lg"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Ολοκλήρωση Μελέτης
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Document Preview Info */}
       <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
         <CardContent className="pt-6 bg-white dark:bg-gray-900">
@@ -1082,6 +1457,22 @@ export default function ProposalDocumentStep({
           </div>
         </CardContent>
       </Card>
+
+      {/* Product Enhancement Dialogs */}
+      {selectedProduct && (
+        <>
+          <ProductSpecificationsDialog
+            product={selectedProduct}
+            open={specificationsDialogOpen}
+            onOpenChange={setSpecificationsDialogOpen}
+          />
+          <ProductImagesDialog
+            product={selectedProduct}
+            open={imagesDialogOpen}
+            onOpenChange={setImagesDialogOpen}
+          />
+        </>
+      )}
     </div>
   );
 }

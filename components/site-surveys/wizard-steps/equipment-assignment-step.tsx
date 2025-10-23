@@ -1074,18 +1074,27 @@ export function EquipmentAssignmentStep({
 
     console.log('✅ Product assigned - Updated buildings:', updatedBuildings);
     
-    setLocalBuildings(updatedBuildings);
-    onUpdate(updatedBuildings);
+    // Force deep copy to ensure React detects the change
+    const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
+    
+    setLocalBuildings(deepCopy);
+    onUpdate(deepCopy);
     setIsProductDialogOpen(false);
     
     // Auto-save
     if (siteSurveyId) {
-      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+      autoSaveInfrastructure(siteSurveyId, deepCopy);
     }
     
     toast({ title: "Success", description: `Product "${product.name}" assigned and saved` });
     
-    console.log('✅ Product assignment complete - Check if visible in DOM');
+    console.log('✅ Product assignment complete - Deep copy created, should be visible in DOM now');
+    
+    // Force component re-render by updating a dummy state
+    setTimeout(() => {
+      console.log('🔄 Forcing re-render to ensure UI updates');
+      setLocalBuildings(prev => [...prev]);
+    }, 100);
   };
 
   // Open new rack dialog
@@ -1293,18 +1302,27 @@ export function EquipmentAssignmentStep({
 
     console.log('✅ Service assigned - Updated buildings:', updatedBuildings);
     
-    setLocalBuildings(updatedBuildings);
-    onUpdate(updatedBuildings);
+    // Force deep copy to ensure React detects the change
+    const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
+    
+    setLocalBuildings(deepCopy);
+    onUpdate(deepCopy);
     setIsServiceDialogOpen(false);
     
     // Auto-save
     if (siteSurveyId) {
-      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+      autoSaveInfrastructure(siteSurveyId, deepCopy);
     }
     
     toast({ title: "Success", description: `Service "${service.name}" assigned and saved` });
     
-    console.log('✅ Service assignment complete - Check if visible in DOM');
+    console.log('✅ Service assignment complete - Deep copy created, should be visible in DOM now');
+    
+    // Force component re-render by updating a dummy state
+    setTimeout(() => {
+      console.log('🔄 Forcing re-render to ensure UI updates');
+      setLocalBuildings(prev => [...prev]);
+    }, 100);
   };
 
   return (
