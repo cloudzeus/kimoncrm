@@ -890,17 +890,30 @@ export function EquipmentAssignmentStep({
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
+                console.log('🔍 Processing termination update:', { 
+                  rackId: rack.id, 
+                  elementId: selectedElement.elementId, 
+                  terminations: rack.cableTerminations.map(t => ({ id: t.id, productId: t.productId }))
+                });
                 const updatedTerminations = rack.cableTerminations.map(term => {
                   if (term.id === selectedElement.elementId) {
-                    return {
+                    const updated = {
                       ...term,
                       isFutureProposal: true,
                       productId: selectedProductId,
                       quantity: productQuantity,
                     };
+                    console.log('✅ Updated termination:', { 
+                      oldTerm: term, 
+                      newTerm: updated,
+                      productId: selectedProductId,
+                      quantity: productQuantity
+                    });
+                    return updated;
                   }
                   return term;
                 });
+                console.log('✅ All terminations after update:', updatedTerminations.map(t => ({ id: t.id, productId: t.productId })));
                 return { ...rack, cableTerminations: updatedTerminations };
               }
 
@@ -1676,6 +1689,12 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {termination.productId && (
                                                     <div className="pl-4 mb-1">
+                                                      {console.log('🔍 Displaying product for termination:', { 
+                                                        terminationId: termination.id, 
+                                                        productId: termination.productId,
+                                                        productName: products.find(p => p.id === termination.productId)?.name,
+                                                        allProducts: products.map(p => ({ id: p.id, name: p.name }))
+                                                      })}
                                                       <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === termination.productId)?.name || 'Product'}</span>
