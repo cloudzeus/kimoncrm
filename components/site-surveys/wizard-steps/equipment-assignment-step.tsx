@@ -145,6 +145,11 @@ export function EquipmentAssignmentStep({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceQuantity, setServiceQuantity] = useState(1);
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
+
+  // Pricing state
+  const [showPricingTables, setShowPricingTables] = useState(false);
+  const [productPricing, setProductPricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
+  const [servicePricing, setServicePricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
   
   // Product enhancement dialogs
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
@@ -278,6 +283,142 @@ export function EquipmentAssignmentStep({
   // Helper to check if element is new/proposal
   const isNewElement = (element: any) => {
     return element?.isFutureProposal || element?.id?.includes('proposal');
+  };
+
+  // Pricing helper functions
+  const updateProductPricing = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
+    const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+    const updated = { ...current, [field]: value };
+    updated.totalPrice = updated.unitPrice * (1 + updated.margin / 100);
+    setProductPricing(new Map(productPricing.set(productId, updated)));
+  };
+
+  const updateServicePricing = (serviceId: string, field: 'unitPrice' | 'margin', value: number) => {
+    const current = servicePricing.get(serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+    const updated = { ...current, [field]: value };
+    updated.totalPrice = updated.unitPrice * (1 + updated.margin / 100);
+    setServicePricing(new Map(servicePricing.set(serviceId, updated)));
+  };
+
+  // Collect all assigned products and services for pricing
+  const collectAssignedItems = () => {
+    const assignedProducts = new Map();
+    const assignedServices = new Map();
+
+    buildings.forEach(building => {
+      // Central rack
+      if (building.centralRack) {
+        building.centralRack.cableTerminations?.forEach(term => {
+          if (term.productId) {
+            const key = term.productId;
+            if (!assignedProducts.has(key)) {
+              assignedProducts.set(key, {
+                id: term.productId,
+                name: products.find(p => p.id === term.productId)?.name || term.productId,
+                quantity: 0,
+                type: 'Cable Termination'
+              });
+            }
+            assignedProducts.get(key).quantity += term.quantity || 1;
+          }
+          
+          term.services?.forEach(svc => {
+            const key = svc.serviceId;
+            if (!assignedServices.has(key)) {
+              assignedServices.set(key, {
+                id: svc.serviceId,
+                name: services.find(s => s.id === svc.serviceId)?.name || svc.serviceId,
+                quantity: 0,
+                type: 'Cable Termination Service'
+              });
+            }
+            assignedServices.get(key).quantity += svc.quantity;
+          });
+        });
+
+        building.centralRack.switches?.forEach(sw => {
+          if (sw.productId) {
+            const key = sw.productId;
+            if (!assignedProducts.has(key)) {
+              assignedProducts.set(key, {
+                id: sw.productId,
+                name: products.find(p => p.id === sw.productId)?.name || sw.productId,
+                quantity: 0,
+                type: 'Network Switch'
+              });
+            }
+            assignedProducts.get(key).quantity += 1;
+          }
+          
+          sw.services?.forEach(svc => {
+            const key = svc.serviceId;
+            if (!assignedServices.has(key)) {
+              assignedServices.set(key, {
+                id: svc.serviceId,
+                name: services.find(s => s.id === svc.serviceId)?.name || svc.serviceId,
+                quantity: 0,
+                type: 'Switch Service'
+              });
+            }
+            assignedServices.get(key).quantity += svc.quantity;
+          });
+        });
+      }
+
+      // Floors
+      building.floors.forEach(floor => {
+        floor.racks?.forEach(rack => {
+          rack.cableTerminations?.forEach(term => {
+            if (term.productId) {
+              const key = term.productId;
+              if (!assignedProducts.has(key)) {
+                assignedProducts.set(key, {
+                  id: term.productId,
+                  name: products.find(p => p.id === term.productId)?.name || term.productId,
+                  quantity: 0,
+                  type: 'Cable Termination'
+                });
+              }
+              assignedProducts.get(key).quantity += term.quantity || 1;
+            }
+          });
+
+          rack.switches?.forEach(sw => {
+            if (sw.productId) {
+              const key = sw.productId;
+              if (!assignedProducts.has(key)) {
+                assignedProducts.set(key, {
+                  id: sw.productId,
+                  name: products.find(p => p.id === sw.productId)?.name || sw.productId,
+                  quantity: 0,
+                  type: 'Network Switch'
+                });
+              }
+              assignedProducts.get(key).quantity += 1;
+            }
+          });
+        });
+
+        floor.rooms.forEach(room => {
+          room.devices?.forEach(device => {
+            if (device.productId) {
+              const key = device.productId;
+              if (!assignedProducts.has(key)) {
+                assignedProducts.set(key, {
+                  id: device.productId,
+                  name: products.find(p => p.id === device.productId)?.name || device.productId,
+                  quantity: 0,
+                  type: device.type
+                });
+              }
+              assignedProducts.get(key).quantity += device.quantity || 1;
+            }
+          });
+        });
+      });
+    });
+
+    return { assignedProducts, assignedServices };
   };
 
   // Helper to calculate multiplier for typical floors/rooms
@@ -2205,6 +2346,273 @@ export function EquipmentAssignmentStep({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pricing Tables Section */}
+      <div className="mt-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Pricing & Margins</h3>
+          <Button
+            variant="outline"
+            onClick={() => setShowPricingTables(!showPricingTables)}
+            className="flex items-center gap-2"
+          >
+            <Package className="h-4 w-4" />
+            {showPricingTables ? 'Hide' : 'Show'} Pricing Tables
+          </Button>
+        </div>
+
+        {showPricingTables && (
+          <div className="space-y-6">
+            {/* Bulk AI Generation Button */}
+            <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200">
+              <CardContent className="pt-6 bg-white dark:bg-gray-900">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-6 w-6 text-blue-600" />
+                    <div>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                        Generate Product Data with AI
+                      </h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-200">
+                        Automatically generate descriptions, specifications, and images for all assigned products
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={async () => {
+                      const { assignedProducts } = collectAssignedItems();
+                      const productIds = Array.from(assignedProducts.keys());
+                      
+                      if (productIds.length === 0) {
+                        toast({
+                          title: "No Products",
+                          description: "No products assigned yet. Please assign products first.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
+                      try {
+                        // Generate data for each product
+                        for (const productId of productIds) {
+                          const product = products.find(p => p.id === productId);
+                          if (product) {
+                            // Generate specifications
+                            await fetch('/api/products/generate-specifications', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ productId: product.id }),
+                            });
+                            
+                            // Generate translations
+                            await fetch('/api/products/generate-translations', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ productId: product.id }),
+                            });
+                          }
+                        }
+
+                        toast({
+                          title: "Success",
+                          description: `Generated AI data for ${productIds.length} products`,
+                        });
+
+                        // Refresh products
+                        fetchProducts();
+                      } catch (error) {
+                        console.error('Error generating AI data:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to generate AI data for some products",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate All Product Data
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Products Pricing Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Products Pricing
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="bg-white dark:bg-gray-900">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-semibold">Product</th>
+                        <th className="text-left p-3 font-semibold">Type</th>
+                        <th className="text-right p-3 font-semibold">Quantity</th>
+                        <th className="text-right p-3 font-semibold">Unit Price (€)</th>
+                        <th className="text-right p-3 font-semibold">Margin (%)</th>
+                        <th className="text-right p-3 font-semibold">Total Price (€)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(collectAssignedItems().assignedProducts.values()).map((product) => {
+                        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                        return (
+                          <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="p-3">
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-sm text-muted-foreground">{product.id}</div>
+                            </td>
+                            <td className="p-3">{product.type}</td>
+                            <td className="p-3 text-right">{product.quantity}</td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={pricing.unitPrice}
+                                onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                className="w-24 text-right"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={pricing.margin}
+                                onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="p-3 text-right font-semibold">
+                              €{(pricing.totalPrice * product.quantity).toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 font-semibold">
+                        <td colSpan={5} className="p-3 text-right">Products Subtotal:</td>
+                        <td className="p-3 text-right">
+                          €{Array.from(collectAssignedItems().assignedProducts.values()).reduce((sum, product) => {
+                            const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                            return sum + (pricing.totalPrice * product.quantity);
+                          }, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Services Pricing Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Services Pricing
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="bg-white dark:bg-gray-900">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-semibold">Service</th>
+                        <th className="text-left p-3 font-semibold">Type</th>
+                        <th className="text-right p-3 font-semibold">Quantity</th>
+                        <th className="text-right p-3 font-semibold">Unit Price (€)</th>
+                        <th className="text-right p-3 font-semibold">Margin (%)</th>
+                        <th className="text-right p-3 font-semibold">Total Price (€)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(collectAssignedItems().assignedServices.values()).map((service) => {
+                        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                        return (
+                          <tr key={service.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="p-3">
+                              <div className="font-medium">{service.name}</div>
+                              <div className="text-sm text-muted-foreground">{service.id}</div>
+                            </td>
+                            <td className="p-3">{service.type}</td>
+                            <td className="p-3 text-right">{service.quantity}</td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={pricing.unitPrice}
+                                onChange={(e) => updateServicePricing(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                className="w-24 text-right"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={pricing.margin}
+                                onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="p-3 text-right font-semibold">
+                              €{(pricing.totalPrice * service.quantity).toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 font-semibold">
+                        <td colSpan={5} className="p-3 text-right">Services Subtotal:</td>
+                        <td className="p-3 text-right">
+                          €{Array.from(collectAssignedItems().assignedServices.values()).reduce((sum, service) => {
+                            const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                            return sum + (pricing.totalPrice * service.quantity);
+                          }, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Grand Total */}
+            <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
+              <CardContent className="pt-6 bg-white dark:bg-gray-900">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-green-900 dark:text-green-100">
+                    Grand Total
+                  </h3>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    €{(
+                      Array.from(collectAssignedItems().assignedProducts.values()).reduce((sum, product) => {
+                        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                        return sum + (pricing.totalPrice * product.quantity);
+                      }, 0) +
+                      Array.from(collectAssignedItems().assignedServices.values()).reduce((sum, service) => {
+                        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                        return sum + (pricing.totalPrice * service.quantity);
+                      }, 0)
+                    ).toFixed(2)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

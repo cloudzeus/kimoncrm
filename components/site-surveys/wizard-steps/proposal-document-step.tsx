@@ -462,7 +462,7 @@ export default function ProposalDocumentStep({
 
       {/* Document Preview Info */}
       <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 bg-white dark:bg-gray-900">
           <div className="flex items-start gap-3">
             <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
             <div className="space-y-2">
