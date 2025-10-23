@@ -53,6 +53,26 @@ export function CentralRackStep({
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
 
+  // Load saved pricing from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
+      const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
+      
+      if (savedProductPricing) {
+        const data = JSON.parse(savedProductPricing);
+        setProductPricing(new Map(data));
+      }
+      
+      if (savedServicePricing) {
+        const data = JSON.parse(savedServicePricing);
+        setServicePricing(new Map(data));
+      }
+    } catch (error) {
+      console.error('Failed to load saved pricing:', error);
+    }
+  }, [siteSurveyId]);
+
   // Fetch products and services
   useEffect(() => {
     const fetchData = async () => {
@@ -583,14 +603,32 @@ export function CentralRackStep({
     const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
     const updated = { ...current, [field]: value };
     updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
-    setProductPricing(new Map(productPricing.set(productId, updated)));
+    const newPricing = new Map(productPricing.set(productId, updated));
+    setProductPricing(newPricing);
+    
+    // Save to localStorage for persistence
+    try {
+      const pricingData = Array.from(newPricing.entries());
+      localStorage.setItem(`pricing-products-${siteSurveyId}`, JSON.stringify(pricingData));
+    } catch (error) {
+      console.error('Failed to save product pricing:', error);
+    }
   };
 
   const updateServicePricing = (serviceId: string, field: 'unitPrice' | 'margin', value: number) => {
     const current = servicePricing.get(serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
     const updated = { ...current, [field]: value };
     updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
-    setServicePricing(new Map(servicePricing.set(serviceId, updated)));
+    const newPricing = new Map(servicePricing.set(serviceId, updated));
+    setServicePricing(newPricing);
+    
+    // Save to localStorage for persistence
+    try {
+      const pricingData = Array.from(newPricing.entries());
+      localStorage.setItem(`pricing-services-${siteSurveyId}`, JSON.stringify(pricingData));
+    } catch (error) {
+      console.error('Failed to save service pricing:', error);
+    }
   };
 
   const handleGenerateInfrastructureExcel = async () => {
@@ -657,6 +695,13 @@ export function CentralRackStep({
           margin: pricing.margin,
           totalPrice: pricing.totalPrice * service.quantity
         };
+      });
+
+      console.log('🔍 BOM Data being sent:', {
+        productsCount: productsWithPricing.length,
+        servicesCount: servicesWithPricing.length,
+        brands: [...new Set(productsWithPricing.map(p => p.brand))],
+        sampleProduct: productsWithPricing[0]
       });
 
       const response = await fetch('/api/site-surveys/generate-bom-excel', {
