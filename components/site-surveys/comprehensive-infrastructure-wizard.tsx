@@ -375,6 +375,11 @@ export interface ConnectionData {
   connectionType: string;
   cableType?: string;
   notes?: string;
+  // Future proposal fields
+  isFutureProposal?: boolean;
+  productId?: string;
+  quantity?: number;
+  services?: ServiceAssociationData[];
 }
 
 export interface ExtensionData {

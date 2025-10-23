@@ -116,6 +116,18 @@ export function CentralRackStep({
     return product ? product.name : productId;
   };
 
+  // Helper to get product brand
+  const getProductBrand = (productId: string) => {
+    const product = productsList.find(p => p.id === productId);
+    return product?.brand?.name || product?.brand || 'Generic';
+  };
+
+  // Helper to get product category
+  const getProductCategory = (productId: string) => {
+    const product = productsList.find(p => p.id === productId);
+    return product?.category?.name || product?.category || 'Uncategorized';
+  };
+
   // Helper to get service name
   const getServiceName = (serviceId: string) => {
     const service = servicesList.find(s => s.id === serviceId);
@@ -138,8 +150,8 @@ export function CentralRackStep({
                 id: term.productId,
                 name: getProductName(term.productId),
                 code: term.productId,
-                brand: term.cableType.split('_')[0] || 'Generic',
-                category: 'Cable Termination',
+                brand: getProductBrand(term.productId),
+                category: getProductCategory(term.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -181,8 +193,8 @@ export function CentralRackStep({
                 id: sw.productId,
                 name: getProductName(sw.productId),
                 code: sw.productId,
-                brand: sw.brand || 'Generic',
-                category: 'Network Switch',
+                brand: getProductBrand(sw.productId),
+                category: getProductCategory(sw.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -224,8 +236,8 @@ export function CentralRackStep({
                 id: router.productId,
                 name: getProductName(router.productId),
                 code: router.productId,
-                brand: router.brand || 'Generic',
-                category: 'Network Router',
+                brand: getProductBrand(router.productId),
+                category: getProductCategory(router.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -247,8 +259,8 @@ export function CentralRackStep({
                 id: server.productId,
                 name: getProductName(server.productId),
                 code: server.productId,
-                brand: server.brand || 'Generic',
-                category: 'Server',
+                brand: getProductBrand(server.productId),
+                category: getProductCategory(server.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -276,8 +288,8 @@ export function CentralRackStep({
                   id: term.productId,
                   name: getProductName(term.productId),
                   code: term.productId,
-                  brand: term.cableType.split('_')[0] || 'Generic',
-                  category: 'Cable Termination',
+                brand: getProductBrand(term.productId),
+                category: getProductCategory(term.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -335,15 +347,15 @@ export function CentralRackStep({
           });
 
           rack.connections?.forEach(conn => {
-            if ((conn as any).productId) {
-              const key = (conn as any).productId;
+            if (conn.productId) {
+              const key = conn.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
-                  id: (conn as any).productId,
-                  name: getProductName((conn as any).productId),
-                  code: (conn as any).productId,
-                  brand: 'Generic',
-                  category: 'Network Connection',
+                  id: conn.productId,
+                  name: getProductName(conn.productId),
+                  code: conn.productId,
+                brand: getProductBrand(conn.productId),
+                category: getProductCategory(conn.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -352,11 +364,11 @@ export function CentralRackStep({
                 });
               }
               const product = productsMap.get(key)!;
-              product.quantity += ((conn as any).quantity || 1) * floorMultiplier;
+              product.quantity += (conn.quantity || 1) * floorMultiplier;
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             }
             
-            (conn as any).services?.forEach((svc: any) => {
+            conn.services?.forEach(svc => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -390,8 +402,8 @@ export function CentralRackStep({
                   id: device.productId,
                   name: getProductName(device.productId),
                   code: device.productId,
-                  brand: device.brand || 'Generic',
-                  category: device.type,
+                brand: getProductBrand(device.productId),
+                category: getProductCategory(device.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -455,8 +467,8 @@ export function CentralRackStep({
                   id: outlet.productId,
                   name: getProductName(outlet.productId),
                   code: outlet.productId,
-                  brand: outlet.brand || 'Generic',
-                  category: 'Network Outlet',
+                brand: getProductBrand(outlet.productId),
+                category: getProductCategory(outlet.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
