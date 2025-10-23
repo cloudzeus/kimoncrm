@@ -168,7 +168,25 @@ export default function ProposalDocumentStep({
     try {
       setIsGenerating(true);
       
-      // Collect all products and services from buildings
+      // Load saved pricing from Step 3
+      let productPricingMap = new Map();
+      let servicePricingMap = new Map();
+      
+      try {
+        const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
+        const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
+        
+        if (savedProductPricing) {
+          productPricingMap = new Map(JSON.parse(savedProductPricing));
+        }
+        if (savedServicePricing) {
+          servicePricingMap = new Map(JSON.parse(savedServicePricing));
+        }
+      } catch (err) {
+        console.warn('Could not load pricing data:', err);
+      }
+
+      // Collect all products and services from buildings with pricing
       const products: any[] = [];
       const services: any[] = [];
       
@@ -177,38 +195,161 @@ export default function ProposalDocumentStep({
         if (building.centralRack) {
           building.centralRack.cableTerminations?.forEach(term => {
             if (term.productId && term.isFutureProposal) {
+              const pricing = productPricingMap.get(term.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
               products.push({
                 id: term.productId,
                 name: `${term.cableType} Termination`,
                 brand: 'Generic',
                 category: 'Cable Termination',
                 quantity: term.quantity || 1,
-                unitPrice: 0,
-                margin: 0,
-                totalPrice: 0,
+                unitPrice: pricing.unitPrice,
+                margin: pricing.margin,
+                totalPrice: pricing.totalPrice * (term.quantity || 1),
                 locations: ['Central Rack']
               });
             }
+            
+            term.services?.forEach(svc => {
+              const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+              services.push({
+                id: svc.serviceId,
+                name: 'Termination Service',
+                category: 'Installation',
+                quantity: svc.quantity || 1,
+                unitPrice: pricing.unitPrice,
+                margin: pricing.margin,
+                totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                locations: ['Central Rack']
+              });
+            });
+          });
+
+          building.centralRack.switches?.forEach(sw => {
+            if (sw.productId && sw.isFutureProposal) {
+              const pricing = productPricingMap.get(sw.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+              products.push({
+                id: sw.productId,
+                name: sw.model || 'Network Switch',
+                brand: sw.brand || 'Generic',
+                category: 'Network Switch',
+                quantity: 1,
+                unitPrice: pricing.unitPrice,
+                margin: pricing.margin,
+                totalPrice: pricing.totalPrice,
+                locations: ['Central Rack']
+              });
+            }
+            
+            sw.services?.forEach(svc => {
+              const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+              services.push({
+                id: svc.serviceId,
+                name: 'Switch Configuration',
+                category: 'Configuration',
+                quantity: svc.quantity || 1,
+                unitPrice: pricing.unitPrice,
+                margin: pricing.margin,
+                totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                locations: ['Central Rack']
+              });
+            });
           });
         }
 
         // Process floors and racks
         building.floors?.forEach(floor => {
           floor.racks?.forEach(rack => {
+            rack.cableTerminations?.forEach(term => {
+              if (term.productId && term.isFutureProposal) {
+                const pricing = productPricingMap.get(term.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: term.productId,
+                  name: `${term.cableType} Termination`,
+                  brand: 'Generic',
+                  category: 'Cable Termination',
+                  quantity: term.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (term.quantity || 1),
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              }
+              
+              term.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Termination Service',
+                  category: 'Installation',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              });
+            });
+
             rack.switches?.forEach(sw => {
               if (sw.productId && sw.isFutureProposal) {
+                const pricing = productPricingMap.get(sw.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                 products.push({
                   id: sw.productId,
                   name: sw.model || 'Network Switch',
                   brand: sw.brand || 'Generic',
                   category: 'Network Switch',
                   quantity: 1,
-                  unitPrice: 0,
-                  margin: 0,
-                  totalPrice: 0,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice,
                   locations: [`${floor.name} - ${rack.name}`]
                 });
               }
+              
+              sw.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Switch Configuration',
+                  category: 'Configuration',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              });
+            });
+
+            rack.connections?.forEach(conn => {
+              if (conn.productId && conn.isFutureProposal) {
+                const pricing = productPricingMap.get(conn.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: conn.productId,
+                  name: 'Connection Cable',
+                  brand: 'Generic',
+                  category: 'Cable',
+                  quantity: conn.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (conn.quantity || 1),
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              }
+              
+              conn.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Connection Service',
+                  category: 'Installation',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              });
             });
           });
 
@@ -216,22 +357,101 @@ export default function ProposalDocumentStep({
           floor.rooms?.forEach(room => {
             room.devices?.forEach(device => {
               if (device.productId && device.isFutureProposal) {
+                const pricing = productPricingMap.get(device.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                 products.push({
                   id: device.productId,
                   name: device.model || device.type,
                   brand: device.brand || 'Generic',
                   category: device.type,
                   quantity: device.quantity || 1,
-                  unitPrice: 0,
-                  margin: 0,
-                  totalPrice: 0,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (device.quantity || 1),
                   locations: [`${floor.name} - ${room.name}`]
                 });
               }
+              
+              device.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Device Configuration',
+                  category: 'Configuration',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              });
+            });
+
+            room.outlets?.forEach(outlet => {
+              if (outlet.productId && outlet.isFutureProposal) {
+                const pricing = productPricingMap.get(outlet.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: outlet.productId,
+                  name: 'Network Outlet',
+                  brand: 'Generic',
+                  category: 'Network Outlet',
+                  quantity: outlet.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (outlet.quantity || 1),
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              }
+              
+              outlet.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Outlet Installation',
+                  category: 'Installation',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              });
+            });
+
+            room.connections?.forEach(conn => {
+              if (conn.productId && conn.isFutureProposal) {
+                const pricing = productPricingMap.get(conn.productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                products.push({
+                  id: conn.productId,
+                  name: 'Room Connection',
+                  brand: 'Generic',
+                  category: 'Cable',
+                  quantity: conn.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (conn.quantity || 1),
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              }
+              
+              conn.services?.forEach(svc => {
+                const pricing = servicePricingMap.get(svc.serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                services.push({
+                  id: svc.serviceId,
+                  name: 'Room Connection Service',
+                  category: 'Installation',
+                  quantity: svc.quantity || 1,
+                  unitPrice: pricing.unitPrice,
+                  margin: pricing.margin,
+                  totalPrice: pricing.totalPrice * (svc.quantity || 1),
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              });
             });
           });
         });
       });
+
+      console.log('🔍 BOM Data:', { products: products.length, services: services.length, productPricingMap, servicePricingMap });
 
       const response = await fetch('/api/site-surveys/generate-bom-excel', {
         method: 'POST',
@@ -385,6 +605,14 @@ export default function ProposalDocumentStep({
         });
       });
 
+      console.log('🔍 Proposal Data:', { 
+        buildings: buildings.length, 
+        companyDetails, 
+        customerDetails, 
+        products: products.length, 
+        services: services.length 
+      });
+
       const response = await fetch('/api/proposals/generate', {
         method: 'POST',
         headers: {
@@ -399,8 +627,12 @@ export default function ProposalDocumentStep({
         }),
       });
 
+      console.log('🔍 Proposal Response:', { status: response.status, ok: response.ok });
+
       if (!response.ok) {
-        throw new Error('Failed to generate proposal');
+        const errorText = await response.text();
+        console.error('🔍 Proposal Error Response:', errorText);
+        throw new Error(`Failed to generate proposal: ${response.status} ${errorText}`);
       }
 
       // Create blob and download
