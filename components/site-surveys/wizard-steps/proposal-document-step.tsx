@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { BuildingData } from "../comprehensive-infrastructure-wizard";
+import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Download, Building2, User, Phone, Mail, MapPin } from "lucide-react";
 

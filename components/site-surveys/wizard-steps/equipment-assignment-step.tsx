@@ -60,7 +60,7 @@ import {
   Cpu,
   Box,
 } from "lucide-react";
-import { BuildingData, FloorData, CableTerminationData, ServiceAssociationData } from "../comprehensive-infrastructure-wizard";
+import { BuildingData, FloorData, CableTerminationData, ServiceAssociationData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
 import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
 import ProductTranslationsDialog from "@/components/products/product-translations-dialog";

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { BuildingData } from "../comprehensive-infrastructure-wizard";
+import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Wrench, Sparkles, Calculator, FileText, Download } from "lucide-react";
 
