@@ -27,6 +27,7 @@ import { FloorsStep } from "./wizard-steps/floors-step";
 import { RoomsStep } from "./wizard-steps/rooms-step";
 import { SiteConnectionsStep } from "./wizard-steps/site-connections-step";
 import { FutureProposalsStep } from "./wizard-steps/future-proposals-step";
+import ProposalDocumentStep from "./wizard-steps/proposal-document-step";
 
 export interface InfrastructureData {
   buildings: BuildingData[];
@@ -443,6 +444,12 @@ const STEPS = [
     description: "Plan future infrastructure improvements",
     icon: CheckCircle,
   },
+  {
+    id: 8,
+    title: "Generate Proposal",
+    description: "Create professional Word document proposal",
+    icon: Package,
+  },
 ];
 
 export function ComprehensiveInfrastructureWizard({
@@ -670,6 +677,12 @@ export function ComprehensiveInfrastructureWizard({
                 onUpdate={() => {}}
                 siteSurveyId={siteSurveyId}
                 siteSurveyData={siteSurveyData}
+              />
+            )}
+            {currentStep === 8 && (
+              <ProposalDocumentStep
+                buildings={wizardData.buildings}
+                onComplete={onComplete}
               />
             )}
           </CardContent>
