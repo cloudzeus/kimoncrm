@@ -1836,25 +1836,27 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold mb-2 block">Connections</Label>
                                             <div className="space-y-1">
                                               {rack.connections.map((conn) => (
-                                                <div key={conn.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                                    <Cable className="h-3 w-3" />
-                                                    <span className="text-xs text-muted-foreground">{conn.fromDevice} → {conn.toDevice}</span>
-                                                    {isNewElement(conn) ? (
-                                                      <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                                    ) : (
-                                                      <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
-                                                    )}
-                                                  </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
-                                                      <Package className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
-                                                      <Wrench className="h-3 w-3" />
-                                                    </Button>
+                                                <div key={conn.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Cable className="h-3 w-3" />
+                                                      <span className="text-xs text-muted-foreground">{conn.fromDevice} → {conn.toDevice}</span>
+                                                      {isNewElement(conn) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
                                                   {/* Show assigned product */}
                                                   {conn.productId && (
@@ -1879,7 +1881,7 @@ export function EquipmentAssignmentStep({
                                                     </div>
                                                   )}
                                                 </div>
-                      ))}
+                                              ))}
                     </div>
                   </div>
                 )}
@@ -2037,25 +2039,27 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold mb-2 block">Connections</Label>
                                             <div className="space-y-1">
                                               {room.connections.map((conn) => (
-                                                <div key={conn.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
-                                                  <div className="flex items-center gap-2">
-                                                    <Cable className="h-3 w-3" />
-                                                    <span className="text-xs text-muted-foreground">{conn.fromDevice} → {conn.toDevice}</span>
-                                                    {isNewElement(conn) ? (
-                                                      <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                                    ) : (
-                                                      <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
-                                                    )}
-                                                  </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
-                                                      <Package className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                      onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
-                                                      <Wrench className="h-3 w-3" />
-                                                    </Button>
+                                                <div key={conn.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Cable className="h-3 w-3" />
+                                                      <span className="text-xs text-muted-foreground">{conn.fromDevice} → {conn.toDevice}</span>
+                                                      {isNewElement(conn) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
                                                   </div>
                                                   {/* Show assigned product */}
                                                   {conn.productId && (
