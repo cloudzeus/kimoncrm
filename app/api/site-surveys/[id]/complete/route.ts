@@ -3,10 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { status, completedAt } = body;
 
@@ -15,7 +15,6 @@ export async function POST(
       where: { id },
       data: {
         status: status || 'COMPLETED',
-        completedAt: completedAt ? new Date(completedAt) : new Date(),
         updatedAt: new Date()
       }
     });

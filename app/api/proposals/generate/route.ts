@@ -31,12 +31,12 @@ export async function POST(request: NextRequest) {
     );
 
     // Return the document as a downloadable file
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="Technical-Proposal-${customerDetails.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.docx"`,
-        'Content-Length': buffer.length.toString(),
+        'Content-Length': buffer.byteLength.toString(),
       },
     });
 

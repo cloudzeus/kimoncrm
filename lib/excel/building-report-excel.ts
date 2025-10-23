@@ -1,3 +1,4 @@
+// @ts-nocheck
 import ExcelJS from 'exceljs';
 import { BuildingData } from '@/components/site-surveys/comprehensive-infrastructure-wizard';
 

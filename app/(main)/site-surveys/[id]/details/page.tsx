@@ -255,6 +255,7 @@ export default function SiteSurveyDetailsPage() {
   };
 
   const handleSaveCustomerInfo = async (data: any) => {
+    if (!survey?.customer?.id) return;
     const response = await fetch(`/api/customers/${survey.customer.id}`, {
       method: "PATCH",
       headers: {

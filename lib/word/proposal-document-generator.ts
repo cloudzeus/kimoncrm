@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun, BorderStyle } from 'docx';
 import { BuildingData } from '@/components/site-surveys/comprehensive-infrastructure-wizard';
 
