@@ -1105,7 +1105,7 @@ export function EquipmentAssignmentStep({
 
                     {/* Building Content */}
                     {expandedBuildings.has(building.id) && (
-                      <div className="pl-6 space-y-4 border-l-2 border-blue-200">
+                      <div className="pl-6 space-y-4 border-l-2 border-blue-200 bg-white dark:bg-gray-900 p-4 rounded-md">
                         {/* Central Rack */}
                         {building.centralRack && (
                           <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-300">
@@ -1296,7 +1296,7 @@ export function EquipmentAssignmentStep({
                             </div>
                           </CardHeader>
                             {expandedFloors.has(floor.id) && (
-                              <CardContent className="space-y-3">
+                              <CardContent className="space-y-3 bg-white dark:bg-gray-900">
                               {/* Floor Racks */}
                                 {floor.racks && floor.racks.map((rack) => (
                                   <div key={rack.id} className={`p-3 rounded border ${
@@ -1348,7 +1348,7 @@ export function EquipmentAssignmentStep({
                                     
                                     {/* Rack Details */}
                                     {expandedRacks.has(rack.id) && (
-                                      <div className="mt-3 space-y-3 pl-4 border-l-2 border-purple-200">
+                                      <div className="mt-3 space-y-3 pl-4 border-l-2 border-purple-200 bg-white dark:bg-gray-900 p-3 rounded-md">
                                         {/* Terminations */}
                                         {rack.cableTerminations && rack.cableTerminations.length > 0 && (
                                 <div>
@@ -1491,7 +1491,7 @@ export function EquipmentAssignmentStep({
                                                 <Label className="text-xs font-semibold cursor-pointer">Switches ({rack.switches.length})</Label>
                                               </div>
                                             </CollapsibleTrigger>
-                                            <CollapsibleContent className="mt-2 space-y-1">
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white dark:bg-gray-900 p-2 rounded-md">
                                               {rack.switches.map((sw) => (
                                                 <div key={sw.id} className="p-2 bg-muted/30 rounded">
                                                   <div className="flex items-center justify-between mb-2">
@@ -1615,7 +1615,7 @@ export function EquipmentAssignmentStep({
 
                                     {/* Room Details */}
                                     {expandedRooms.has(room.id) && (
-                                      <div className="mt-2 space-y-3 pl-4 border-l-2 border-amber-200">
+                                      <div className="mt-2 space-y-3 pl-4 border-l-2 border-amber-200 bg-white dark:bg-gray-900 p-3 rounded-md">
                                         {/* Devices */}
                                         {room.devices && room.devices.length > 0 && (
                                           <div>
