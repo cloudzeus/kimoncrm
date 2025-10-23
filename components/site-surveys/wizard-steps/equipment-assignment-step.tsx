@@ -1722,12 +1722,11 @@ export function EquipmentAssignmentStep({
                                                           <Trash2 className="h-3 w-3" />
                                                         </Button>
                                                       )}
-                                                      {console.log('🔍 Rendering termination buttons:', { terminationId: termination.id, isNew: isNewElement(termination), hasProductId: !!termination.productId })}
-                                                      <Button size="sm" variant="ghost" className="h-6 px-2 bg-blue-500 text-white"
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openProductDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                         <Package className="h-3 w-3" />
                                                       </Button>
-                                                      <Button size="sm" variant="ghost" className="h-6 px-2 bg-green-500 text-white"
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
                                                         onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                         <Wrench className="h-3 w-3" />
                                                       </Button>
@@ -1736,12 +1735,6 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {termination.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      {console.log('🔍 Displaying product for termination:', { 
-                                                        terminationId: termination.id, 
-                                                        productId: termination.productId,
-                                                        productName: products.find(p => p.id === termination.productId)?.name,
-                                                        allProducts: products.map(p => ({ id: p.id, name: p.name }))
-                                                      })}
                                                       <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === termination.productId)?.name || 'Product'}</span>
