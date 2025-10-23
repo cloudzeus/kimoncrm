@@ -73,12 +73,12 @@ export function CentralRackStep({
     }
   }, [siteSurveyId]);
 
-  // Fetch products and services
+  // Fetch products and services with images
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [productsRes, servicesRes] = await Promise.all([
-          fetch('/api/products?limit=1000'),
+          fetch('/api/products?limit=1000&includeImages=true'),
           fetch('/api/services?limit=1000')
         ]);
         
@@ -863,7 +863,18 @@ export function CentralRackStep({
                         <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
                           <td className="p-2">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                              {productsList.find(p => p.id === product.id)?.images?.[0]?.url ? (
+                                <img 
+                                  src={productsList.find(p => p.id === product.id)?.images[0].url} 
+                                  alt={product.name}
+                                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center ${productsList.find(p => p.id === product.id)?.images?.[0]?.url ? 'hidden' : ''}`}>
                                 <Package className="h-4 w-4 text-blue-600" />
                               </div>
                               <div>

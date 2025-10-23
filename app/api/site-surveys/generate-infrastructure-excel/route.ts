@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateBuildingReportExcel } from '@/lib/excel/building-report-excel';
+import { generateBuildingExcelReport } from '@/lib/excel/building-report-excel';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { buildings, siteSurveyId, siteSurveyName } = body;
 
-    if (!buildings || !Array.isArray(buildings)) {
+    if (!buildings || !Array.isArray(buildings) || buildings.length === 0) {
       return NextResponse.json(
         { error: 'Missing or invalid buildings data' },
         { status: 400 }
       );
     }
 
-    // Generate the Excel workbook
-    const buffer = await generateBuildingReportExcel(buildings, siteSurveyName || 'Site Survey');
+    // Generate the Excel workbook for the first building
+    const buffer = await generateBuildingExcelReport(buildings[0]);
 
     // Return the file
     const filename = `Infrastructure-Report-${siteSurveyName || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;
