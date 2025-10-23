@@ -214,10 +214,10 @@ export default function ProposalDocumentStep({
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2">
           <FileText className="h-8 w-8 text-blue-600" />
-          <h2 className="text-2xl font-bold">Generate Technical Proposal</h2>
+          <h2 className="text-2xl font-bold">Δημιουργία Τεχνικής Προσφοράς</h2>
         </div>
         <p className="text-muted-foreground">
-          Create a professional Word document with your infrastructure proposal
+          Δημιουργία επαγγελματικού εγγράφου Word με την προσφορά υποδομής
         </p>
       </div>
 
@@ -454,7 +454,7 @@ export default function ProposalDocumentStep({
           ) : (
             <>
               <Download className="h-4 w-4 mr-2" />
-              Generate Proposal Document
+              Δημιουργία Προσφοράς
             </>
           )}
         </Button>

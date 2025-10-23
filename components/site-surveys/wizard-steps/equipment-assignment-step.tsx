@@ -929,6 +929,21 @@ export function EquipmentAssignmentStep({
                 return { ...rack, routers: updatedRouters };
               }
 
+              if (selectedElement.type === 'connection' && rack.connections) {
+                const updatedConnections = rack.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      isFutureProposal: true,
+                      productId: selectedProductId,
+                      quantity: productQuantity,
+                    };
+                  }
+                  return conn;
+                });
+                return { ...rack, connections: updatedConnections };
+              }
+
               return rack;
             });
             return { ...floor, racks: updatedRacks };
@@ -952,6 +967,21 @@ export function EquipmentAssignmentStep({
                   return device;
                 });
                 return { ...room, devices: updatedDevices };
+              }
+
+              if (selectedElement.type === 'connection' && room.connections) {
+                const updatedConnections = room.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      isFutureProposal: true,
+                      productId: selectedProductId,
+                      quantity: productQuantity,
+                    };
+                  }
+                  return conn;
+                });
+                return { ...room, connections: updatedConnections };
               }
 
               return room;
@@ -1119,6 +1149,19 @@ export function EquipmentAssignmentStep({
                 return { ...rack, switches: updatedSwitches };
               }
 
+              if (selectedElement.type === 'connection' && rack.connections) {
+                const updatedConnections = rack.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      services: [...(conn.services || []), newService],
+                    };
+                  }
+                  return conn;
+                });
+                return { ...rack, connections: updatedConnections };
+              }
+
               return rack;
             });
             return { ...floor, racks: updatedRacks };
@@ -1140,6 +1183,19 @@ export function EquipmentAssignmentStep({
                   return device;
                 });
                 return { ...room, devices: updatedDevices };
+              }
+
+              if (selectedElement.type === 'connection' && room.connections) {
+                const updatedConnections = room.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      services: [...(conn.services || []), newService],
+                    };
+                  }
+                  return conn;
+                });
+                return { ...room, connections: updatedConnections };
               }
 
               return room;
@@ -1249,7 +1305,7 @@ export function EquipmentAssignmentStep({
                       <div className="pl-6 space-y-4 border-l-2 border-blue-200 bg-white dark:bg-gray-900 p-4 rounded-md">
                         {/* Central Rack */}
                         {building.centralRack && (
-                          <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-300">
+                          <Card className="bg-white dark:bg-gray-900 border-2 border-blue-300">
                             <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -1299,7 +1355,7 @@ export function EquipmentAssignmentStep({
                                 </DropdownMenu>
                               </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="bg-white dark:bg-gray-900">
                               {/* Cable Terminations */}
                               {building.centralRack.cableTerminations && building.centralRack.cableTerminations.length > 0 && (
                                 <div className="space-y-2">
@@ -1400,7 +1456,7 @@ export function EquipmentAssignmentStep({
 
                 {/* Floors */}
                         {building.floors.map((floor) => (
-                          <Card key={floor.id} className="bg-green-50/50 dark:bg-green-950/20">
+                          <Card key={floor.id} className="bg-white dark:bg-gray-900 border-2 border-green-300">
                             <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                                 <Button
@@ -1706,10 +1762,38 @@ export function EquipmentAssignmentStep({
                                                       <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                     )}
                                                   </div>
-                                                  <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                    onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
-                                                    <Wrench className="h-3 w-3" />
-                                                  </Button>
+                                                  <div className="flex items-center gap-1">
+                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
+                                                      <Package className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: conn.id })}>
+                                                      <Wrench className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                  {/* Show assigned product */}
+                                                  {conn.productId && (
+                                                    <div className="pl-4 mb-1">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                        <Package className="h-3 w-3 text-blue-600" />
+                                                        <span className="font-medium">{products.find(p => p.id === conn.productId)?.name || 'Product'}</span>
+                                                        <span className="text-muted-foreground">× {conn.quantity}</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {/* Show assigned services */}
+                                                  {conn.services && conn.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {conn.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
                                                 </div>
                       ))}
                     </div>
@@ -1879,10 +1963,38 @@ export function EquipmentAssignmentStep({
                                                       <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
                                                     )}
                                                   </div>
-                                                  <Button size="sm" variant="ghost" className="h-6 px-2"
-                                                    onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
-                                                    <Wrench className="h-3 w-3" />
-                                                  </Button>
+                                                  <div className="flex items-center gap-1">
+                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      onClick={() => openProductDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
+                                                      <Package className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                      onClick={() => openServiceDialog({ type: 'connection', buildingId: building.id, floorId: floor.id, roomId: room.id, elementId: conn.id })}>
+                                                      <Wrench className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                  {/* Show assigned product */}
+                                                  {conn.productId && (
+                                                    <div className="pl-4 mb-1">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                        <Package className="h-3 w-3 text-blue-600" />
+                                                        <span className="font-medium">{products.find(p => p.id === conn.productId)?.name || 'Product'}</span>
+                                                        <span className="text-muted-foreground">× {conn.quantity}</span>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {/* Show assigned services */}
+                                                  {conn.services && conn.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {conn.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
                                                 </div>
                                               ))}
                                             </div>

@@ -5,25 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Server, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Upload, 
-  FileImage,
-  Wifi,
-  Phone,
-  Camera,
-  Router,
-  Cable,
-  HardDrive
-} from "lucide-react";
-import { toast } from "sonner";
-import { BuildingData, CentralRackData, SwitchData, RouterData, PBXData, ATAData, NVRData, ServerData, PhoneLineData, VLANData, PortData, ConnectionData } from "../comprehensive-infrastructure-wizard";
+import { Separator } from "@/components/ui/separator";
+import { BuildingData } from "../comprehensive-infrastructure-wizard";
+import { useToast } from "@/hooks/use-toast";
+import { Package, Wrench, Sparkles, Calculator, FileText, Download } from "lucide-react";
 
 interface CentralRackStepProps {
   buildings: BuildingData[];
@@ -31,915 +17,941 @@ interface CentralRackStepProps {
   siteSurveyId: string;
 }
 
+interface ProductData {
+  id: string;
+  name: string;
+  code: string;
+  brand: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  margin: number;
+  totalPrice: number;
+  locations: string[];
+}
+
+interface ServiceData {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  margin: number;
+  totalPrice: number;
+  locations: string[];
+}
+
 export function CentralRackStep({
   buildings,
   onUpdate,
   siteSurveyId,
 }: CentralRackStepProps) {
-  const [localBuildings, setLocalBuildings] = useState<BuildingData[]>(buildings);
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
+  const { toast } = useToast();
+  const [productPricing, setProductPricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
+  const [servicePricing, setServicePricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [servicesList, setServicesList] = useState<any[]>([]);
 
+  // Fetch products and services
   useEffect(() => {
-    setLocalBuildings(buildings);
-    if (buildings.length > 0 && !selectedBuildingId) {
-      setSelectedBuildingId(buildings[0].id);
+    const fetchData = async () => {
+      try {
+        const [productsRes, servicesRes] = await Promise.all([
+          fetch('/api/products?limit=1000'),
+          fetch('/api/services?limit=1000')
+        ]);
+        
+        const productsData = await productsRes.json();
+        const servicesData = await servicesRes.json();
+        
+        if (productsData.success) setProductsList(productsData.data);
+        if (servicesData.success) setServicesList(servicesData.data);
+      } catch (error) {
+        console.error('Error fetching products/services:', error);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  // Helper to calculate multiplier for typical floors
+  const getFloorMultiplier = (floor: any) => {
+    return floor.isTypical && floor.repeatCount ? floor.repeatCount : 1;
+  };
+
+  // Helper to calculate multiplier for typical rooms
+  const getRoomMultiplier = (room: any) => {
+    return room.isTypical && room.repeatCount ? room.repeatCount : 1;
+  };
+
+  // Helper to calculate total multiplier (floor × room)
+  const getTotalMultiplier = (floor: any, room: any) => {
+    return getFloorMultiplier(floor) * getRoomMultiplier(room);
+  };
+
+  // Helper to get product name
+  const getProductName = (productId: string) => {
+    const product = productsList.find(p => p.id === productId);
+    return product ? product.name : productId;
+  };
+
+  // Helper to get service name
+  const getServiceName = (serviceId: string) => {
+    const service = servicesList.find(s => s.id === serviceId);
+    return service ? service.name : serviceId;
+  };
+
+  // Collect all assigned products and services from Step 2
+  const collectAssignedItems = () => {
+    const productsMap = new Map<string, ProductData>();
+    const servicesMap = new Map<string, ServiceData>();
+
+    buildings.forEach(building => {
+      // Central rack
+      if (building.centralRack) {
+        building.centralRack.cableTerminations?.forEach(term => {
+          if (term.productId) {
+            const key = term.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: term.productId,
+                name: getProductName(term.productId),
+                code: term.productId,
+                brand: term.cableType.split('_')[0] || 'Generic',
+                category: 'Cable Termination',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += term.quantity || 1;
+            product.locations.push('Central Rack');
+          }
+          
+          term.services?.forEach(svc => {
+            const key = svc.serviceId;
+            if (!servicesMap.has(key)) {
+              servicesMap.set(key, {
+                id: svc.serviceId,
+                name: getServiceName(svc.serviceId),
+                code: svc.serviceId,
+                category: 'Cable Termination Service',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const service = servicesMap.get(key)!;
+            service.quantity += svc.quantity;
+            service.locations.push('Central Rack');
+          });
+        });
+
+        building.centralRack.switches?.forEach(sw => {
+          if (sw.productId) {
+            const key = sw.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: sw.productId,
+                name: getProductName(sw.productId),
+                code: sw.productId,
+                brand: sw.brand || 'Generic',
+                category: 'Network Switch',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack');
+          }
+          
+          sw.services?.forEach(svc => {
+            const key = svc.serviceId;
+            if (!servicesMap.has(key)) {
+              servicesMap.set(key, {
+                id: svc.serviceId,
+                name: getServiceName(svc.serviceId),
+                code: svc.serviceId,
+                category: 'Switch Service',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const service = servicesMap.get(key)!;
+            service.quantity += svc.quantity;
+            service.locations.push('Central Rack');
+          });
+        });
+
+        building.centralRack.routers?.forEach(router => {
+          if (router.productId) {
+            const key = router.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: router.productId,
+                name: getProductName(router.productId),
+                code: router.productId,
+                brand: router.brand || 'Generic',
+                category: 'Network Router',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack');
+          }
+        });
+
+        building.centralRack.servers?.forEach(server => {
+          if (server.productId) {
+            const key = server.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: server.productId,
+                name: getProductName(server.productId),
+                code: server.productId,
+                brand: server.brand || 'Generic',
+                category: 'Server',
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack');
+          }
+        });
+      }
+
+      // Floors
+      building.floors.forEach(floor => {
+        const floorMultiplier = getFloorMultiplier(floor);
+        
+        floor.racks?.forEach(rack => {
+          rack.cableTerminations?.forEach(term => {
+            if (term.productId) {
+              const key = term.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: term.productId,
+                  name: getProductName(term.productId),
+                  code: term.productId,
+                  brand: term.cableType.split('_')[0] || 'Generic',
+                  category: 'Cable Termination',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += (term.quantity || 1) * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            }
+          });
+
+          rack.switches?.forEach(sw => {
+            if (sw.productId) {
+              const key = sw.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: sw.productId,
+                  name: getProductName(sw.productId),
+                  code: sw.productId,
+                  brand: sw.brand || 'Generic',
+                  category: 'Network Switch',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += 1 * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            }
+            
+            sw.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Switch Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.connections?.forEach(conn => {
+            if ((conn as any).productId) {
+              const key = (conn as any).productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: (conn as any).productId,
+                  name: getProductName((conn as any).productId),
+                  code: (conn as any).productId,
+                  brand: 'Generic',
+                  category: 'Network Connection',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += ((conn as any).quantity || 1) * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            }
+            
+            (conn as any).services?.forEach((svc: any) => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Connection Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+        });
+
+        floor.rooms.forEach(room => {
+          const roomMultiplier = getRoomMultiplier(room);
+          const totalMultiplier = getTotalMultiplier(floor, room);
+          
+          room.devices?.forEach(device => {
+            if (device.productId) {
+              const key = device.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: device.productId,
+                  name: getProductName(device.productId),
+                  code: device.productId,
+                  brand: device.brand || 'Generic',
+                  category: device.type,
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += (device.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              product.locations.push(locationText);
+            }
+            
+            device.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Device Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              service.locations.push(locationText);
+            });
+          });
+
+          room.outlets?.forEach(outlet => {
+            if (outlet.productId) {
+              const key = outlet.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: outlet.productId,
+                  name: getProductName(outlet.productId),
+                  code: outlet.productId,
+                  brand: outlet.brand || 'Generic',
+                  category: 'Network Outlet',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += (outlet.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              product.locations.push(locationText);
+            }
+            
+            outlet.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Outlet Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              service.locations.push(locationText);
+            });
+          });
+
+          room.connections?.forEach(conn => {
+            if (conn.productId) {
+              const key = conn.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: conn.productId,
+                  name: getProductName(conn.productId),
+                  code: conn.productId,
+                  brand: 'Generic',
+                  category: 'Room Connection',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += (conn.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              product.locations.push(locationText);
+            }
+            
+            conn.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Room Connection Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * totalMultiplier;
+              
+              let locationText = `${floor.name} - ${room.name}`;
+              if (totalMultiplier > 1) {
+                if (floorMultiplier > 1 && roomMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors × ${roomMultiplier} rooms = ×${totalMultiplier})`;
+                } else if (floorMultiplier > 1) {
+                  locationText += ` (×${floorMultiplier} floors)`;
+                } else if (roomMultiplier > 1) {
+                  locationText += ` (×${roomMultiplier} rooms)`;
+                }
+              }
+              service.locations.push(locationText);
+            });
+          });
+        });
+      });
+    });
+
+    return {
+      products: Array.from(productsMap.values()),
+      services: Array.from(servicesMap.values())
+    };
+  };
+
+  const { products: collectedProducts, services: collectedServices } = collectAssignedItems();
+
+  // Group products by brand
+  const productsByBrand = collectedProducts.reduce((acc, product) => {
+    const brand = product.brand;
+    if (!acc[brand]) {
+      acc[brand] = [];
     }
-  }, [buildings, selectedBuildingId]);
+    acc[brand].push(product);
+    return acc;
+  }, {} as Record<string, ProductData[]>);
 
-  const selectedBuilding = localBuildings.find(b => b.id === selectedBuildingId);
-
-  const updateBuilding = (buildingId: string, updates: Partial<BuildingData>) => {
-    const updatedBuildings = localBuildings.map(building => 
-      building.id === buildingId ? { ...building, ...updates } : building
-    );
-    setLocalBuildings(updatedBuildings);
-    onUpdate(updatedBuildings);
+  // Pricing helper functions
+  const updateProductPricing = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
+    const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+    const updated = { ...current, [field]: value };
+    updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
+    setProductPricing(new Map(productPricing.set(productId, updated)));
   };
 
-  const updateCentralRack = (buildingId: string, updates: Partial<CentralRackData>) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building) return;
-
-    const updatedCentralRack = { ...(building.centralRack || {}), ...updates };
-    updateBuilding(buildingId, { centralRack: updatedCentralRack as CentralRackData });
+  const updateServicePricing = (serviceId: string, field: 'unitPrice' | 'margin', value: number) => {
+    const current = servicePricing.get(serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+    const updated = { ...current, [field]: value };
+    updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
+    setServicePricing(new Map(servicePricing.set(serviceId, updated)));
   };
 
-  const addCentralRack = (buildingId: string) => {
-    const newCentralRack: CentralRackData = {
-      id: `central-rack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: "Central Rack",
-      code: "",
-      units: 42,
-      location: "",
-      notes: "",
-      images: [],
-      cableTerminations: [], // Use cableTerminations instead of counts
-      switches: [],
-      routers: [],
-      servers: [],
-      phoneLines: [],
-      connections: [],
-    };
-    updateBuilding(buildingId, { centralRack: newCentralRack });
-    toast.success("Central rack added");
-  };
+  const handleGenerateBOM = async () => {
+    try {
+      const response = await fetch('/api/proposals/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building: buildings[0],
+          companyDetails: {
+            name: "Your Company",
+            description: "IT & Telecommunications",
+            address: "Your Address",
+            taxId: "123456789",
+            taxOffice: "Your Tax Office",
+            phone: "+30 210-1234567",
+            email: "info@yourcompany.com"
+          },
+          customerDetails: {
+            name: "Customer Name",
+            address: "Customer Address"
+          },
+          products: products.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: `${p.category} - ${p.name}`,
+            specifications: [`Brand: ${p.brand}`, `Category: ${p.category}`, `Locations: ${p.locations.join(', ')}`],
+            quantity: p.quantity,
+            unitPrice: productPricing.get(p.id)?.unitPrice || 0,
+            totalPrice: (productPricing.get(p.id)?.totalPrice || 0) * p.quantity,
+            brand: p.brand,
+            category: p.category
+          })),
+          services: services.map(s => ({
+            id: s.id,
+            name: s.name,
+            description: `${s.category} - ${s.name}`,
+            quantity: s.quantity,
+            unitPrice: servicePricing.get(s.id)?.unitPrice || 0,
+            totalPrice: (servicePricing.get(s.id)?.totalPrice || 0) * s.quantity
+          }))
+        }),
+      });
 
-  const addSwitch = (buildingId: string) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building?.centralRack) return;
+      if (!response.ok) {
+        throw new Error('Failed to generate BOM');
+      }
 
-    const newSwitch: SwitchData = {
-      id: `switch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      brand: "",
-      model: "",
-      ip: "",
-      vlans: [],
-      ports: [],
-      poeEnabled: false,
-      poePortsCount: 0,
-      connections: [],
-      services: [], // Add services array
-    };
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BOM-${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-    const updatedSwitches = [...(building.centralRack.switches || []), newSwitch];
-    updateCentralRack(buildingId, { switches: updatedSwitches });
-    toast.success("Switch added");
-  };
+      toast({
+        title: "Success",
+        description: "BOM document generated successfully!",
+      });
 
-  const addRouter = (buildingId: string) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building?.centralRack) return;
-
-    const newRouter: RouterData = {
-      id: `router-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      brand: "",
-      model: "",
-      ip: "",
-      vlans: [],
-      interfaces: [],
-      connections: [],
-      services: [], // Add services array
-    };
-
-    const updatedRouters = [...(building.centralRack.routers || []), newRouter];
-    updateCentralRack(buildingId, { routers: updatedRouters });
-    toast.success("Router added");
-  };
-
-  const addPBX = (buildingId: string) => {
-    const newPBX: PBXData = {
-      id: `pbx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      brand: "",
-      type: 'SIP',
-      extensions: [],
-      trunkLines: [],
-    };
-
-    updateCentralRack(buildingId, { pbx: newPBX });
-    toast.success("PBX added");
-  };
-
-  const addATA = (buildingId: string) => {
-    const newATA: ATAData = {
-      id: `ata-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ports: 0,
-      connection: {
-        id: `conn-${Date.now()}`,
-        fromDevice: "",
-        toDevice: "",
-        connectionType: "",
-        notes: "",
-      },
-    };
-
-    updateCentralRack(buildingId, { ata: newATA });
-    toast.success("ATA added");
-  };
-
-  const addNVR = (buildingId: string) => {
-    const newNVR: NVRData = {
-      id: `nvr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      channels: 0,
-      vms: "",
-    };
-
-    updateCentralRack(buildingId, { nvr: newNVR });
-    toast.success("NVR added");
-  };
-
-  const addServer = (buildingId: string) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building?.centralRack) return;
-
-    const newServer: ServerData = {
-      id: `server-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: "",
-      type: "",
-      brand: "",
-      model: "",
-      ip: "",
-      notes: "",
-      virtualMachines: [],
-      services: [], // Add services array
-    };
-
-    const updatedServers = [...(building.centralRack.servers || []), newServer];
-    updateCentralRack(buildingId, { servers: updatedServers });
-    toast.success("Server added");
-  };
-
-  const addPhoneLine = (buildingId: string) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building?.centralRack) return;
-
-    const newPhoneLine: PhoneLineData = {
-      id: `phone-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'SIP',
-      channels: 0,
-      phoneNumbers: [],
-    };
-
-    const updatedPhoneLines = [...(building.centralRack.phoneLines || []), newPhoneLine];
-    updateCentralRack(buildingId, { phoneLines: updatedPhoneLines });
-    toast.success("Phone line added");
-  };
-
-  const removeDevice = (buildingId: string, deviceType: string, deviceId: string) => {
-    const building = localBuildings.find(b => b.id === buildingId);
-    if (!building?.centralRack) return;
-
-    switch (deviceType) {
-      case 'switch':
-        const updatedSwitches = building.centralRack.switches?.filter(s => s.id !== deviceId) || [];
-        updateCentralRack(buildingId, { switches: updatedSwitches });
-        break;
-      case 'router':
-        const updatedRouters = building.centralRack.routers?.filter(r => r.id !== deviceId) || [];
-        updateCentralRack(buildingId, { routers: updatedRouters });
-        break;
-      case 'server':
-        const updatedServers = building.centralRack.servers?.filter(s => s.id !== deviceId) || [];
-        updateCentralRack(buildingId, { servers: updatedServers });
-        break;
-      case 'phoneLine':
-        const updatedPhoneLines = building.centralRack.phoneLines?.filter(p => p.id !== deviceId) || [];
-        updateCentralRack(buildingId, { phoneLines: updatedPhoneLines });
-        break;
+    } catch (error) {
+      console.error('Error generating BOM:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate BOM document",
+        variant: "destructive",
+      });
     }
-    toast.success("Device removed");
   };
-
-  if (localBuildings.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-          <Server className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Buildings Available</h3>
-          <p className="text-sm text-muted-foreground">
-            Please add buildings first in the previous step
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            Central Rack Configuration
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Configure central rack equipment and connections for each building
-          </p>
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <Calculator className="h-8 w-8 text-blue-600" />
+          <h2 className="text-xl font-bold">Τιμολόγηση Προϊόντων & Υπηρεσιών</h2>
         </div>
+        <p className="text-muted-foreground">
+          Τιμολόγηση όλων των προϊόντων και υπηρεσιών που ανατέθηκαν στο Βήμα 2
+        </p>
       </div>
 
-      {/* Building Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Building</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            {localBuildings.map((building) => (
-              <Button
-                key={building.id}
-                variant={selectedBuildingId === building.id ? "default" : "outline"}
-                onClick={() => setSelectedBuildingId(building.id)}
-              >
-                {building.name}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {selectedBuilding && (
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5" />
-                {selectedBuilding.name} - Central Rack
-              </CardTitle>
-              {!selectedBuilding.centralRack && (
-                <Button onClick={() => addCentralRack(selectedBuilding.id)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Central Rack
-                </Button>
-              )}
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Σύνολο Προϊόντων
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {selectedBuilding.centralRack ? (
-              <Tabs defaultValue="basic" className="space-y-6">
-                <TabsList>
-                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                  <TabsTrigger value="isp">ISP Connection</TabsTrigger>
-                  <TabsTrigger value="switches">Switches</TabsTrigger>
-                  <TabsTrigger value="routers">Routers</TabsTrigger>
-                  <TabsTrigger value="pbx">PBX</TabsTrigger>
-                  <TabsTrigger value="ata">ATA</TabsTrigger>
-                  <TabsTrigger value="nvr">NVR</TabsTrigger>
-                  <TabsTrigger value="servers">Servers</TabsTrigger>
-                  <TabsTrigger value="phones">Phone Lines</TabsTrigger>
-                  <TabsTrigger value="connections">Connections</TabsTrigger>
-                </TabsList>
+            <div className="text-xl font-bold">{collectedProducts.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Διαφορετικά προϊόντα
+            </p>
+          </CardContent>
+        </Card>
 
-                {/* Basic Information */}
-                <TabsContent value="basic" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Rack Name</Label>
-                      <Input
-                        value={selectedBuilding.centralRack.name}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { name: e.target.value })}
-                        placeholder="Enter rack name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Rack Code</Label>
-                      <Input
-                        value={selectedBuilding.centralRack.code || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { code: e.target.value })}
-                        placeholder="Enter rack code"
-                      />
-                    </div>
-                    <div>
-                      <Label>Units</Label>
-                      <Input
-                        type="number"
-                        value={selectedBuilding.centralRack.units || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { units: parseInt(e.target.value) || 0 })}
-                        placeholder="Number of units"
-                      />
-                    </div>
-                    <div>
-                      <Label>Location</Label>
-                      <Input
-                        value={selectedBuilding.centralRack.location || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { location: e.target.value })}
-                        placeholder="Rack location"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Notes</Label>
-                      <Textarea
-                        value={selectedBuilding.centralRack.notes || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { notes: e.target.value })}
-                        placeholder="Additional notes"
-                        rows={3}
-                      />
-                    </div>
-                    {/* Terminated cables/fiber now tracked via cableTerminations in BuildingsStep */}
-                  </div>
-                </TabsContent>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Σύνολο Υπηρεσιών
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">{collectedServices.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Διαφορετικές υπηρεσίες
+            </p>
+          </CardContent>
+        </Card>
 
-                {/* ISP Connection */}
-                <TabsContent value="isp" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>ISP Name</Label>
-                      <Input
-                        value={selectedBuilding.centralRack.ispConnection?.ispName || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                          ispConnection: { 
-                            ispName: e.target.value,
-                            connectionType: selectedBuilding.centralRack?.ispConnection?.connectionType || "",
-                            router: selectedBuilding.centralRack?.ispConnection?.router,
-                          } 
-                        })}
-                        placeholder="Enter ISP name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Connection Type</Label>
-                      <Input
-                        value={selectedBuilding.centralRack.ispConnection?.connectionType || ''}
-                        onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                          ispConnection: { 
-                            ispName: selectedBuilding.centralRack?.ispConnection?.ispName || "",
-                            connectionType: e.target.value,
-                            router: selectedBuilding.centralRack?.ispConnection?.router,
-                          } 
-                        })}
-                        placeholder="e.g., Fiber, DSL, Cable"
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Μάρκες
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">{Object.keys(productsByBrand).length}</div>
+            <p className="text-xs text-muted-foreground">
+              Διαφορετικές μάρκες
+            </p>
+          </CardContent>
+        </Card>
 
-                {/* Switches */}
-                <TabsContent value="switches" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">Switches</h4>
-                    <Button onClick={() => addSwitch(selectedBuilding.id)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Switch
-                    </Button>
-                  </div>
-                  
-                  {selectedBuilding.centralRack.switches?.map((switchDevice) => (
-                    <Card key={switchDevice.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Switch</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeDevice(selectedBuilding.id, 'switch', switchDevice.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <Label>Brand</Label>
-                            <Input
-                              value={switchDevice.brand}
-                              onChange={(e) => {
-                                const updatedSwitches = selectedBuilding.centralRack?.switches?.map(s => 
-                                  s.id === switchDevice.id ? { ...s, brand: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { switches: updatedSwitches });
-                              }}
-                              placeholder="Switch brand"
-                            />
-                          </div>
-                          <div>
-                            <Label>Model</Label>
-                            <Input
-                              value={switchDevice.model}
-                              onChange={(e) => {
-                                const updatedSwitches = selectedBuilding.centralRack?.switches?.map(s => 
-                                  s.id === switchDevice.id ? { ...s, model: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { switches: updatedSwitches });
-                              }}
-                              placeholder="Switch model"
-                            />
-                          </div>
-                          <div>
-                            <Label>IP Address</Label>
-                            <Input
-                              value={switchDevice.ip}
-                              onChange={(e) => {
-                                const updatedSwitches = selectedBuilding.centralRack?.switches?.map(s => 
-                                  s.id === switchDevice.id ? { ...s, ip: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { switches: updatedSwitches });
-                              }}
-                              placeholder="IP address"
-                            />
-                          </div>
-                          <div>
-                            <Label>PoE Ports</Label>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Σύνολο Αντικειμένων
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">
+              {collectedProducts.reduce((sum, p) => sum + p.quantity, 0) + collectedServices.reduce((sum, s) => sum + s.quantity, 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Συνολική ποσότητα
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Products by Brand */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold">Προϊόντα ανά Μάρκα</h3>
+          <Button onClick={handleGenerateBOM} className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Δημιουργία BOM
+          </Button>
+        </div>
+
+        {Object.entries(productsByBrand).map(([brand, brandProducts]) => (
+          <Card key={brand}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Προϊόντα {brand}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="bg-white dark:bg-gray-900">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-semibold text-[11px]">Προϊόν</th>
+                      <th className="text-left p-2 font-semibold text-[11px]">Κατηγορία</th>
+                      <th className="text-right p-2 font-semibold text-[11px]">Ποσότητα</th>
+                      <th className="text-right p-2 font-semibold text-[11px]">Τιμή Μονάδας (€)</th>
+                      <th className="text-right p-2 font-semibold text-[11px]">Ποσοστό Κέρδους (%)</th>
+                      <th className="text-right p-2 font-semibold text-[11px]">Συνολική Τιμή (€)</th>
+                      <th className="text-left p-2 font-semibold text-[11px]">Τοποθεσίες</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brandProducts.map((product) => {
+                      const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                      return (
+                        <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                                <Package className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-[11px]">{product.name}</div>
+                                <div className="text-[10px] text-muted-foreground">{product.code}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-2 text-[11px]">{product.category}</td>
+                          <td className="p-2 text-right text-[11px]">{product.quantity}</td>
+                          <td className="p-2">
                             <Input
                               type="number"
-                              value={switchDevice.poePortsCount || 0}
-                              onChange={(e) => {
-                                const updatedSwitches = selectedBuilding.centralRack?.switches?.map(s => 
-                                  s.id === switchDevice.id ? { ...s, poePortsCount: parseInt(e.target.value) || 0 } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { switches: updatedSwitches });
-                              }}
-                              placeholder="Number of PoE ports"
+                              step="0.01"
+                              value={pricing.unitPrice}
+                              onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-20 text-right text-[11px] h-7"
+                              placeholder="0.00"
                             />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </TabsContent>
-
-                {/* Routers */}
-                <TabsContent value="routers" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">Routers</h4>
-                    <Button onClick={() => addRouter(selectedBuilding.id)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Router
-                    </Button>
-                  </div>
-                  
-                  {selectedBuilding.centralRack.routers?.map((router) => (
-                    <Card key={router.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Router</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeDevice(selectedBuilding.id, 'router', router.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <Label>Brand</Label>
-                            <Input
-                              value={router.brand}
-                              onChange={(e) => {
-                                const updatedRouters = selectedBuilding.centralRack?.routers?.map(r => 
-                                  r.id === router.id ? { ...r, brand: e.target.value } : r
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { routers: updatedRouters });
-                              }}
-                              placeholder="Router brand"
-                            />
-                          </div>
-                          <div>
-                            <Label>Model</Label>
-                            <Input
-                              value={router.model}
-                              onChange={(e) => {
-                                const updatedRouters = selectedBuilding.centralRack?.routers?.map(r => 
-                                  r.id === router.id ? { ...r, model: e.target.value } : r
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { routers: updatedRouters });
-                              }}
-                              placeholder="Router model"
-                            />
-                          </div>
-                          <div>
-                            <Label>IP Address</Label>
-                            <Input
-                              value={router.ip}
-                              onChange={(e) => {
-                                const updatedRouters = selectedBuilding.centralRack?.routers?.map(r => 
-                                  r.id === router.id ? { ...r, ip: e.target.value } : r
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { routers: updatedRouters });
-                              }}
-                              placeholder="IP address"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </TabsContent>
-
-                {/* PBX */}
-                <TabsContent value="pbx" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">PBX System</h4>
-                    {!selectedBuilding.centralRack.pbx && (
-                      <Button onClick={() => addPBX(selectedBuilding.id)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add PBX
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {selectedBuilding.centralRack.pbx && (
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">PBX</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateCentralRack(selectedBuilding.id, { pbx: undefined })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Brand</Label>
-                            <Input
-                              value={selectedBuilding.centralRack.pbx.brand}
-                              onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                                pbx: { 
-                                  id: selectedBuilding.centralRack?.pbx?.id || `pbx-${Date.now()}`,
-                                  brand: e.target.value,
-                                  type: selectedBuilding.centralRack?.pbx?.type || 'SIP',
-                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || [],
-                                  trunkLines: selectedBuilding.centralRack?.pbx?.trunkLines || []
-                                }
-                              })}
-                              placeholder="PBX brand"
-                            />
-                          </div>
-                          <div>
-                            <Label>Type</Label>
-                            <select
-                              value={selectedBuilding.centralRack.pbx.type}
-                              onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                                pbx: { 
-                                  id: selectedBuilding.centralRack?.pbx?.id || `pbx-${Date.now()}`,
-                                  brand: selectedBuilding.centralRack?.pbx?.brand || '',
-                                  type: e.target.value as 'SIP' | 'ANALOG' | 'DIGITAL',
-                                  extensions: selectedBuilding.centralRack?.pbx?.extensions || [],
-                                  trunkLines: selectedBuilding.centralRack?.pbx?.trunkLines || []
-                                }
-                              })}
-                              className="w-full p-2 border rounded-md"
-                            >
-                              <option value="SIP">SIP</option>
-                              <option value="ANALOG">Analog</option>
-                              <option value="DIGITAL">Digital</option>
-                            </select>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                {/* ATA */}
-                <TabsContent value="ata" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">ATA (Analog Telephone Adapter)</h4>
-                    {!selectedBuilding.centralRack.ata && (
-                      <Button onClick={() => addATA(selectedBuilding.id)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add ATA
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {selectedBuilding.centralRack.ata && (
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">ATA</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateCentralRack(selectedBuilding.id, { ata: undefined })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Number of Ports</Label>
+                          </td>
+                          <td className="p-2">
                             <Input
                               type="number"
-                              value={selectedBuilding.centralRack.ata.ports}
-                              onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                                ata: { 
-                                  id: selectedBuilding.centralRack?.ata?.id || `ata-${Date.now()}`,
-                                  ports: parseInt(e.target.value) || 0,
-                                  connection: selectedBuilding.centralRack?.ata?.connection || {
-                                    id: `connection-${Date.now()}`,
-                                    fromDevice: '',
-                                    toDevice: '',
-                                    connectionType: 'Ethernet',
-                                    cableType: 'CAT6',
-                                    notes: ''
-                                  }
-                                }
-                              })}
-                              placeholder="Number of ports"
+                              step="0.1"
+                              value={pricing.margin}
+                              onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
+                              className="w-16 text-right text-[11px] h-7"
+                              placeholder="0"
                             />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                {/* NVR */}
-                <TabsContent value="nvr" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">NVR (Network Video Recorder)</h4>
-                    {!selectedBuilding.centralRack.nvr && (
-                      <Button onClick={() => addNVR(selectedBuilding.id)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add NVR
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {selectedBuilding.centralRack.nvr && (
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">NVR</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateCentralRack(selectedBuilding.id, { nvr: undefined })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Channels</Label>
-                            <Input
-                              type="number"
-                              value={selectedBuilding.centralRack.nvr.channels}
-                              onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                                nvr: { 
-                                  id: selectedBuilding.centralRack?.nvr?.id || `nvr-${Date.now()}`,
-                                  channels: parseInt(e.target.value) || 0,
-                                  vms: selectedBuilding.centralRack?.nvr?.vms || ''
-                                }
-                              })}
-                              placeholder="Number of channels"
-                            />
-                          </div>
-                          <div>
-                            <Label>VMS</Label>
-                            <Input
-                              value={selectedBuilding.centralRack.nvr.vms}
-                              onChange={(e) => updateCentralRack(selectedBuilding.id, { 
-                                nvr: { 
-                                  id: selectedBuilding.centralRack?.nvr?.id || `nvr-${Date.now()}`,
-                                  channels: selectedBuilding.centralRack?.nvr?.channels || 0,
-                                  vms: e.target.value
-                                }
-                              })}
-                              placeholder="Video Management System"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                {/* Servers */}
-                <TabsContent value="servers" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">Servers</h4>
-                    <Button onClick={() => addServer(selectedBuilding.id)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Server
-                    </Button>
-                  </div>
-                  
-                  {selectedBuilding.centralRack.servers?.map((server) => (
-                    <Card key={server.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Server</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeDevice(selectedBuilding.id, 'server', server.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Name</Label>
-                            <Input
-                              value={server.name}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, name: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="Server name"
-                            />
-                          </div>
-                          <div>
-                            <Label>Type</Label>
-                            <Input
-                              value={server.type}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, type: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="Server type"
-                            />
-                          </div>
-                          <div>
-                            <Label>Brand</Label>
-                            <Input
-                              value={server.brand || ''}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, brand: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="Server brand"
-                            />
-                          </div>
-                          <div>
-                            <Label>Model</Label>
-                            <Input
-                              value={server.model || ''}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, model: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="Server model"
-                            />
-                          </div>
-                          <div>
-                            <Label>IP Address</Label>
-                            <Input
-                              value={server.ip || ''}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, ip: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="IP address"
-                            />
-                          </div>
-                          <div>
-                            <Label>Notes</Label>
-                            <Input
-                              value={server.notes || ''}
-                              onChange={(e) => {
-                                const updatedServers = selectedBuilding.centralRack?.servers?.map(s => 
-                                  s.id === server.id ? { ...s, notes: e.target.value } : s
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { servers: updatedServers });
-                              }}
-                              placeholder="Additional notes"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </TabsContent>
-
-                {/* Phone Lines */}
-                <TabsContent value="phones" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">Phone Lines</h4>
-                    <Button onClick={() => addPhoneLine(selectedBuilding.id)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Phone Line
-                    </Button>
-                  </div>
-                  
-                  {selectedBuilding.centralRack.phoneLines?.map((phoneLine) => (
-                    <Card key={phoneLine.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Phone Line</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeDevice(selectedBuilding.id, 'phoneLine', phoneLine.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Type</Label>
-                            <select
-                              value={phoneLine.type}
-                              onChange={(e) => {
-                                const updatedPhoneLines = selectedBuilding.centralRack?.phoneLines?.map(p => 
-                                  p.id === phoneLine.id ? { ...p, type: e.target.value as 'PSTN' | 'ISDN' | 'SIP' } : p
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { phoneLines: updatedPhoneLines });
-                              }}
-                              className="w-full p-2 border rounded-md"
-                            >
-                              <option value="PSTN">PSTN</option>
-                              <option value="ISDN">ISDN</option>
-                              <option value="SIP">SIP</option>
-                            </select>
-                          </div>
-                          <div>
-                            <Label>Channels (Concurrent Calls)</Label>
-                            <Input
-                              type="number"
-                              value={phoneLine.channels}
-                              onChange={(e) => {
-                                const updatedPhoneLines = selectedBuilding.centralRack?.phoneLines?.map(p => 
-                                  p.id === phoneLine.id ? { ...p, channels: parseInt(e.target.value) || 0 } : p
-                                ) || [];
-                                updateCentralRack(selectedBuilding.id, { phoneLines: updatedPhoneLines });
-                              }}
-                              placeholder="Number of channels"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </TabsContent>
-
-                {/* Connections */}
-                <TabsContent value="connections" className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold">Connections</h4>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Connection
-                    </Button>
-                  </div>
-                  
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Cable className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Connection management coming soon</p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Server className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">No Central Rack Configured</p>
-                <p className="text-sm mb-4">Add a central rack to configure equipment and connections</p>
-                <Button onClick={() => addCentralRack(selectedBuilding.id)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Central Rack
-                </Button>
+                          </td>
+                          <td className="p-2 text-right font-semibold text-[11px]">
+                            €{(pricing.totalPrice * product.quantity).toFixed(2)}
+                          </td>
+                          <td className="p-2">
+                            <div className="text-[10px] text-muted-foreground">
+                              {product.locations.join(', ')}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 font-semibold">
+                      <td colSpan={5} className="p-2 text-right text-[11px]">Υποσύνολο {brand}:</td>
+                      <td className="p-2 text-right text-[11px]">
+                        €{brandProducts.reduce((sum, product) => {
+                          const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                          return sum + (pricing.totalPrice * product.quantity);
+                        }, 0).toFixed(2)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Services */}
+      {collectedServices.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Υπηρεσίες
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="bg-white dark:bg-gray-900">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2 font-semibold text-[11px]">Υπηρεσία</th>
+                    <th className="text-left p-2 font-semibold text-[11px]">Κατηγορία</th>
+                    <th className="text-right p-2 font-semibold text-[11px]">Ποσότητα</th>
+                    <th className="text-right p-2 font-semibold text-[11px]">Τιμή Μονάδας (€)</th>
+                    <th className="text-right p-2 font-semibold text-[11px]">Ποσοστό Κέρδους (%)</th>
+                    <th className="text-right p-2 font-semibold text-[11px]">Συνολική Τιμή (€)</th>
+                    <th className="text-left p-2 font-semibold text-[11px]">Τοποθεσίες</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {collectedServices.map((service) => {
+                    const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                    return (
+                      <tr key={service.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="p-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                              <Wrench className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-[11px]">{service.name}</div>
+                              <div className="text-[10px] text-muted-foreground">{service.code}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-2 text-[11px]">{service.category}</td>
+                        <td className="p-2 text-right text-[11px]">{service.quantity}</td>
+                        <td className="p-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={pricing.unitPrice}
+                            onChange={(e) => updateServicePricing(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-20 text-right text-[11px] h-7"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={pricing.margin}
+                            onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
+                            className="w-16 text-right text-[11px] h-7"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="p-2 text-right font-semibold text-[11px]">
+                          €{(pricing.totalPrice * service.quantity).toFixed(2)}
+                        </td>
+                        <td className="p-2">
+                          <div className="text-[10px] text-muted-foreground">
+                            {service.locations.join(', ')}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 font-semibold">
+                    <td colSpan={5} className="p-2 text-right text-[11px]">Υποσύνολο Υπηρεσιών:</td>
+                    <td className="p-2 text-right text-[11px]">
+                      €{collectedServices.reduce((sum, service) => {
+                        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                        return sum + (pricing.totalPrice * service.quantity);
+                      }, 0).toFixed(2)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Grand Total */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
+        <CardContent className="pt-6 bg-white dark:bg-gray-900">
+          <div className="flex justify-between items-center">
+            <h3 className="text-base font-semibold text-green-900 dark:text-green-100">
+              Συνολικό Σύνολο
+            </h3>
+            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+              €{(
+                Object.values(productsByBrand).flat().reduce((sum, product) => {
+                  const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                  return sum + (pricing.totalPrice * product.quantity);
+                }, 0) +
+                collectedServices.reduce((sum, service) => {
+                  const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+                  return sum + (pricing.totalPrice * service.quantity);
+                }, 0)
+              ).toFixed(2)}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -17,16 +17,14 @@ import {
   ArrowRight,
   Save,
   CheckCircle,
-  Package
+  Package,
+  Calculator,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuildingsStep } from "./wizard-steps/buildings-step";
 import { EquipmentAssignmentStep } from "./wizard-steps/equipment-assignment-step";
 import { CentralRackStep } from "./wizard-steps/central-rack-step";
-import { FloorsStep } from "./wizard-steps/floors-step";
-import { RoomsStep } from "./wizard-steps/rooms-step";
-import { SiteConnectionsStep } from "./wizard-steps/site-connections-step";
-import { FutureProposalsStep } from "./wizard-steps/future-proposals-step";
 import ProposalDocumentStep from "./wizard-steps/proposal-document-step";
 
 export interface InfrastructureData {
@@ -404,51 +402,27 @@ interface ComprehensiveInfrastructureWizardProps {
 const STEPS = [
   {
     id: 1,
-    title: "Buildings",
-    description: "Define buildings with images and blueprints",
+    title: "Υφιστάμενη Κατάσταση",
+    description: "Καταγραφή υφιστάμενης υποδομής",
     icon: Building2,
   },
   {
     id: 2,
-    title: "Equipment & Products",
-    description: "Assign products and services to infrastructure elements",
+    title: "Προϊόντα & Υπηρεσίες",
+    description: "Προσθήκη προϊόντων και υπηρεσιών αναβάθμισης",
     icon: Package,
   },
   {
     id: 3,
-    title: "Central Rack",
-    description: "Configure central rack equipment and connections",
-    icon: Server,
+    title: "Τιμολόγηση",
+    description: "Τιμολόγηση προϊόντων και υπηρεσιών",
+    icon: Calculator,
   },
   {
     id: 4,
-    title: "Floors",
-    description: "Set up floors with typical floor support",
-    icon: Wifi,
-  },
-  {
-    id: 5,
-    title: "Rooms",
-    description: "Configure rooms, outlets, and devices",
-    icon: Phone,
-  },
-  {
-    id: 6,
-    title: "Site Connections",
-    description: "Define inter-building connections",
-    icon: Cable,
-  },
-  {
-    id: 7,
-    title: "Future Proposals",
-    description: "Plan future infrastructure improvements",
-    icon: CheckCircle,
-  },
-  {
-    id: 8,
-    title: "Generate Proposal",
-    description: "Create professional Word document proposal",
-    icon: Package,
+    title: "Προσφορά",
+    description: "Δημιουργία προσφοράς προς τον πελάτη",
+    icon: FileText,
   },
 ];
 
@@ -649,37 +623,6 @@ export function ComprehensiveInfrastructureWizard({
               />
             )}
             {currentStep === 4 && (
-              <FloorsStep
-                buildings={wizardData.buildings}
-                onUpdate={handleBuildingsUpdate}
-                siteSurveyId={siteSurveyId}
-              />
-            )}
-            {currentStep === 5 && (
-              <RoomsStep
-                buildings={wizardData.buildings}
-                onUpdate={handleBuildingsUpdate}
-                siteSurveyId={siteSurveyId}
-              />
-            )}
-            {currentStep === 6 && (
-              <SiteConnectionsStep
-                siteConnections={wizardData.siteConnections}
-                buildings={wizardData.buildings}
-                onUpdate={handleSiteConnectionsUpdate}
-                siteSurveyId={siteSurveyId}
-              />
-            )}
-            {currentStep === 7 && (
-              <FutureProposalsStep
-                futureBuildings={[]}
-                futureEquipment={[]}
-                onUpdate={() => {}}
-                siteSurveyId={siteSurveyId}
-                siteSurveyData={siteSurveyData}
-              />
-            )}
-            {currentStep === 8 && (
               <ProposalDocumentStep
                 buildings={wizardData.buildings}
                 onComplete={onComplete}
