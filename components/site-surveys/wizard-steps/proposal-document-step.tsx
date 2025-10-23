@@ -118,6 +118,163 @@ export default function ProposalDocumentStep({
     fetchData();
   }, [siteSurveyId, toast]);
 
+  const handleGenerateInfrastructureExcel = async () => {
+    try {
+      setIsGenerating(true);
+      
+      const response = await fetch('/api/site-surveys/generate-infrastructure-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buildings,
+          siteSurveyId,
+          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate infrastructure Excel');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Infrastructure-${buildings[0]?.name || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Infrastructure Excel generated successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error generating infrastructure Excel:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate infrastructure Excel",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateBOM = async () => {
+    try {
+      setIsGenerating(true);
+      
+      // Collect all products and services from buildings
+      const products: any[] = [];
+      const services: any[] = [];
+      
+      buildings.forEach(building => {
+        // Process central rack
+        if (building.centralRack) {
+          building.centralRack.cableTerminations?.forEach(term => {
+            if (term.productId && term.isFutureProposal) {
+              products.push({
+                id: term.productId,
+                name: `${term.cableType} Termination`,
+                brand: 'Generic',
+                category: 'Cable Termination',
+                quantity: term.quantity || 1,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: ['Central Rack']
+              });
+            }
+          });
+        }
+
+        // Process floors and racks
+        building.floors?.forEach(floor => {
+          floor.racks?.forEach(rack => {
+            rack.switches?.forEach(sw => {
+              if (sw.productId && sw.isFutureProposal) {
+                products.push({
+                  id: sw.productId,
+                  name: sw.model || 'Network Switch',
+                  brand: sw.brand || 'Generic',
+                  category: 'Network Switch',
+                  quantity: 1,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: [`${floor.name} - ${rack.name}`]
+                });
+              }
+            });
+          });
+
+          // Process rooms
+          floor.rooms?.forEach(room => {
+            room.devices?.forEach(device => {
+              if (device.productId && device.isFutureProposal) {
+                products.push({
+                  id: device.productId,
+                  name: device.model || device.type,
+                  brand: device.brand || 'Generic',
+                  category: device.type,
+                  quantity: device.quantity || 1,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: [`${floor.name} - ${room.name}`]
+                });
+              }
+            });
+          });
+        });
+      });
+
+      const response = await fetch('/api/site-surveys/generate-bom-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products,
+          services,
+          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate BOM');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BOM-${buildings[0]?.name || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "BOM Excel generated successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error generating BOM:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate BOM",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleGenerateProposal = async () => {
     if (!customerDetails.name.trim()) {
       toast({
@@ -505,27 +662,76 @@ export default function ProposalDocumentStep({
         </CardContent>
       </Card>
 
-      {/* Generate Button */}
-      <div className="flex justify-center">
-        <Button
-          onClick={handleGenerateProposal}
-          disabled={isGenerating}
-          size="lg"
-          className="min-w-[200px]"
-        >
-          {isGenerating ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4 mr-2" />
-              Δημιουργία Προσφοράς
-            </>
+      {/* Download Buttons */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Λήψη Εγγράφων
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 bg-white dark:bg-gray-900">
+          <p className="text-sm text-muted-foreground">
+            Κατεβάστε όλα τα απαραίτητα έγγραφα για την τεχνική προσφορά
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Infrastructure Excel */}
+            <Button
+              onClick={handleGenerateInfrastructureExcel}
+              disabled={isGenerating}
+              variant="outline"
+              className="h-auto py-4 flex flex-col items-center gap-2"
+            >
+              <FileText className="h-8 w-8 text-blue-600" />
+              <div className="text-center">
+                <div className="font-semibold">Υποδομή Excel</div>
+                <div className="text-xs text-muted-foreground">
+                  Πλήρης καταγραφή υφιστάμενης κατάστασης
+                </div>
+              </div>
+            </Button>
+
+            {/* BOM Excel */}
+            <Button
+              onClick={handleGenerateBOM}
+              disabled={isGenerating}
+              variant="outline"
+              className="h-auto py-4 flex flex-col items-center gap-2"
+            >
+              <FileText className="h-8 w-8 text-green-600" />
+              <div className="text-center">
+                <div className="font-semibold">BOM Excel</div>
+                <div className="text-xs text-muted-foreground">
+                  Υλικά & υπηρεσίες ανά μάρκα
+                </div>
+              </div>
+            </Button>
+
+            {/* Word Proposal */}
+            <Button
+              onClick={handleGenerateProposal}
+              disabled={isGenerating}
+              className="h-auto py-4 flex flex-col items-center gap-2"
+            >
+              <Download className="h-8 w-8" />
+              <div className="text-center">
+                <div className="font-semibold">Τεχνική Προσφορά</div>
+                <div className="text-xs">
+                  Επαγγελματικό έγγραφο Word
+                </div>
+              </div>
+            </Button>
+          </div>
+
+          {isGenerating && (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3" />
+              <span className="text-sm text-muted-foreground">Δημιουργία εγγράφου...</span>
+            </div>
           )}
-        </Button>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Document Preview Info */}
       <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
