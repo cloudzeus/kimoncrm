@@ -141,7 +141,7 @@ export function CentralRackStep({
         if (productsData.success) setProductsList(productsData.data);
         if (servicesData.success) setServicesList(servicesData.data);
         if (brandsData.success) setBrandsList(brandsData.data);
-        if (categoriesData.success) setCategoriesList(categoriesData.data);
+        if (categoriesData.success) setCategoriesList(categoriesData.categories);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -196,12 +196,15 @@ export function CentralRackStep({
       name: product?.name || 'Unknown Product',
       brand: product?.brand?.name || product?.brand || 'Generic',
       category: product?.category?.name || product?.category || 'Uncategorized',
-      erpCode: product?.erpCode || '',
-      manufacturerCode: product?.manufacturerCode || '',
-      eanCode: product?.eanCode || '',
+      erpCode: product?.erpCode || 'N/A',
+      manufacturerCode: product?.manufacturerCode || 'N/A',
+      eanCode: product?.eanCode || 'N/A',
       images: product?.images || [],
       specifications: product?.specifications || null,
-      translations: product?.translations || null
+      translations: product?.translations || null,
+      hasImages: product?.images && product.images.length > 0,
+      hasSpecs: product?.specifications && Object.keys(product.specifications).length > 0,
+      hasTranslations: product?.translations && Object.keys(product.translations).length > 0
     };
   };
 
@@ -218,7 +221,11 @@ export function CentralRackStep({
         // Refresh products list
         const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
         const productsData = await productsRes.json();
-        if (productsData.success) setProductsList(productsData.data);
+        if (productsData.success) {
+          setProductsList(productsData.data);
+          // Force re-render to update product grouping
+          setForceUpdate(prev => prev + 1);
+        }
         
         toast({
           title: "Success",
@@ -250,7 +257,10 @@ export function CentralRackStep({
         // Refresh products list
         const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
         const productsData = await productsRes.json();
-        if (productsData.success) setProductsList(productsData.data);
+        if (productsData.success) {
+          setProductsList(productsData.data);
+          setForceUpdate(prev => prev + 1);
+        }
         
         toast({
           title: "Success",
@@ -328,7 +338,13 @@ export function CentralRackStep({
   // Force re-render when productsList changes (for brand updates)
   useEffect(() => {
     // This will trigger a re-render and recalculate productsByBrand
+    console.log('🔄 Products list updated, recalculating productsByBrand');
+    // Force a re-render by updating a dummy state
+    setForceUpdate(prev => prev + 1);
   }, [productsList]);
+
+  // Force update state for brand changes
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Collect all assigned products and services from Step 2
   const collectAssignedItems = () => {
@@ -1140,16 +1156,34 @@ export function CentralRackStep({
                                       </TooltipTrigger>
                                       <TooltipContent className="max-w-xs">
                                         <div className="space-y-1 text-xs">
-                                          <div><strong>ERP Code:</strong> {getProductDetails(product.id).erpCode || 'N/A'}</div>
-                                          <div><strong>Manufacturer Code:</strong> {getProductDetails(product.id).manufacturerCode || 'N/A'}</div>
-                                          <div><strong>EAN Code:</strong> {getProductDetails(product.id).eanCode || 'N/A'}</div>
+                                          <div><strong>ERP Code:</strong> {getProductDetails(product.id).erpCode}</div>
+                                          <div><strong>Manufacturer Code:</strong> {getProductDetails(product.id).manufacturerCode}</div>
+                                          <div><strong>EAN Code:</strong> {getProductDetails(product.id).eanCode}</div>
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                   <div className="text-xs text-muted-foreground">
-                                    {getProductDetails(product.id).erpCode && `ERP: ${getProductDetails(product.id).erpCode}`}
-                                    {getProductDetails(product.id).manufacturerCode && ` | MFG: ${getProductDetails(product.id).manufacturerCode}`}
+                                    {getProductDetails(product.id).erpCode !== 'N/A' && `ERP: ${getProductDetails(product.id).erpCode}`}
+                                    {getProductDetails(product.id).manufacturerCode !== 'N/A' && ` | MFG: ${getProductDetails(product.id).manufacturerCode}`}
+                                  </div>
+                                  {/* Product readiness indicators */}
+                                  <div className="flex gap-1 mt-1">
+                                    {getProductDetails(product.id).hasImages && (
+                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                        📷 Images
+                                      </Badge>
+                                    )}
+                                    {getProductDetails(product.id).hasSpecs && (
+                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                        📋 Specs
+                                      </Badge>
+                                    )}
+                                    {getProductDetails(product.id).hasTranslations && (
+                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                        🌐 Translations
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               </div>
