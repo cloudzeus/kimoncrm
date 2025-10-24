@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -197,8 +197,8 @@ export function CentralRackStep({
       brand: product?.brand?.name || product?.brand || 'Generic',
       category: product?.category?.name || product?.category || 'Uncategorized',
       erpCode: product?.code || 'N/A',
-      manufacturerCode: product?.code1 || 'N/A',
-      eanCode: product?.code2 || 'N/A',
+      manufacturerCode: product?.code2 || 'N/A',  // EAN code is usually code2
+      eanCode: product?.code1 || 'N/A',          // Manufacturer code is usually code1
       images: product?.images || [],
       specifications: product?.specifications || null,
       translations: product?.translations || null,
@@ -362,7 +362,7 @@ export function CentralRackStep({
   const [forceUpdate, setForceUpdate] = useState(0);
 
   // Collect all assigned products and services from Step 2
-  const collectAssignedItems = () => {
+  const collectAssignedItems = useCallback(() => {
     const productsMap = new Map<string, ProductData>();
     const servicesMap = new Map<string, ServiceData>();
 
@@ -823,7 +823,7 @@ export function CentralRackStep({
       products: Array.from(productsMap.values()),
       services: Array.from(servicesMap.values())
     };
-  };
+  }, [buildings, productsList, servicesList, forceUpdate, getProductBrand, getProductCategory, getProductName, getServiceName, getTotalMultiplier]);
 
   const { products: collectedProducts, services: collectedServices } = collectAssignedItems();
 
@@ -914,6 +914,18 @@ export function CentralRackStep({
 
   const handleGenerateBOM = async () => {
     try {
+      console.log('🚀 Starting BOM generation...');
+      
+      // Check if we have products
+      if (!productsByBrand || Object.keys(productsByBrand).length === 0) {
+        toast({
+          title: "No Products",
+          description: "No products found to generate BOM. Please add products in Step 2 first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Prepare products data with pricing
       const productsWithPricing = Object.values(productsByBrand || {}).flat().map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
