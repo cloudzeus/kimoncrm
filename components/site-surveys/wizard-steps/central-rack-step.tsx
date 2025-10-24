@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Wrench, Sparkles, Calculator, FileText, Download, MoreHorizontal, Image, Edit3, Save, Upload } from "lucide-react";
@@ -885,11 +886,14 @@ export function CentralRackStep({
       // Prepare products data with pricing
       const productsWithPricing = Object.values(productsByBrand).flat().map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        const productDetails = getProductDetails(product.id);
         return {
           ...product,
           unitPrice: pricing.unitPrice,
           margin: pricing.margin,
-          totalPrice: pricing.totalPrice * product.quantity
+          totalPrice: pricing.totalPrice * product.quantity,
+          manufacturerCode: productDetails.manufacturerCode,
+          eanCode: productDetails.eanCode
         };
       });
 
@@ -1127,7 +1131,22 @@ export function CentralRackStep({
                                   <Package className="h-4 w-4 text-blue-600" />
                                 </div>
                                 <div>
-                                  <div className="font-medium text-xs">{product.name}</div>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="font-medium text-xs cursor-help underline decoration-dotted">
+                                          {product.name}
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">
+                                        <div className="space-y-1 text-xs">
+                                          <div><strong>ERP Code:</strong> {getProductDetails(product.id).erpCode || 'N/A'}</div>
+                                          <div><strong>Manufacturer Code:</strong> {getProductDetails(product.id).manufacturerCode || 'N/A'}</div>
+                                          <div><strong>EAN Code:</strong> {getProductDetails(product.id).eanCode || 'N/A'}</div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   <div className="text-xs text-muted-foreground">
                                     {getProductDetails(product.id).erpCode && `ERP: ${getProductDetails(product.id).erpCode}`}
                                     {getProductDetails(product.id).manufacturerCode && ` | MFG: ${getProductDetails(product.id).manufacturerCode}`}

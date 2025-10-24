@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
         { width: 10 },  // #
         { width: 40 },  // Product Name
         { width: 25 },  // Category
+        { width: 15 },  // Manufacturer Code
+        { width: 15 },  // EAN Code
         { width: 12 },  // Quantity
         { width: 15 },  // Unit Price
         { width: 12 },  // Margin %
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
       ];
 
       // Title
-      sheet.mergeCells('A1:H1');
+      sheet.mergeCells('A1:J1');
       const titleCell = sheet.getCell('A1');
       titleCell.value = `BOM - ${brand}`;
       titleCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
       sheet.getRow(1).height = 30;
 
       // Headers
-      const headers = ['#', 'Product', 'Category', 'Qty', 'Unit Price (€)', 'Margin (%)', 'Total (€)', 'Locations'];
+      const headers = ['#', 'Product', 'Category', 'Manufacturer Code', 'EAN Code', 'Qty', 'Unit Price (€)', 'Margin (%)', 'Total (€)', 'Locations'];
       sheet.addRow(headers);
       const headerRow = sheet.getRow(2);
       headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -77,6 +79,8 @@ export async function POST(request: NextRequest) {
           index + 1,
           product.name || 'N/A',
           product.category || 'N/A',
+          product.manufacturerCode || 'N/A',
+          product.eanCode || 'N/A',
           product.quantity || 0,
           product.unitPrice || 0,
           product.margin || 0,
@@ -86,25 +90,25 @@ export async function POST(request: NextRequest) {
         
         const dataRow = sheet.getRow(currentRow);
         dataRow.alignment = { vertical: 'middle' };
-        dataRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(5).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(5).numFmt = '€#,##0.00';
         dataRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(6).numFmt = '0.00"%"';
         dataRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
         dataRow.getCell(7).numFmt = '€#,##0.00';
+        dataRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'right' };
+        dataRow.getCell(8).numFmt = '0.00"%"';
+        dataRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'right' };
+        dataRow.getCell(9).numFmt = '€#,##0.00';
         
         currentRow++;
       });
 
       // Subtotal row
       const subtotal = brandProducts.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
-      sheet.addRow(['', '', '', '', '', 'SUBTOTAL:', subtotal, '']);
+      sheet.addRow(['', '', '', '', '', '', 'SUBTOTAL:', subtotal, '']);
       const subtotalRow = sheet.getRow(currentRow);
       subtotalRow.font = { bold: true };
-      subtotalRow.getCell(6).alignment = { horizontal: 'right' };
       subtotalRow.getCell(7).alignment = { horizontal: 'right' };
-      subtotalRow.getCell(7).numFmt = '€#,##0.00';
+      subtotalRow.getCell(8).alignment = { horizontal: 'right' };
+      subtotalRow.getCell(8).numFmt = '€#,##0.00';
       subtotalRow.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -113,7 +117,7 @@ export async function POST(request: NextRequest) {
 
       // Apply borders
       for (let row = 2; row <= currentRow; row++) {
-        for (let col = 1; col <= 8; col++) {
+        for (let col = 1; col <= 10; col++) {
           const cell = sheet.getRow(row).getCell(col);
           cell.border = {
             top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
