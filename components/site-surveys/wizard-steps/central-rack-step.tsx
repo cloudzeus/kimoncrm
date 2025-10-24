@@ -884,7 +884,7 @@ export function CentralRackStep({
   const handleGenerateBOM = async () => {
     try {
       // Prepare products data with pricing
-      const productsWithPricing = Object.values(productsByBrand).flat().map((product: any) => {
+      const productsWithPricing = Object.values(productsByBrand || {}).flat().map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const productDetails = getProductDetails(product.id);
         return {
@@ -898,7 +898,7 @@ export function CentralRackStep({
       });
 
       // Prepare services data with pricing
-      const servicesWithPricing = collectedServices.map((service: any) => {
+      const servicesWithPricing = (collectedServices || []).map((service: any) => {
         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         return {
           ...service,
@@ -1045,7 +1045,7 @@ export function CentralRackStep({
           </div>
         </div>
 
-        {Object.entries(productsByBrand).map(([brand, brandProducts]) => (
+        {Object.entries(productsByBrand || {}).map(([brand, brandProducts]) => (
           <Card key={brand}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1109,7 +1109,7 @@ export function CentralRackStep({
                     </tr>
                   </thead>
                   <tbody>
-                    {brandProducts.map((product) => {
+                    {(brandProducts || []).map((product) => {
                       const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                       return (
                         <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -1170,11 +1170,11 @@ export function CentralRackStep({
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {brandsList.map((brand) => (
+                                  {brandsList?.map((brand) => (
                                     <SelectItem key={brand.id} value={brand.name} className="text-xs">
                                       {brand.name}
                                     </SelectItem>
-                                  ))}
+                                  )) || []}
                                 </SelectContent>
                               </Select>
                             </td>
@@ -1194,11 +1194,11 @@ export function CentralRackStep({
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {categoriesList.map((category) => (
+                                  {categoriesList?.map((category) => (
                                     <SelectItem key={category.id} value={category.name} className="text-xs">
                                       {category.name}
                                     </SelectItem>
-                                  ))}
+                                  )) || []}
                                 </SelectContent>
                               </Select>
                             </td>
@@ -1347,11 +1347,11 @@ export function CentralRackStep({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {categoriesList.map((category) => (
+                              {categoriesList?.map((category) => (
                                 <SelectItem key={category.id} value={category.name} className="text-xs">
                                   {category.name}
                                 </SelectItem>
-                              ))}
+                              )) || []}
                             </SelectContent>
                           </Select>
                         </td>
