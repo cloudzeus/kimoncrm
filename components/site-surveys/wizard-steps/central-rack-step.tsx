@@ -67,12 +67,14 @@ export function CentralRackStep({
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
   const [brandsList, setBrandsList] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
   
   // Dialog states
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
   const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
   const [translationsDialogOpen, setTranslationsDialogOpen] = useState(false);
   const [productEditDialogOpen, setProductEditDialogOpen] = useState(false);
+  const [productDetailsDialogOpen, setProductDetailsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   // Product editing form state
@@ -119,23 +121,26 @@ export function CentralRackStep({
     }
   }, [siteSurveyId]);
 
-  // Fetch products, services, and brands
+  // Fetch products, services, brands, and categories
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, servicesRes, brandsRes] = await Promise.all([
+        const [productsRes, servicesRes, brandsRes, categoriesRes] = await Promise.all([
           fetch('/api/products?limit=1000&includeImages=true'),
           fetch('/api/services?limit=1000'),
-          fetch('/api/brands?limit=1000')
+          fetch('/api/brands?limit=1000'),
+          fetch('/api/master-data/categories?limit=1000')
         ]);
         
         const productsData = await productsRes.json();
         const servicesData = await servicesRes.json();
         const brandsData = await brandsRes.json();
+        const categoriesData = await categoriesRes.json();
         
         if (productsData.success) setProductsList(productsData.data);
         if (servicesData.success) setServicesList(servicesData.data);
         if (brandsData.success) setBrandsList(brandsData.data);
+        if (categoriesData.success) setCategoriesList(categoriesData.data);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -231,6 +236,76 @@ export function CentralRackStep({
     }
   };
 
+  // Function to update product category in ERP
+  const updateProductCategoryInERP = async (productId: string, categoryId: string) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: categoryId })
+      });
+
+      if (response.ok) {
+        // Refresh products list
+        const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+        const productsData = await productsRes.json();
+        if (productsData.success) setProductsList(productsData.data);
+        
+        toast({
+          title: "Success",
+          description: "Product category updated in ERP successfully!",
+        });
+      } else {
+        throw new Error('Failed to update product category in ERP');
+      }
+    } catch (error) {
+      console.error('Error updating product category in ERP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product category in ERP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to update service category in ERP
+  const updateServiceCategoryInERP = async (serviceId: string, categoryId: string) => {
+    try {
+      const response = await fetch(`/api/services/${serviceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: categoryId })
+      });
+
+      if (response.ok) {
+        // Refresh services list
+        const servicesRes = await fetch('/api/services?limit=1000');
+        const servicesData = await servicesRes.json();
+        if (servicesData.success) setServicesList(servicesData.data);
+        
+        toast({
+          title: "Success",
+          description: "Service category updated in ERP successfully!",
+        });
+      } else {
+        throw new Error('Failed to update service category in ERP');
+      }
+    } catch (error) {
+      console.error('Error updating service category in ERP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update service category in ERP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to open product details modal
+  const openProductDetailsModal = (product: any) => {
+    setSelectedProduct(product);
+    setProductDetailsDialogOpen(true);
+  };
+
   // Function to open product editing modal
   const openProductEditModal = (product: any) => {
     setSelectedProduct(product);
@@ -248,6 +323,11 @@ export function CentralRackStep({
     setSelectedProduct(product);
     setTranslationsDialogOpen(true);
   };
+
+  // Force re-render when productsList changes (for brand updates)
+  useEffect(() => {
+    // This will trigger a re-render and recalculate productsByBrand
+  }, [productsList]);
 
   // Collect all assigned products and services from Step 2
   const collectAssignedItems = () => {
@@ -1081,7 +1161,28 @@ export function CentralRackStep({
                             </td>
                           )}
                           {visibleColumns.category && (
-                            <td className="p-2 text-xs">{product.category}</td>
+                            <td className="p-2">
+                              <Select
+                                value={getProductDetails(product.id).category}
+                                onValueChange={(value) => {
+                                  const category = categoriesList.find(c => c.name === value);
+                                  if (category) {
+                                    updateProductCategoryInERP(product.id, category.id);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-32 h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categoriesList.map((category) => (
+                                    <SelectItem key={category.id} value={category.name} className="text-xs">
+                                      {category.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
                           )}
                           {visibleColumns.quantity && (
                             <td className="p-2 text-right text-xs">{product.quantity}</td>
@@ -1105,7 +1206,7 @@ export function CentralRackStep({
                                 step="0.1"
                                 value={pricing.margin}
                                 onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
-                                className="w-16 text-right text-xs h-7"
+                                className="w-20 text-right text-xs h-7"
                                 placeholder="0"
                               />
                             </td>
@@ -1131,6 +1232,10 @@ export function CentralRackStep({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openProductDetailsModal(product)} className="text-xs">
+                                    <Package className="mr-2 h-3 w-3" />
+                                    Product Details
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => openProductImagesModal(product)} className="text-xs">
                                     <Image className="mr-2 h-3 w-3" />
                                     Εικόνες
@@ -1209,7 +1314,28 @@ export function CentralRackStep({
                             </div>
                           </div>
                         </td>
-                        <td className="p-2 text-xs">{service.category}</td>
+                        <td className="p-2">
+                          <Select
+                            value={service.category}
+                            onValueChange={(value) => {
+                              const category = categoriesList.find(c => c.name === value);
+                              if (category) {
+                                updateServiceCategoryInERP(service.id, category.id);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-32 h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categoriesList.map((category) => (
+                                <SelectItem key={category.id} value={category.name} className="text-xs">
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
                         <td className="p-2 text-right text-xs">{service.quantity}</td>
                         <td className="p-2">
                           <Input
@@ -1227,7 +1353,7 @@ export function CentralRackStep({
                             step="0.1"
                             value={pricing.margin}
                             onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
-                            className="w-16 text-right text-xs h-7"
+                            className="w-20 text-right text-xs h-7"
                             placeholder="0"
                           />
                         </td>
@@ -1307,6 +1433,107 @@ export function CentralRackStep({
             open={translationsDialogOpen}
             onOpenChange={setTranslationsDialogOpen}
           />
+
+          {/* Product Details Modal */}
+          <Dialog open={productDetailsDialogOpen} onOpenChange={setProductDetailsDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold">
+                  Product Details: {selectedProduct?.name}
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Product Images */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Images</h3>
+                  {selectedProduct?.images && selectedProduct.images.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-4">
+                      {selectedProduct.images.map((image: any, index: number) => (
+                        <div key={index} className="relative">
+                          <img 
+                            src={image.url} 
+                            alt={`Product image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded border"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground mb-3">No images available</div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setProductDetailsDialogOpen(false);
+                      openProductImagesModal(selectedProduct);
+                    }}
+                    className="text-xs"
+                  >
+                    <Image className="mr-2 h-3 w-3" />
+                    Manage Images
+                  </Button>
+                </div>
+
+                {/* Product Specifications */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Specifications</h3>
+                  {selectedProduct?.specifications ? (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(selectedProduct.specifications, null, 2)}</pre>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground mb-3">No specifications available</div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setProductDetailsDialogOpen(false);
+                      openProductEditModal(selectedProduct);
+                    }}
+                    className="text-xs"
+                  >
+                    <Edit3 className="mr-2 h-3 w-3" />
+                    Manage Specifications
+                  </Button>
+                </div>
+
+                {/* Product Translations */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Translations</h3>
+                  {selectedProduct?.translations ? (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(selectedProduct.translations, null, 2)}</pre>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground mb-3">No translations available</div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setProductDetailsDialogOpen(false);
+                      openProductTranslationsModal(selectedProduct);
+                    }}
+                    className="text-xs"
+                  >
+                    <Sparkles className="mr-2 h-3 w-3" />
+                    Manage Translations
+                  </Button>
+                </div>
+
+                {/* Product Description */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Description</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                    {selectedProduct?.description || 'No description available'}
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>
