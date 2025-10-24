@@ -1159,6 +1159,25 @@ export function CentralRackStep({
                                           <div><strong>ERP Code:</strong> {getProductDetails(product.id).erpCode}</div>
                                           <div><strong>Manufacturer Code:</strong> {getProductDetails(product.id).manufacturerCode}</div>
                                           <div><strong>EAN Code:</strong> {getProductDetails(product.id).eanCode}</div>
+                                          
+                                          {/* Product readiness indicators */}
+                                          <div className="flex gap-1 mt-2 pt-2 border-t">
+                                            {getProductDetails(product.id).hasImages && (
+                                              <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                                📷 Images
+                                              </Badge>
+                                            )}
+                                            {getProductDetails(product.id).hasSpecs && (
+                                              <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                                📋 Specs
+                                              </Badge>
+                                            )}
+                                            {getProductDetails(product.id).hasTranslations && (
+                                              <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                                                🌐 Translations
+                                              </Badge>
+                                            )}
+                                          </div>
                                         </div>
                                       </TooltipContent>
                                     </Tooltip>
@@ -1166,24 +1185,6 @@ export function CentralRackStep({
                                   <div className="text-xs text-muted-foreground">
                                     {getProductDetails(product.id).erpCode !== 'N/A' && `ERP: ${getProductDetails(product.id).erpCode}`}
                                     {getProductDetails(product.id).manufacturerCode !== 'N/A' && ` | MFG: ${getProductDetails(product.id).manufacturerCode}`}
-                                  </div>
-                                  {/* Product readiness indicators */}
-                                  <div className="flex gap-1 mt-1">
-                                    {getProductDetails(product.id).hasImages && (
-                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
-                                        📷 Images
-                                      </Badge>
-                                    )}
-                                    {getProductDetails(product.id).hasSpecs && (
-                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
-                                        📋 Specs
-                                      </Badge>
-                                    )}
-                                    {getProductDetails(product.id).hasTranslations && (
-                                      <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
-                                        🌐 Translations
-                                      </Badge>
-                                    )}
                                   </div>
                                 </div>
                               </div>
