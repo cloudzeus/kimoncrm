@@ -311,6 +311,21 @@ export function CentralRackStep({
     }
   };
 
+  // Function to refresh products list
+  const refreshProductsList = async () => {
+    try {
+      const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+      const productsData = await productsRes.json();
+      if (productsData.success) {
+        setProductsList(productsData.data);
+        setForceUpdate(prev => prev + 1);
+        console.log('🔄 Products list refreshed after modal update');
+      }
+    } catch (error) {
+      console.error('Error refreshing products list:', error);
+    }
+  };
+
   // Function to open product details modal
   const openProductDetailsModal = (product: any) => {
     setSelectedProduct(product);
@@ -1471,25 +1486,37 @@ export function CentralRackStep({
             productId={selectedProduct.id}
             productName={selectedProduct.name}
             open={specificationsDialogOpen}
-            onOpenChange={setSpecificationsDialogOpen}
+            onOpenChange={(open) => {
+              setSpecificationsDialogOpen(open);
+              if (!open) refreshProductsList();
+            }}
           />
           
           <ProductImagesDialog
             productId={selectedProduct.id}
             productName={selectedProduct.name}
             open={imagesDialogOpen}
-            onOpenChange={setImagesDialogOpen}
+            onOpenChange={(open) => {
+              setImagesDialogOpen(open);
+              if (!open) refreshProductsList();
+            }}
           />
           
           <ProductTranslationsDialog
             productId={selectedProduct.id}
             productName={selectedProduct.name}
             open={translationsDialogOpen}
-            onOpenChange={setTranslationsDialogOpen}
+            onOpenChange={(open) => {
+              setTranslationsDialogOpen(open);
+              if (!open) refreshProductsList();
+            }}
           />
 
           {/* Product Details Modal */}
-          <Dialog open={productDetailsDialogOpen} onOpenChange={setProductDetailsDialogOpen}>
+          <Dialog open={productDetailsDialogOpen} onOpenChange={(open) => {
+            setProductDetailsDialogOpen(open);
+            if (!open) refreshProductsList();
+          }}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">
