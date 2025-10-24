@@ -1,115 +1,127 @@
+/**
+ * API Route: Add Product to ERP
+ * POST /api/products/[id]/add-to-erp
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
 import { insertProductToSoftOne } from '@/lib/softone/insert-product';
 
-/**
- * POST /api/products/[id]/add-to-erp
- * Add an existing product to SoftOne ERP
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
-    if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { id } = await params;
+    // Only allow ADMIN, MANAGER, and EMPLOYEE roles
+    if (!['ADMIN', 'MANAGER', 'EMPLOYEE'].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
 
-    // Fetch the product with all required data
+    const { id: productId } = await params;
+
+    // Get the product with all related data
     const product = await prisma.product.findUnique({
-      where: { id },
+      where: { id: productId },
       include: {
-        brand: { select: { id: true, code: true } },
-        category: { select: { id: true, softoneCode: true } },
-        manufacturer: { select: { id: true, code: true } },
-        unit: { select: { id: true, softoneCode: true } },
+        brand: true,
+        manufacturer: true,
+        category: true,
+        unit: true,
       },
     });
 
     if (!product) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product not found'
-      }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
     }
 
-    // Check if already in ERP
+    // Check if product is already in ERP
     if (product.mtrl) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product is already in ERP (MTRL exists)'
-      }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Product is already in ERP' },
+        { status: 400 }
+      );
     }
 
-    // Check required fields
-    if (!product.brand || !product.category) {
-      return NextResponse.json({
-        success: false,
-        error: 'Product must have brand and category to be added to ERP'
-      }, { status: 400 });
+    // Validate required fields for ERP insertion
+    if (!product.brandId || !product.categoryId || !product.manufacturerId || !product.unitId) {
+      return NextResponse.json(
+        { error: 'Product is missing required fields for ERP insertion (Brand, Category, Manufacturer, or Unit)' },
+        { status: 400 }
+      );
     }
 
-    console.log('📤 Sending to ERP:', {
-      name: product.name,
-      brandId: product.brandId,
-      categoryId: product.categoryId,
-      hasBrand: !!product.brand,
-      hasCategory: !!product.category,
-    });
-
-    // Insert to ERP (skip duplicate check since this is an existing product)
+    // Insert to ERP
     const erpResult = await insertProductToSoftOne({
       name: product.name,
       code1: product.code1 || '',
       code2: product.code2 || '',
-      brandId: product.brandId || '',
-      categoryId: product.categoryId || '',
-      manufacturerId: product.manufacturerId || '',
-      unitId: product.unitId || '',
+      brandId: product.brandId,
+      categoryId: product.categoryId,
+      manufacturerId: product.manufacturerId,
+      unitId: product.unitId,
       width: product.width ? Number(product.width) : undefined,
       length: product.length ? Number(product.length) : undefined,
       height: product.height ? Number(product.height) : undefined,
       weight: product.weight ? Number(product.weight) : undefined,
       isActive: product.isActive,
-      skipDuplicateCheck: true, // Skip duplicate check for existing products
+      skipDuplicateCheck: true, // Skip duplicate check since this is an existing product
     });
 
-    console.log('📥 ERP Result:', erpResult);
+    if (erpResult.success) {
+      // Update product with MTRL and generated code from ERP
+      const updatedProduct = await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          mtrl: erpResult.mtrl?.toString() || null,
+          code: erpResult.generatedCode || product.code || null,
+        },
+        include: {
+          brand: true,
+          manufacturer: true,
+          category: true,
+          unit: true,
+        },
+      });
 
-    if (!erpResult.success) {
-      console.error('❌ ERP insertion failed:', erpResult.error);
       return NextResponse.json({
-        success: false,
-        error: erpResult.error || 'Failed to insert product to ERP',
-        isDuplicate: erpResult.isDuplicate
-      }, { status: 400 });
+        success: true,
+        data: updatedProduct,
+        message: 'Product added to ERP successfully'
+      });
+    } else {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: erpResult.error || 'Failed to add product to ERP'
+        },
+        { status: 500 }
+      );
     }
-
-    // Update product with MTRL and generated code
-    await prisma.product.update({
-      where: { id },
-      data: {
-        mtrl: erpResult.mtrl?.toString() || null,
-        code: erpResult.generatedCode || null,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      generatedCode: erpResult.generatedCode,
-      mtrl: erpResult.mtrl,
-      message: 'Product added to ERP successfully'
-    });
 
   } catch (error) {
     console.error('Error adding product to ERP:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to add product to ERP'
-    }, { status: 500 });
+    return NextResponse.json(
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      },
+      { status: 500 }
+    );
   }
 }

@@ -145,6 +145,7 @@ export default function ProductsManager() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [addingToERP, setAddingToERP] = useState<string | null>(null);
   const [translationsDialogOpen, setTranslationsDialogOpen] = useState(false);
   const [translatingProduct, setTranslatingProduct] = useState<Product | null>(null);
   const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
@@ -479,6 +480,43 @@ export default function ProductsManager() {
   }, [products]);
 
   // Delete product
+  const handleAddToERP = async (productId: string) => {
+    setAddingToERP(productId);
+    try {
+      const response = await fetch(`/api/products/${productId}/add-to-erp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: `Product added to ERP successfully! Code: ${data.data.code}, MTRL: ${data.data.mtrl}`,
+        });
+        fetchProducts(); // Refresh the products list
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to add product to ERP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error adding product to ERP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add product to ERP",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingToERP(null);
+    }
+  };
+
   const deleteProduct = async (id: string) => {
     try {
       const response = await fetch(`/api/products/${id}`, {
@@ -1185,6 +1223,15 @@ export default function ProductsManager() {
                             <Languages className="h-4 w-4 mr-2" />
                             TRANSLATIONS
                           </DropdownMenuItem>
+                          {!product.mtrl && (
+                            <DropdownMenuItem 
+                              onClick={() => handleAddToERP(product.id)}
+                              disabled={addingToERP === product.id}
+                            >
+                              <Package className="h-4 w-4 mr-2" />
+                              {addingToERP === product.id ? 'ADDING TO ERP...' : 'ADD TO ERP'}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             onClick={() => {
