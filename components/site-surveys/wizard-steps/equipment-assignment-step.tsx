@@ -896,69 +896,23 @@ export function EquipmentAssignmentStep({
   const handleAddProduct = () => {
     if (!selectedElement || !selectedProductId) return;
 
-    console.log('🔍 handleAddProduct called with:', { selectedElement, selectedProductId, productQuantity });
-
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
-    console.log('🔍 Adding product to element:', {
-      elementType: selectedElement.type,
-      productId: selectedProductId,
-      productName: product.name,
-      quantity: productQuantity,
-      element: selectedElement
-    });
-
     const updatedBuildings = localBuildings.map(building => {
-      console.log('🔍 DEBUG - Building check:', {
-        buildingId: building.id,
-        selectedBuildingId: selectedElement.buildingId,
-        matches: building.id === selectedElement.buildingId
-      });
-      
       if (building.id !== selectedElement.buildingId) return building;
 
       // Handle floor-level elements FIRST (before central rack)
       if (selectedElement.floorId) {
-        console.log('🔍 DEBUG - Floor check:', {
-          selectedFloorId: selectedElement.floorId,
-          availableFloors: building.floors.map(f => f.id)
-        });
-        
         const updatedFloors = building.floors.map(floor => {
-          console.log('🔍 DEBUG - Floor mapping:', {
-            floorId: floor.id,
-            selectedFloorId: selectedElement.floorId,
-            matches: floor.id === selectedElement.floorId
-          });
-          
           if (floor.id !== selectedElement.floorId) return floor;
 
           // Handle rack elements
           if (selectedElement.rackId) {
             const updatedRacks = (floor.racks || []).map(rack => {
-              console.log('🔍 DEBUG - Rack structure:', {
-                rackId: rack.id,
-                elementType: selectedElement.type,
-                hasCableTerminations: !!rack.cableTerminations,
-                cableTerminationsLength: rack.cableTerminations?.length || 0,
-                cableTerminations: rack.cableTerminations?.map(t => ({ id: t.id, productId: t.productId })) || []
-              });
-              
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
-                console.log('🔍 Processing termination update:', { 
-                  rackId: rack.id, 
-                  elementId: selectedElement.elementId, 
-                  productId: selectedProductId,
-                  terminations: rack.cableTerminations.map(t => ({ id: t.id, productId: t.productId }))
-                });
-                console.log('🔍 Checking termination match:', {
-                  lookingFor: selectedElement.elementId,
-                  availableTerminations: rack.cableTerminations.map(t => t.id),
-                  foundMatch: rack.cableTerminations.some(t => t.id === selectedElement.elementId)
-                });
                 const updatedTerminations = rack.cableTerminations.map(term => {
                   if (term.id === selectedElement.elementId) {
                     const updated = {
@@ -967,17 +921,10 @@ export function EquipmentAssignmentStep({
                       productId: selectedProductId,
                       quantity: productQuantity,
                     };
-                    console.log('✅ Updated termination - FOUND MATCH:', { 
-                      termId: term.id,
-                      oldProductId: term.productId,
-                      newProductId: selectedProductId,
-                      newTerm: updated
-                    });
                     return updated;
                   }
                   return term;
                 });
-                console.log('✅ All terminations after update:', updatedTerminations.map(t => ({ id: t.id, productId: t.productId })));
                 return { ...rack, cableTerminations: updatedTerminations };
               }
 
@@ -1101,55 +1048,12 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
-    console.log('✅ Product assigned - Before update:', {
-      elementType: selectedElement.type,
-      productName: product.name,
-      quantity: productQuantity,
-      selectedElement
-    });
-
-    console.log('✅ Product assigned - Updated buildings:', updatedBuildings);
-    
-    // Debug: Check the specific termination before deep copy
-    if (selectedElement.type === 'termination' && selectedElement.floorId && selectedElement.rackId) {
-      const debugBuilding = updatedBuildings.find(b => b.id === selectedElement.buildingId);
-      const debugFloor = debugBuilding?.floors.find(f => f.id === selectedElement.floorId);
-      const debugRack = debugFloor?.racks?.find(r => r.id === selectedElement.rackId);
-      const debugTerm = debugRack?.cableTerminations?.find(t => t.id === selectedElement.elementId);
-      console.log('🔍 DEBUG - Before deep copy:', {
-        buildingId: debugBuilding?.id,
-        floorId: debugFloor?.id,
-        rackId: debugRack?.id,
-        termId: debugTerm?.id,
-        productId: debugTerm?.productId,
-        hasProduct: !!debugTerm?.productId
-      });
-    }
-    
     // Force deep copy to ensure React detects the change
     const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
     
-    console.log('🔍 Setting localBuildings with deepCopy');
     setLocalBuildings(deepCopy);
-    
-    console.log('🔍 Calling onUpdate to notify parent');
     onUpdate(deepCopy);
-    
-    console.log('🔍 Closing dialog');
     setIsProductDialogOpen(false);
-    
-    // Log the termination we just updated for verification
-    if (selectedElement.type === 'termination' && selectedElement.floorId && selectedElement.rackId) {
-      const updatedBuilding = deepCopy.find(b => b.id === selectedElement.buildingId);
-      const updatedFloor = updatedBuilding?.floors.find(f => f.id === selectedElement.floorId);
-      const updatedRack = updatedFloor?.racks?.find(r => r.id === selectedElement.rackId);
-      const updatedTerm = updatedRack?.cableTerminations?.find(t => t.id === selectedElement.elementId);
-      console.log('🔍 Verification - Updated termination in deepCopy:', {
-        termId: updatedTerm?.id,
-        productId: updatedTerm?.productId,
-        hasProduct: !!updatedTerm?.productId
-      });
-    }
     
     // Auto-save
     if (siteSurveyId) {
@@ -1157,14 +1061,6 @@ export function EquipmentAssignmentStep({
     }
     
     toast({ title: "Success", description: `Product "${product.name}" assigned and saved` });
-    
-    console.log('✅ Product assignment complete - Deep copy created, should be visible in DOM now');
-    
-    // Force component re-render by updating a dummy state
-    setTimeout(() => {
-      console.log('🔄 Forcing re-render to ensure UI updates');
-      setLocalBuildings(prev => [...prev]);
-    }, 100);
   };
 
   // Open new rack dialog
@@ -1241,31 +1137,12 @@ export function EquipmentAssignmentStep({
       quantity: serviceQuantity,
     };
 
-    console.log('🔍 Adding service to element:', {
-      elementType: selectedElement.type,
-      serviceId: selectedServiceId,
-      serviceName: service.name,
-      quantity: serviceQuantity,
-      element: selectedElement
-    });
-
     const updatedBuildings = localBuildings.map(building => {
       if (building.id !== selectedElement.buildingId) return building;
 
       // Handle floor-level elements FIRST (before central rack)
       if (selectedElement.floorId) {
-        console.log('🔍 DEBUG - Floor check:', {
-          selectedFloorId: selectedElement.floorId,
-          availableFloors: building.floors.map(f => f.id)
-        });
-        
         const updatedFloors = building.floors.map(floor => {
-          console.log('🔍 DEBUG - Floor mapping:', {
-            floorId: floor.id,
-            selectedFloorId: selectedElement.floorId,
-            matches: floor.id === selectedElement.floorId
-          });
-          
           if (floor.id !== selectedElement.floorId) return floor;
 
           // Handle rack elements
@@ -1282,29 +1159,16 @@ export function EquipmentAssignmentStep({
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
-                console.log('🔍 Processing service update for termination:', { 
-                  rackId: rack.id, 
-                  elementId: selectedElement.elementId, 
-                  serviceId: selectedServiceId,
-                  terminations: rack.cableTerminations.map(t => ({ id: t.id, services: t.services?.length || 0 }))
-                });
                 const updatedTerminations = rack.cableTerminations.map(term => {
                   if (term.id === selectedElement.elementId) {
                     const updated = {
                       ...term,
                       services: [...(term.services || []), newService],
                     };
-                    console.log('✅ Updated termination with service - FOUND MATCH:', { 
-                      termId: term.id,
-                      oldServicesCount: term.services?.length || 0,
-                      newServicesCount: updated.services.length,
-                      newTerm: updated
-                    });
                     return updated;
                   }
                   return term;
                 });
-                console.log('✅ All terminations after service update:', updatedTerminations.map(t => ({ id: t.id, services: t.services?.length || 0 })));
                 return { ...rack, cableTerminations: updatedTerminations };
               }
 
@@ -1432,14 +1296,6 @@ export function EquipmentAssignmentStep({
           // Handle rack elements
           if (selectedElement.rackId) {
             const updatedRacks = (floor.racks || []).map(rack => {
-              console.log('🔍 DEBUG - Rack structure:', {
-                rackId: rack.id,
-                elementType: selectedElement.type,
-                hasCableTerminations: !!rack.cableTerminations,
-                cableTerminationsLength: rack.cableTerminations?.length || 0,
-                cableTerminations: rack.cableTerminations?.map(t => ({ id: t.id, productId: t.productId })) || []
-              });
-              
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
@@ -1530,8 +1386,6 @@ export function EquipmentAssignmentStep({
       return building;
     });
 
-    console.log('✅ Service assigned - Updated buildings:', updatedBuildings);
-    
     // Force deep copy to ensure React detects the change
     const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
     
@@ -1545,14 +1399,6 @@ export function EquipmentAssignmentStep({
     }
     
     toast({ title: "Success", description: `Service "${service.name}" assigned and saved` });
-    
-    console.log('✅ Service assignment complete - Deep copy created, should be visible in DOM now');
-    
-    // Force component re-render by updating a dummy state
-    setTimeout(() => {
-      console.log('🔄 Forcing re-render to ensure UI updates');
-      setLocalBuildings(prev => [...prev]);
-    }, 100);
   };
 
   return (
@@ -1885,16 +1731,6 @@ export function EquipmentAssignmentStep({
                                             <div className="space-y-1">
                                               {rack.cableTerminations.map((termination) => {
                                                 const product = products.find(p => p.id === termination.productId);
-                                                console.log('🔍 Rendering termination:', { 
-                                                  id: termination.id, 
-                                                  productId: termination.productId,
-                                                  hasProduct: !!termination.productId,
-                                                  foundProduct: !!product,
-                                                  productName: product?.name,
-                                                  services: termination.services?.length || 0,
-                                                  totalProducts: products.length,
-                                                  termination: termination
-                                                });
                                                 return (
                                                 <div key={termination.id} className="p-2 bg-muted/30 rounded">
                                                   <div className="flex items-center justify-between mb-2">
@@ -1993,19 +1829,6 @@ export function EquipmentAssignmentStep({
                                                         onClick={() => openServiceDialog({ type: 'termination', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: termination.id })}>
                                                         <Wrench className="h-3 w-3" />
                                                       </Button>
-                                                    </div>
-                                                  </div>
-                                                  
-                                                  {/* DEBUG: Always show this section */}
-                                                  <div className="pl-4 mb-1 border-2 border-red-500 p-2">
-                                                    <div className="text-xs font-bold text-red-600">
-                                                      DEBUG: termId = {termination.id}
-                                                    </div>
-                                                    <div className="text-xs font-bold text-red-600">
-                                                      DEBUG: productId = {termination.productId || 'NONE'}
-                                                    </div>
-                                                    <div className="text-xs font-bold text-blue-600">
-                                                      DEBUG: isNew = {termination.isFutureProposal ? 'YES' : 'NO'}
                                                     </div>
                                                   </div>
                                                   
