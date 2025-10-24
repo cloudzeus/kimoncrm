@@ -823,7 +823,7 @@ export function CentralRackStep({
       products: Array.from(productsMap.values()),
       services: Array.from(servicesMap.values())
     };
-  }, [buildings, productsList, servicesList, forceUpdate, getProductBrand, getProductCategory, getProductName, getServiceName, getTotalMultiplier]);
+  }, [buildings, getProductBrand, getProductCategory, getProductName, getServiceName, getTotalMultiplier]);
 
   const { products: collectedProducts, services: collectedServices } = collectAssignedItems();
 
@@ -998,6 +998,74 @@ export function CentralRackStep({
     }
   };
 
+  const handleGenerateProductsAnalysis = async () => {
+    try {
+      console.log('🚀 Starting Products Analysis generation...');
+      
+      // Check if we have products
+      if (!productsByBrand || Object.keys(productsByBrand).length === 0) {
+        toast({
+          title: "No Products",
+          description: "No products found to generate analysis. Please add products in Step 2 first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare products data for analysis
+      const productsForAnalysis = Object.values(productsByBrand || {}).flat().map((product: any) => {
+        const productDetails = getProductDetails(product.id);
+        return {
+          ...product,
+          ...productDetails,
+          quantity: product.quantity
+        };
+      });
+
+      console.log('🔍 Products Analysis Data being sent:', {
+        productsCount: productsForAnalysis.length,
+        sampleProduct: productsForAnalysis[0]
+      });
+
+      const response = await fetch('/api/site-surveys/generate-products-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products: productsForAnalysis,
+          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate Products Analysis');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Products-Analysis-${buildings[0]?.name || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Products Analysis document generated successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error generating Products Analysis:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate Products Analysis",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1084,6 +1152,10 @@ export function CentralRackStep({
             <Button onClick={handleGenerateBOM} className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Δημιουργία BOM
+            </Button>
+            <Button onClick={handleGenerateProductsAnalysis} variant="outline" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Products Analysis
             </Button>
           </div>
         </div>
