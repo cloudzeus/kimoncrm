@@ -7,9 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Wrench, Sparkles, Calculator, FileText, Download } from "lucide-react";
+import { Package, Wrench, Sparkles, Calculator, FileText, Download, MoreHorizontal, Image, Edit3, Save, Upload } from "lucide-react";
+import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
+import ProductImagesDialog from "@/components/products/product-images-dialog";
+import ProductTranslationsDialog from "@/components/products/product-translations-dialog";
 
 interface CentralRackStepProps {
   buildings: BuildingData[];
@@ -28,6 +36,12 @@ interface ProductData {
   margin: number;
   totalPrice: number;
   locations: string[];
+  erpCode?: string;
+  manufacturerCode?: string;
+  eanCode?: string;
+  images?: any[];
+  specifications?: any;
+  translations?: any;
 }
 
 interface ServiceData {
@@ -52,6 +66,38 @@ export function CentralRackStep({
   const [servicePricing, setServicePricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
+  const [brandsList, setBrandsList] = useState<any[]>([]);
+  
+  // Dialog states
+  const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
+  const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
+  const [translationsDialogOpen, setTranslationsDialogOpen] = useState(false);
+  const [productEditDialogOpen, setProductEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  
+  // Product editing form state
+  const [editForm, setEditForm] = useState({
+    name: '',
+    brand: '',
+    category: '',
+    erpCode: '',
+    manufacturerCode: '',
+    eanCode: '',
+    description: ''
+  });
+
+  // Column visibility states
+  const [visibleColumns, setVisibleColumns] = useState({
+    product: true,
+    brand: true,
+    category: true,
+    quantity: true,
+    unitPrice: true,
+    margin: true,
+    totalPrice: true,
+    locations: true,
+    actions: true
+  });
 
   // Load saved pricing from localStorage on mount
   useEffect(() => {
@@ -73,22 +119,25 @@ export function CentralRackStep({
     }
   }, [siteSurveyId]);
 
-  // Fetch products and services with images
+  // Fetch products, services, and brands
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, servicesRes] = await Promise.all([
+        const [productsRes, servicesRes, brandsRes] = await Promise.all([
           fetch('/api/products?limit=1000&includeImages=true'),
-          fetch('/api/services?limit=1000')
+          fetch('/api/services?limit=1000'),
+          fetch('/api/brands?limit=1000')
         ]);
         
         const productsData = await productsRes.json();
         const servicesData = await servicesRes.json();
+        const brandsData = await brandsRes.json();
         
         if (productsData.success) setProductsList(productsData.data);
         if (servicesData.success) setServicesList(servicesData.data);
+        if (brandsData.success) setBrandsList(brandsData.data);
       } catch (error) {
-        console.error('Error fetching products/services:', error);
+        console.error('Error fetching data:', error);
       }
     };
     
@@ -132,6 +181,72 @@ export function CentralRackStep({
   const getServiceName = (serviceId: string) => {
     const service = servicesList.find(s => s.id === serviceId);
     return service ? service.name : serviceId;
+  };
+
+  // Helper to get product details
+  const getProductDetails = (productId: string) => {
+    const product = productsList.find(p => p.id === productId);
+    return {
+      name: product?.name || 'Unknown Product',
+      brand: product?.brand?.name || product?.brand || 'Generic',
+      category: product?.category?.name || product?.category || 'Uncategorized',
+      erpCode: product?.erpCode || '',
+      manufacturerCode: product?.manufacturerCode || '',
+      eanCode: product?.eanCode || '',
+      images: product?.images || [],
+      specifications: product?.specifications || null,
+      translations: product?.translations || null
+    };
+  };
+
+  // Function to update product in ERP
+  const updateProductInERP = async (productId: string, updates: any) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+
+      if (response.ok) {
+        // Refresh products list
+        const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+        const productsData = await productsRes.json();
+        if (productsData.success) setProductsList(productsData.data);
+        
+        toast({
+          title: "Success",
+          description: "Product updated in ERP successfully!",
+        });
+      } else {
+        throw new Error('Failed to update product in ERP');
+      }
+    } catch (error) {
+      console.error('Error updating product in ERP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product in ERP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to open product editing modal
+  const openProductEditModal = (product: any) => {
+    setSelectedProduct(product);
+    setSpecificationsDialogOpen(true);
+  };
+
+  // Function to open product images modal
+  const openProductImagesModal = (product: any) => {
+    setSelectedProduct(product);
+    setImagesDialogOpen(true);
+  };
+
+  // Function to open product translations modal
+  const openProductTranslationsModal = (product: any) => {
+    setSelectedProduct(product);
+    setTranslationsDialogOpen(true);
   };
 
   // Collect all assigned products and services from Step 2
@@ -849,9 +964,48 @@ export function CentralRackStep({
         {Object.entries(productsByBrand).map(([brand, brandProducts]) => (
           <Card key={brand}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Προϊόντα {brand}
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  <span className="text-sm">Προϊόντα {brand}</span>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                      <MoreHorizontal className="h-3 w-3 mr-1" />
+                      Στήλες
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="p-2">
+                      <div className="text-xs font-medium mb-2">Εμφάνιση Στηλών</div>
+                      <div className="space-y-1">
+                        {Object.entries(visibleColumns).map(([key, visible]) => (
+                          <div key={key} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={key}
+                              checked={visible}
+                              onCheckedChange={(checked) => 
+                                setVisibleColumns(prev => ({ ...prev, [key]: checked }))
+                              }
+                            />
+                            <Label htmlFor={key} className="text-xs">
+                              {key === 'product' && 'Προϊόν'}
+                              {key === 'brand' && 'Μάρκα'}
+                              {key === 'category' && 'Κατηγορία'}
+                              {key === 'quantity' && 'Ποσότητα'}
+                              {key === 'unitPrice' && 'Τιμή Μονάδας'}
+                              {key === 'margin' && 'Ποσοστό Κέρδους'}
+                              {key === 'totalPrice' && 'Συνολική Τιμή'}
+                              {key === 'locations' && 'Τοποθεσίες'}
+                              {key === 'actions' && 'Ενέργειες'}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardTitle>
             </CardHeader>
             <CardContent className="bg-white dark:bg-gray-900">
@@ -859,13 +1013,15 @@ export function CentralRackStep({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-2 font-semibold text-[11px]">Προϊόν</th>
-                      <th className="text-left p-2 font-semibold text-[11px]">Κατηγορία</th>
-                      <th className="text-right p-2 font-semibold text-[11px]">Ποσότητα</th>
-                      <th className="text-right p-2 font-semibold text-[11px]">Τιμή Μονάδας (€)</th>
-                      <th className="text-right p-2 font-semibold text-[11px]">Ποσοστό Κέρδους (%)</th>
-                      <th className="text-right p-2 font-semibold text-[11px]">Συνολική Τιμή (€)</th>
-                      <th className="text-left p-2 font-semibold text-[11px]">Τοποθεσίες</th>
+                      {visibleColumns.product && <th className="text-left p-2 font-semibold text-xs">Προϊόν</th>}
+                      {visibleColumns.brand && <th className="text-left p-2 font-semibold text-xs">Μάρκα</th>}
+                      {visibleColumns.category && <th className="text-left p-2 font-semibold text-xs">Κατηγορία</th>}
+                      {visibleColumns.quantity && <th className="text-right p-2 font-semibold text-xs">Ποσότητα</th>}
+                      {visibleColumns.unitPrice && <th className="text-right p-2 font-semibold text-xs">Τιμή Μονάδας (€)</th>}
+                      {visibleColumns.margin && <th className="text-right p-2 font-semibold text-xs">Ποσοστό Κέρδους (%)</th>}
+                      {visibleColumns.totalPrice && <th className="text-right p-2 font-semibold text-xs">Συνολική Τιμή (€)</th>}
+                      {visibleColumns.locations && <th className="text-left p-2 font-semibold text-xs">Τοποθεσίες</th>}
+                      {visibleColumns.actions && <th className="text-center p-2 font-semibold text-xs">Ενέργειες</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -873,66 +1029,132 @@ export function CentralRackStep({
                       const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                       return (
                         <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="p-2">
-                            <div className="flex items-center gap-2">
-                              {productsList.find(p => p.id === product.id)?.images?.[0]?.url ? (
+                          {visibleColumns.product && (
+                            <td className="p-2">
+                              <div className="flex items-center gap-2">
+                                {productsList.find(p => p.id === product.id)?.images?.[0]?.url ? (
                                 <img 
                                   src={productsList.find(p => p.id === product.id)?.images[0].url} 
-                                  alt={product.name}
+                                  alt={product.name || 'Product image'}
                                   className="w-8 h-8 rounded-full object-cover border border-gray-200"
                                   onError={(e) => {
                                     e.currentTarget.style.display = 'none';
                                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                   }}
                                 />
-                              ) : null}
-                              <div className={`w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center ${productsList.find(p => p.id === product.id)?.images?.[0]?.url ? 'hidden' : ''}`}>
-                                <Package className="h-4 w-4 text-blue-600" />
+                                ) : null}
+                                <div className={`w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center ${productsList.find(p => p.id === product.id)?.images?.[0]?.url ? 'hidden' : ''}`}>
+                                  <Package className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-xs">{product.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {getProductDetails(product.id).erpCode && `ERP: ${getProductDetails(product.id).erpCode}`}
+                                    {getProductDetails(product.id).manufacturerCode && ` | MFG: ${getProductDetails(product.id).manufacturerCode}`}
+                                  </div>
+                                </div>
                               </div>
-                              <div>
-                                <div className="font-medium text-[11px]">{product.name}</div>
-                                <div className="text-[10px] text-muted-foreground">{product.code}</div>
+                            </td>
+                          )}
+                          {visibleColumns.brand && (
+                            <td className="p-2">
+                              <Select
+                                value={getProductDetails(product.id).brand}
+                                onValueChange={(value) => {
+                                  const brand = brandsList.find(b => b.name === value);
+                                  if (brand) {
+                                    updateProductInERP(product.id, { brandId: brand.id });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-32 h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {brandsList.map((brand) => (
+                                    <SelectItem key={brand.id} value={brand.name} className="text-xs">
+                                      {brand.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                          )}
+                          {visibleColumns.category && (
+                            <td className="p-2 text-xs">{product.category}</td>
+                          )}
+                          {visibleColumns.quantity && (
+                            <td className="p-2 text-right text-xs">{product.quantity}</td>
+                          )}
+                          {visibleColumns.unitPrice && (
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={pricing.unitPrice}
+                                onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right text-xs h-7"
+                                placeholder="0.00"
+                              />
+                            </td>
+                          )}
+                          {visibleColumns.margin && (
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={pricing.margin}
+                                onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
+                                className="w-16 text-right text-xs h-7"
+                                placeholder="0"
+                              />
+                            </td>
+                          )}
+                          {visibleColumns.totalPrice && (
+                            <td className="p-2 text-right font-semibold text-xs">
+                              €{(pricing.totalPrice * product.quantity).toFixed(2)}
+                            </td>
+                          )}
+                          {visibleColumns.locations && (
+                            <td className="p-2">
+                              <div className="text-xs text-muted-foreground">
+                                {product.locations.join(', ')}
                               </div>
-                            </div>
-                          </td>
-                          <td className="p-2 text-[11px]">{product.category}</td>
-                          <td className="p-2 text-right text-[11px]">{product.quantity}</td>
-                          <td className="p-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={pricing.unitPrice}
-                              onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right text-[11px] h-7"
-                              placeholder="0.00"
-                            />
-                          </td>
-                          <td className="p-2">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={pricing.margin}
-                              onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
-                              className="w-16 text-right text-[11px] h-7"
-                              placeholder="0"
-                            />
-                          </td>
-                          <td className="p-2 text-right font-semibold text-[11px]">
-                            €{(pricing.totalPrice * product.quantity).toFixed(2)}
-                          </td>
-                          <td className="p-2">
-                            <div className="text-[10px] text-muted-foreground">
-                              {product.locations.join(', ')}
-                            </div>
-                          </td>
+                            </td>
+                          )}
+                          {visibleColumns.actions && (
+                            <td className="p-2">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                    <MoreHorizontal className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openProductImagesModal(product)} className="text-xs">
+                                    <Image className="mr-2 h-3 w-3" />
+                                    Εικόνες
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openProductEditModal(product)} className="text-xs">
+                                    <Edit3 className="mr-2 h-3 w-3" />
+                                    Προδιαγραφές
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openProductTranslationsModal(product)} className="text-xs">
+                                    <Sparkles className="mr-2 h-3 w-3" />
+                                    Μεταφράσεις
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 font-semibold">
-                      <td colSpan={5} className="p-2 text-right text-[11px]">Υποσύνολο {brand}:</td>
-                      <td className="p-2 text-right text-[11px]">
+                      <td colSpan={5} className="p-2 text-right text-xs">Υποσύνολο {brand}:</td>
+                      <td className="p-2 text-right text-xs">
                         €{brandProducts.reduce((sum, product) => {
                           const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                           return sum + (pricing.totalPrice * product.quantity);
@@ -953,8 +1175,8 @@ export function CentralRackStep({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Υπηρεσίες
+              <Wrench className="h-4 w-4" />
+              <span className="text-sm">Υπηρεσίες</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="bg-white dark:bg-gray-900">
@@ -962,13 +1184,13 @@ export function CentralRackStep({
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-2 font-semibold text-[11px]">Υπηρεσία</th>
-                    <th className="text-left p-2 font-semibold text-[11px]">Κατηγορία</th>
-                    <th className="text-right p-2 font-semibold text-[11px]">Ποσότητα</th>
-                    <th className="text-right p-2 font-semibold text-[11px]">Τιμή Μονάδας (€)</th>
-                    <th className="text-right p-2 font-semibold text-[11px]">Ποσοστό Κέρδους (%)</th>
-                    <th className="text-right p-2 font-semibold text-[11px]">Συνολική Τιμή (€)</th>
-                    <th className="text-left p-2 font-semibold text-[11px]">Τοποθεσίες</th>
+                    <th className="text-left p-2 font-semibold text-xs">Υπηρεσία</th>
+                    <th className="text-left p-2 font-semibold text-xs">Κατηγορία</th>
+                    <th className="text-right p-2 font-semibold text-xs">Ποσότητα</th>
+                    <th className="text-right p-2 font-semibold text-xs">Τιμή Μονάδας (€)</th>
+                    <th className="text-right p-2 font-semibold text-xs">Ποσοστό Κέρδους (%)</th>
+                    <th className="text-right p-2 font-semibold text-xs">Συνολική Τιμή (€)</th>
+                    <th className="text-left p-2 font-semibold text-xs">Τοποθεσίες</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -982,20 +1204,20 @@ export function CentralRackStep({
                               <Wrench className="h-4 w-4 text-green-600" />
                             </div>
                             <div>
-                              <div className="font-medium text-[11px]">{service.name}</div>
-                              <div className="text-[10px] text-muted-foreground">{service.code}</div>
+                              <div className="font-medium text-xs">{service.name}</div>
+                              <div className="text-xs text-muted-foreground">{service.code}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-2 text-[11px]">{service.category}</td>
-                        <td className="p-2 text-right text-[11px]">{service.quantity}</td>
+                        <td className="p-2 text-xs">{service.category}</td>
+                        <td className="p-2 text-right text-xs">{service.quantity}</td>
                         <td className="p-2">
                           <Input
                             type="number"
                             step="0.01"
                             value={pricing.unitPrice}
                             onChange={(e) => updateServicePricing(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-right text-[11px] h-7"
+                            className="w-20 text-right text-xs h-7"
                             placeholder="0.00"
                           />
                         </td>
@@ -1005,15 +1227,15 @@ export function CentralRackStep({
                             step="0.1"
                             value={pricing.margin}
                             onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
-                            className="w-16 text-right text-[11px] h-7"
+                            className="w-16 text-right text-xs h-7"
                             placeholder="0"
                           />
                         </td>
-                        <td className="p-2 text-right font-semibold text-[11px]">
+                        <td className="p-2 text-right font-semibold text-xs">
                           €{(pricing.totalPrice * service.quantity).toFixed(2)}
                         </td>
                         <td className="p-2">
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             {service.locations.join(', ')}
                           </div>
                         </td>
@@ -1023,8 +1245,8 @@ export function CentralRackStep({
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 font-semibold">
-                    <td colSpan={5} className="p-2 text-right text-[11px]">Υποσύνολο Υπηρεσιών:</td>
-                    <td className="p-2 text-right text-[11px]">
+                    <td colSpan={5} className="p-2 text-right text-xs">Υποσύνολο Υπηρεσιών:</td>
+                    <td className="p-2 text-right text-xs">
                       €{collectedServices.reduce((sum, service) => {
                         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                         return sum + (pricing.totalPrice * service.quantity);
@@ -1043,10 +1265,10 @@ export function CentralRackStep({
       <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
         <CardContent className="pt-6 bg-white dark:bg-gray-900">
           <div className="flex justify-between items-center">
-            <h3 className="text-base font-semibold text-green-900 dark:text-green-100">
+            <h3 className="text-sm font-semibold text-green-900 dark:text-green-100">
               Συνολικό Σύνολο
             </h3>
-            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+            <div className="text-base font-bold text-green-600 dark:text-green-400">
               €{(
                 Object.values(productsByBrand).flat().reduce((sum, product) => {
                   const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
@@ -1061,6 +1283,32 @@ export function CentralRackStep({
           </div>
         </CardContent>
       </Card>
+
+      {/* Product Modals */}
+      {selectedProduct && (
+        <>
+          <ProductSpecificationsDialog
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+            open={specificationsDialogOpen}
+            onOpenChange={setSpecificationsDialogOpen}
+          />
+          
+          <ProductImagesDialog
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+            open={imagesDialogOpen}
+            onOpenChange={setImagesDialogOpen}
+          />
+          
+          <ProductTranslationsDialog
+            productId={selectedProduct.id}
+            productName={selectedProduct.name}
+            open={translationsDialogOpen}
+            onOpenChange={setTranslationsDialogOpen}
+          />
+        </>
+      )}
     </div>
   );
 }
