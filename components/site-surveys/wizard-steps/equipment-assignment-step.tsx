@@ -910,38 +910,41 @@ export function EquipmentAssignmentStep({
     });
 
     const updatedBuildings = localBuildings.map(building => {
+      console.log('🔍 DEBUG - Building check:', {
+        buildingId: building.id,
+        selectedBuildingId: selectedElement.buildingId,
+        matches: building.id === selectedElement.buildingId
+      });
+      
       if (building.id !== selectedElement.buildingId) return building;
 
-      // Handle different element types
-      if (selectedElement.type === 'termination' && building.centralRack) {
-        const updatedTerminations = building.centralRack.cableTerminations.map(term => {
-          if (term.id === selectedElement.elementId) {
-            return {
-              ...term,
-              isFutureProposal: true,
-              productId: selectedProductId,
-              quantity: productQuantity,
-            };
-          }
-          return term;
-        });
-        return {
-          ...building,
-          centralRack: {
-            ...building.centralRack,
-            cableTerminations: updatedTerminations,
-          },
-        };
-      }
-
-      // Handle floor-level elements
+      // Handle floor-level elements FIRST (before central rack)
       if (selectedElement.floorId) {
+        console.log('🔍 DEBUG - Floor check:', {
+          selectedFloorId: selectedElement.floorId,
+          availableFloors: building.floors.map(f => f.id)
+        });
+        
         const updatedFloors = building.floors.map(floor => {
+          console.log('🔍 DEBUG - Floor mapping:', {
+            floorId: floor.id,
+            selectedFloorId: selectedElement.floorId,
+            matches: floor.id === selectedElement.floorId
+          });
+          
           if (floor.id !== selectedElement.floorId) return floor;
 
           // Handle rack elements
           if (selectedElement.rackId) {
             const updatedRacks = (floor.racks || []).map(rack => {
+              console.log('🔍 DEBUG - Rack structure:', {
+                rackId: rack.id,
+                elementType: selectedElement.type,
+                hasCableTerminations: !!rack.cableTerminations,
+                cableTerminationsLength: rack.cableTerminations?.length || 0,
+                cableTerminations: rack.cableTerminations?.map(t => ({ id: t.id, productId: t.productId })) || []
+              });
+              
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
@@ -950,6 +953,11 @@ export function EquipmentAssignmentStep({
                   elementId: selectedElement.elementId, 
                   productId: selectedProductId,
                   terminations: rack.cableTerminations.map(t => ({ id: t.id, productId: t.productId }))
+                });
+                console.log('🔍 Checking termination match:', {
+                  lookingFor: selectedElement.elementId,
+                  availableTerminations: rack.cableTerminations.map(t => t.id),
+                  foundMatch: rack.cableTerminations.some(t => t.id === selectedElement.elementId)
                 });
                 const updatedTerminations = rack.cableTerminations.map(term => {
                   if (term.id === selectedElement.elementId) {
@@ -1068,6 +1076,28 @@ export function EquipmentAssignmentStep({
         return { ...building, floors: updatedFloors };
       }
 
+      // Handle central rack elements (only if no floorId)
+      if (selectedElement.type === 'termination' && building.centralRack) {
+        const updatedTerminations = building.centralRack.cableTerminations.map(term => {
+          if (term.id === selectedElement.elementId) {
+            return {
+              ...term,
+              isFutureProposal: true,
+              productId: selectedProductId,
+              quantity: productQuantity,
+            };
+          }
+          return term;
+        });
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            cableTerminations: updatedTerminations,
+          },
+        };
+      }
+
       return building;
     });
 
@@ -1079,6 +1109,22 @@ export function EquipmentAssignmentStep({
     });
 
     console.log('✅ Product assigned - Updated buildings:', updatedBuildings);
+    
+    // Debug: Check the specific termination before deep copy
+    if (selectedElement.type === 'termination' && selectedElement.floorId && selectedElement.rackId) {
+      const debugBuilding = updatedBuildings.find(b => b.id === selectedElement.buildingId);
+      const debugFloor = debugBuilding?.floors.find(f => f.id === selectedElement.floorId);
+      const debugRack = debugFloor?.racks?.find(r => r.id === selectedElement.rackId);
+      const debugTerm = debugRack?.cableTerminations?.find(t => t.id === selectedElement.elementId);
+      console.log('🔍 DEBUG - Before deep copy:', {
+        buildingId: debugBuilding?.id,
+        floorId: debugFloor?.id,
+        rackId: debugRack?.id,
+        termId: debugTerm?.id,
+        productId: debugTerm?.productId,
+        hasProduct: !!debugTerm?.productId
+      });
+    }
     
     // Force deep copy to ensure React detects the change
     const deepCopy = JSON.parse(JSON.stringify(updatedBuildings));
@@ -1206,7 +1252,148 @@ export function EquipmentAssignmentStep({
     const updatedBuildings = localBuildings.map(building => {
       if (building.id !== selectedElement.buildingId) return building;
 
-      // Handle central rack terminations
+      // Handle floor-level elements FIRST (before central rack)
+      if (selectedElement.floorId) {
+        console.log('🔍 DEBUG - Floor check:', {
+          selectedFloorId: selectedElement.floorId,
+          availableFloors: building.floors.map(f => f.id)
+        });
+        
+        const updatedFloors = building.floors.map(floor => {
+          console.log('🔍 DEBUG - Floor mapping:', {
+            floorId: floor.id,
+            selectedFloorId: selectedElement.floorId,
+            matches: floor.id === selectedElement.floorId
+          });
+          
+          if (floor.id !== selectedElement.floorId) return floor;
+
+          // Handle rack elements
+          if (selectedElement.rackId) {
+            const updatedRacks = (floor.racks || []).map(rack => {
+              console.log('🔍 DEBUG - Rack structure:', {
+                rackId: rack.id,
+                elementType: selectedElement.type,
+                hasCableTerminations: !!rack.cableTerminations,
+                cableTerminationsLength: rack.cableTerminations?.length || 0,
+                cableTerminations: rack.cableTerminations?.map(t => ({ id: t.id, services: t.services?.length || 0 })) || []
+              });
+              
+              if (rack.id !== selectedElement.rackId) return rack;
+
+              if (selectedElement.type === 'termination' && rack.cableTerminations) {
+                console.log('🔍 Processing service update for termination:', { 
+                  rackId: rack.id, 
+                  elementId: selectedElement.elementId, 
+                  serviceId: selectedServiceId,
+                  terminations: rack.cableTerminations.map(t => ({ id: t.id, services: t.services?.length || 0 }))
+                });
+                const updatedTerminations = rack.cableTerminations.map(term => {
+                  if (term.id === selectedElement.elementId) {
+                    const updated = {
+                      ...term,
+                      services: [...(term.services || []), newService],
+                    };
+                    console.log('✅ Updated termination with service - FOUND MATCH:', { 
+                      termId: term.id,
+                      oldServicesCount: term.services?.length || 0,
+                      newServicesCount: updated.services.length,
+                      newTerm: updated
+                    });
+                    return updated;
+                  }
+                  return term;
+                });
+                console.log('✅ All terminations after service update:', updatedTerminations.map(t => ({ id: t.id, services: t.services?.length || 0 })));
+                return { ...rack, cableTerminations: updatedTerminations };
+              }
+
+              if (selectedElement.type === 'switch' && rack.switches) {
+                const updatedSwitches = rack.switches.map(sw => {
+                  if (sw.id === selectedElement.elementId) {
+                    return {
+                      ...sw,
+                      services: [...(sw.services || []), newService],
+                    };
+                  }
+                  return sw;
+                });
+                return { ...rack, switches: updatedSwitches };
+              }
+
+              if (selectedElement.type === 'router' && rack.routers) {
+                const updatedRouters = rack.routers.map(router => {
+                  if (router.id === selectedElement.elementId) {
+                    return {
+                      ...router,
+                      services: [...(router.services || []), newService],
+                    };
+                  }
+                  return router;
+                });
+                return { ...rack, routers: updatedRouters };
+              }
+
+              if (selectedElement.type === 'connection' && rack.connections) {
+                const updatedConnections = rack.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      services: [...(conn.services || []), newService],
+                    };
+                  }
+                  return conn;
+                });
+                return { ...rack, connections: updatedConnections };
+              }
+
+              return rack;
+            });
+            return { ...floor, racks: updatedRacks };
+          }
+
+          // Handle room elements
+          if (selectedElement.roomId) {
+            const updatedRooms = floor.rooms.map(room => {
+              if (room.id !== selectedElement.roomId) return room;
+
+              if (selectedElement.type === 'device') {
+                const updatedDevices = room.devices.map(device => {
+                  if (device.id === selectedElement.elementId) {
+                    return {
+                      ...device,
+                      services: [...(device.services || []), newService],
+                    };
+                  }
+                  return device;
+                });
+                return { ...room, devices: updatedDevices };
+              }
+
+              if (selectedElement.type === 'connection' && room.connections) {
+                const updatedConnections = room.connections.map(conn => {
+                  if (conn.id === selectedElement.elementId) {
+                    return {
+                      ...conn,
+                      services: [...(conn.services || []), newService],
+                    };
+                  }
+                  return conn;
+                });
+                return { ...room, connections: updatedConnections };
+              }
+
+              return room;
+            });
+            return { ...floor, rooms: updatedRooms };
+          }
+
+          return floor;
+        });
+        return { ...building, floors: updatedFloors };
+      }
+
+      // Handle central rack elements (only if no floorId)
       if (selectedElement.type === 'termination' && building.centralRack) {
         const updatedTerminations = building.centralRack.cableTerminations.map(term => {
           if (term.id === selectedElement.elementId) {
@@ -1228,12 +1415,31 @@ export function EquipmentAssignmentStep({
 
       // Handle floor-level elements
       if (selectedElement.floorId) {
+        console.log('🔍 DEBUG - Floor check:', {
+          selectedFloorId: selectedElement.floorId,
+          availableFloors: building.floors.map(f => f.id)
+        });
+        
         const updatedFloors = building.floors.map(floor => {
+          console.log('🔍 DEBUG - Floor mapping:', {
+            floorId: floor.id,
+            selectedFloorId: selectedElement.floorId,
+            matches: floor.id === selectedElement.floorId
+          });
+          
           if (floor.id !== selectedElement.floorId) return floor;
 
           // Handle rack elements
           if (selectedElement.rackId) {
             const updatedRacks = (floor.racks || []).map(rack => {
+              console.log('🔍 DEBUG - Rack structure:', {
+                rackId: rack.id,
+                elementType: selectedElement.type,
+                hasCableTerminations: !!rack.cableTerminations,
+                cableTerminationsLength: rack.cableTerminations?.length || 0,
+                cableTerminations: rack.cableTerminations?.map(t => ({ id: t.id, productId: t.productId })) || []
+              });
+              
               if (rack.id !== selectedElement.rackId) return rack;
 
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
