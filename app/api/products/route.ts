@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
             order: 'asc',
           },
         },
+        specifications: true,
         stock: {
           select: {
             id: true,

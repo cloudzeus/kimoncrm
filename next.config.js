@@ -23,6 +23,9 @@ const nextConfig = {
   
   serverExternalPackages: ['@prisma/client', 'redis', 'bcryptjs'],
   
+  // Prevent API routes from being prerendered
+  output: 'standalone',
+  
   images: {
     remotePatterns: [
       {

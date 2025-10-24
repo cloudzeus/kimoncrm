@@ -86,11 +86,14 @@ export async function POST(request: NextRequest) {
             spacing: { before: 200, after: 100 },
           })
         );
+        
+        // Add image placeholder with URL
+        const imageUrl = product.images[0]?.url || product.images[0];
         allChildren.push(
           new Paragraph({
             children: [
               new TextRun({
-                text: `[Image: ${product.images[0]}]`,
+                text: `Image URL: ${imageUrl}`,
                 size: 16,
                 italics: true,
               }),
@@ -113,11 +116,24 @@ export async function POST(request: NextRequest) {
           spacing: { before: 200, after: 100 },
         })
       );
+      // Get Greek description from translations
+      let greekDescription = 'No description available';
+      if (product.translations && Array.isArray(product.translations)) {
+        const greekTranslation = product.translations.find((t: any) => t.languageCode === 'el');
+        if (greekTranslation?.description) {
+          greekDescription = greekTranslation.description;
+        }
+      } else if (product.translations?.el?.description) {
+        greekDescription = product.translations.el.description;
+      } else if (product.description) {
+        greekDescription = product.description;
+      }
+      
       allChildren.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: product.translations?.el?.description || product.description || 'No description available',
+              text: greekDescription,
               size: 18,
             }),
           ],
@@ -140,7 +156,7 @@ export async function POST(request: NextRequest) {
       );
       
       // Create specifications table
-      if (product.specifications && Object.keys(product.specifications).length > 0) {
+      if (product.specifications && typeof product.specifications === 'object' && Object.keys(product.specifications).length > 0) {
         allChildren.push(
           new Table({
             width: {
