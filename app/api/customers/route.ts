@@ -34,6 +34,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // If limit is 10000 or higher, return ALL customers without pagination
+    const shouldFetchAll = limit >= 10000;
+    
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
         where,
@@ -41,8 +44,7 @@ export async function GET(req: NextRequest) {
           countryRel: true,
         },
         orderBy: { update: "desc" },
-        skip,
-        take: limit,
+        ...(shouldFetchAll ? {} : { skip, take: limit }),
       }),
       prisma.customer.count({ where }),
     ]);
