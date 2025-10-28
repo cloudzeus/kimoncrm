@@ -67,13 +67,15 @@ export function SingleSelectCustomerSearch({
       return;
     }
 
-    const filteredCustomers = customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.afm?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.code?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredCustomers = customers.filter((c) => {
+      const search = searchTerm.toLowerCase().trim();
+      return (
+        c.name.toLowerCase().includes(search) ||
+        c.afm?.toUpperCase().includes(search.toUpperCase()) ||
+        c.email?.toLowerCase().includes(search) ||
+        c.code?.toLowerCase().includes(search)
+      );
+    });
 
     switch (event.key) {
       case "ArrowDown":
@@ -98,13 +100,15 @@ export function SingleSelectCustomerSearch({
     }
   };
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.afm?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const search = searchTerm.toLowerCase().trim();
+    return (
+      c.name.toLowerCase().includes(search) ||
+      c.afm?.toUpperCase().includes(search.toUpperCase()) ||
+      c.email?.toLowerCase().includes(search) ||
+      c.code?.toLowerCase().includes(search)
+    );
+  });
 
   return (
     <div className="relative" ref={containerRef}>

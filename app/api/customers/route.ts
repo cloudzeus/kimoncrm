@@ -94,26 +94,27 @@ export async function POST(req: NextRequest) {
     // Check if AFM already exists (case-insensitive and trimmed)
     if (afm) {
       const trimmedAfm = afm.trim().toUpperCase();
+      console.log(`[Customer Creation] Checking for existing AFM: ${trimmedAfm}`);
       
-      // Find all customers and check if any have the same AFM (case insensitive)
-      const allCustomers = await prisma.customer.findMany({
-        where: { afm: { not: null } },
-        select: { id: true, name: true, afm: true },
-      });
+      // Use a more efficient query - search for exact AFM matches
+      const existingCustomer = await prisma.$queryRawUnsafe(
+        `SELECT id, name, afm FROM Customer WHERE UPPER(TRIM(afm)) = UPPER(TRIM(?)) LIMIT 1`,
+        trimmedAfm
+      ) as Array<{ id: string; name: string; afm: string | null }>;
 
-      const existingCustomer = allCustomers.find(
-        (c) => c.afm && c.afm.trim().toUpperCase() === trimmedAfm
-      );
-
-      if (existingCustomer) {
+      if (existingCustomer && existingCustomer.length > 0) {
+        const customer = existingCustomer[0];
+        console.log(`[Customer Creation] Found existing customer: ${customer.name} with AFM ${customer.afm}`);
         return NextResponse.json(
           { 
             error: "Customer with this AFM already exists",
-            details: `A customer named "${existingCustomer.name}" with AFM ${existingCustomer.afm} already exists in the system.`
+            details: `A customer named "${customer.name}" with AFM ${customer.afm} already exists in the system.`,
+            existingCustomerId: customer.id
           },
           { status: 409 }
         );
       }
+      console.log(`[Customer Creation] No existing AFM found, proceeding with creation`);
     }
 
     // Create customer in database with trimmed and uppercase AFM

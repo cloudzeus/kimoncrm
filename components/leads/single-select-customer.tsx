@@ -64,7 +64,7 @@ export function SingleSelectCustomer({
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        limit: "500",
+        limit: "10000",
       });
       if (searchTerm) {
         params.append("search", searchTerm);

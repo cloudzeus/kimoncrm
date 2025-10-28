@@ -211,14 +211,14 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch customers
-      const customersRes = await fetch("/api/customers?limit=1000");
+      // Fetch ALL customers (no limit or very high limit to get all)
+      const customersRes = await fetch("/api/customers?limit=10000");
       const customersData = await customersRes.json();
       const customerList = customersData.customers || customersData.data || [];
       setCustomers(Array.isArray(customerList) ? customerList : []);
 
       // Fetch customers to use as assigned companies (for subcontractor assignment)
-      const companiesRes = await fetch("/api/customers?limit=1000");
+      const companiesRes = await fetch("/api/customers?limit=10000");
       const companiesData = await companiesRes.json();
       const companiesList = companiesData.customers || companiesData.data || [];
       setCompanies(Array.isArray(companiesList) ? companiesList : []);
