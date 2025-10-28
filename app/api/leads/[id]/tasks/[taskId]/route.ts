@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guards";
 import { prisma as db } from "@/lib/db/prisma";
 import { sendEmailAsUser } from "@/lib/microsoft/app-auth";
+import { generateEmailSignature } from "@/lib/email/signature";
 
 // PATCH /api/leads/[id]/tasks/[taskId] - Update a task
 export async function PATCH(
@@ -109,7 +110,7 @@ export async function PATCH(
 
       // Send notification emails
       if (lead) {
-        await sendTaskNotificationEmails(updatedTask, lead, session.user.email, "status_changed");
+        await sendTaskNotificationEmails(updatedTask, lead, session.user.email, "status_changed", session.user.id);
       }
     }
 
@@ -159,9 +160,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting task:", error);
-    return NextResponse.json(
+      return NextResponse.json(
       { error: "Failed to delete task" },
-      { status: divided_states   }
+      { status: 500 }
     );
   }
 }
@@ -171,7 +172,8 @@ async function sendTaskNotificationEmails(
   task: any,
   lead: any,
   senderEmail: string,
-  action: "created" | "status_changed"
+  action: "created" | "status_changed",
+  senderUserId?: string
 ) {
   try {
     // Collect unique email addresses
@@ -197,7 +199,12 @@ async function sendTaskNotificationEmails(
 
     if (recipients.size === 0) return;
 
+    // Generate email signature
+    const signature = senderUserId ? await generateEmailSignature(senderUserId, db) : '';
+
     const subject = `Lead Task ${action === "created" ? "Created" : "Status Changed"}: ${task.title}`;
+    
+    const statusColor = task.status === "NOT_STARTED" ? "#6b7280" : task.status === "IN_PROGRESS" ? "#3b82f6" : "#10b981";
     
     const statusText = task.status === "NOT_STARTED" 
       ? "Not Started" 
@@ -206,26 +213,82 @@ async function sendTaskNotificationEmails(
       : "Completed";
 
     const body = `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>Lead Task Notification</h2>
-        <p>A task for lead <strong>${lead.title}</strong> (${lead.leadNumber || 'No number'}) has been ${action === "created" ? "created" : "updated"}.</p>
-        
-        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3>Task Details</h3>
-          <p><strong>Title:</strong> ${task.title}</p>
-          ${task.description ? `<p><strong>Description:</strong> ${task.description}</p>` : ''}
-          <p><strong>Status:</strong> ${statusText}</p>
-          ${task.assignedTo ? `<p><strong>Assigned To:</strong> ${task.assignedTo.name}</p>` : ''}
-          <p><strong>Created By:</strong> ${task.createdBy.name}</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="margin: 0; padding: 20px; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">🎯 LEAD TASK ${action === "created" ? "CREATED" : "UPDATED"}</h1>
+          </div>
+          
+          <div style="padding: 30px;">
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid ${statusColor};">
+              <h2 style="margin: 0 0 10px 0; color: #1e293b; font-size: 18px;">Task Information</h2>
+              <p style="margin: 0; color: #64748b; font-size: 14px;">A task for lead <strong style="color: #1e293b;">${lead.title}</strong></p>
+            </div>
+            
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h3 style="margin: 0 0 15px 0; color: #0f172a; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Task Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600; width: 40%;">Title:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.title}</td>
+                </tr>
+                ${task.description ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Description:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.description}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Status:</td>
+                  <td style="padding: 8px 0;">
+                    <span style="display: inline-block; background-color: ${statusColor}; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase;">${statusText}</span>
+                  </td>
+                </tr>
+                ${task.assignedTo ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Assigned To:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.assignedTo.name}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Created By:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.createdBy.name}</td>
+                </tr>
+                ${task.dueDate ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Due Date:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${new Date(task.dueDate).toLocaleDateString()}</td>
+                </tr>
+                ` : ''}
+              </table>
+            </div>
+            
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 4px 0; color: #64748b; font-size: 13px; font-weight: 600;">Lead:</td>
+                  <td style="padding: 4px 0; color: #1e293b; font-size: 13px;">${lead.title}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #64748b; font-size: 13px; font-weight: 600;">Lead Number:</td>
+                  <td style="padding: 4px 0; color: #1e293b; font-size: 13px;">${lead.leadNumber || 'N/A'}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          
+          <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #94a3b8; font-size: 12px;">This notification was sent by KIMON CRM</p>
+          </div>
         </div>
-        
-        <p><strong>Lead:</strong> ${lead.title}</p>
-        <p><strong>Lead Number:</strong> ${lead.leadNumber || 'N/A'}</p>
-        
-        <p style="margin-top: 20px; color: #666; font-size: 12px;">
-          This notification was sent by KIMON CRM
-        </p>
-      </div>
+        ${signature}
+      </body>
+      </html>
     `;
 
     // Send email to each recipient

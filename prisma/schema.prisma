@@ -74,11 +74,11 @@ model User {
   emailSettings            EmailSettings?
   emailSignatures          EmailSignature[]
   leadStatusChanges        LeadStatusChange[]
-  ownedLeads               Lead[]                 @relation("LeadOwner")
-  assignedLeads            Lead[]                 @relation("LeadAssignee")
+  ownedLeads               Lead[]                    @relation("LeadOwner")
+  assignedLeads            Lead[]                    @relation("LeadAssignee")
   opportunityStatusChanges OpportunityStatusChange[]
-  assignedOpportunities    Opportunity[]          @relation("OpportunityAssignee")
-  assignedRFPs            RFP[]                  @relation("RFPAssignee")
+  assignedOpportunities    Opportunity[]             @relation("OpportunityAssignee")
+  assignedRFPs             RFP[]                     @relation("RFPAssignee")
   orders                   Order[]                   @relation("OrderPlacedBy")
   pricingChanges           ProductPricingHistory[]
   projectAssignments       ProjectAssignment[]
@@ -96,6 +96,7 @@ model User {
   assignedLeadTasks        LeadTask[]                @relation("TaskAssignedTo")
   createdLeadTasks         LeadTask[]                @relation("TaskCreatedBy")
   leadTaskStatusChanges    LeadTaskStatusChange[]
+  leadTaskAssignments      LeadTaskAssignee[]        @relation("LeadTaskAssignee")
   branch                   Branch?                   @relation("BranchUsers", fields: [branchId], references: [id])
   contact                  Contact?                  @relation(fields: [contactId], references: [id])
   department               Department?               @relation(fields: [departmentId], references: [id])
@@ -243,44 +244,44 @@ model ContactProject {
 }
 
 model Lead {
-  id                       String              @id @default(cuid())
-  leadNumber               String?             @unique  // LL+number format
-  title                    String
-  description              String?             @db.Text
-  customerId               String?             // Customer from our list
-  contactId                String?
-  assignedCompanyId        String?             // For subcontractor work - company assigning us
-  stage                    DealStage            @default(LEAD_NEW)
-  status                   LeadStatus           @default(ACTIVE)
-  priority                 LeadPriority         @default(MEDIUM)
-  source                   String?
-  estimatedValue           Decimal?             @db.Decimal(12, 2)
-  probability              Int?                 // Percentage
-  requestedSiteSurvey      Boolean              @default(false)
-  ownerId                  String?              // Assigned to Sales Manager for review
-  assigneeId               String?              // Assigned to presales/sales person
-  departmentId             String?              // Sales or Presales
-  notes                    String?             @db.Text
-  expectedCloseDate        DateTime?
-  reviewDate               DateTime?            // For FROZEN leads
-  unfreezeReminderDate     DateTime?            // Reminder date to unfreeze the lead
-  createdAt                DateTime              @default(now())
-  updatedAt                 DateTime              @updatedAt
-  emails                   EmailThread[]
-  customer                 Customer?            @relation(fields: [customerId], references: [id])
-  contact                  Contact?             @relation("LeadContact", fields: [contactId], references: [id])
-  assignedCompany          Customer?            @relation("AssignedLead", fields: [assignedCompanyId], references: [id])
-  owner                    User?                @relation("LeadOwner", fields: [ownerId], references: [id])
-  assignee                 User?                @relation("LeadAssignee", fields: [assigneeId], references: [id])
-  department               Department?         @relation(fields: [departmentId], references: [id])
-  siteSurvey               SiteSurvey?          
-  statusChanges            LeadStatusChange[]
-  quotes                   Quote[]
-  rfps                     RFP[]
-  projects                 Project[]
-  opportunities            Opportunity[]        @relation("LeadOpportunities")
-  leadContacts             LeadContact[]
-  leadTasks                LeadTask[]
+  id                   String             @id @default(cuid())
+  leadNumber           String?            @unique // LL+number format
+  title                String
+  description          String?            @db.Text
+  customerId           String? // Customer from our list
+  contactId            String?
+  assignedCompanyId    String? // For subcontractor work - company assigning us
+  stage                DealStage          @default(LEAD_NEW)
+  status               LeadStatus         @default(ACTIVE)
+  priority             LeadPriority       @default(MEDIUM)
+  source               String?
+  estimatedValue       Decimal?           @db.Decimal(12, 2)
+  probability          Int? // Percentage
+  requestedSiteSurvey  Boolean            @default(false)
+  ownerId              String? // Assigned to Sales Manager for review
+  assigneeId           String? // Assigned to presales/sales person
+  departmentId         String? // Sales or Presales
+  notes                String?            @db.Text
+  expectedCloseDate    DateTime?
+  reviewDate           DateTime? // For FROZEN leads
+  unfreezeReminderDate DateTime? // Reminder date to unfreeze the lead
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  emails               EmailThread[]
+  customer             Customer?          @relation(fields: [customerId], references: [id])
+  contact              Contact?           @relation("LeadContact", fields: [contactId], references: [id])
+  assignedCompany      Customer?          @relation("AssignedLead", fields: [assignedCompanyId], references: [id])
+  owner                User?              @relation("LeadOwner", fields: [ownerId], references: [id])
+  assignee             User?              @relation("LeadAssignee", fields: [assigneeId], references: [id])
+  department           Department?        @relation(fields: [departmentId], references: [id])
+  siteSurvey           SiteSurvey?
+  statusChanges        LeadStatusChange[]
+  quotes               Quote[]
+  rfps                 RFP[]
+  projects             Project[]
+  opportunities        Opportunity[]      @relation("LeadOpportunities")
+  leadContacts         LeadContact[]
+  leadTasks            LeadTask[]
 
   @@index([customerId], map: "Lead_customerId_fkey")
   @@index([contactId], map: "Lead_contactId_fkey")
@@ -294,23 +295,23 @@ model Lead {
 }
 
 model LeadContact {
-  id                String            @id @default(cuid())
-  leadId            String
-  name              String
-  email             String?
-  phone             String?
-  role              String?           // Role in the lead (e.g., "Decision Maker", "Technical Contact", "Administrator")
-  linkedContactId   String?           // Optional link to main Contact
-  linkedCustomerId  String?           // Optional link to Customer
-  linkedSupplierId  String?           // Optional link to Supplier
-  notes             String?           @db.Text
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id               String   @id @default(cuid())
+  leadId           String
+  name             String
+  email            String?
+  phone            String?
+  role             String? // Role in the lead (e.g., "Decision Maker", "Technical Contact", "Administrator")
+  linkedContactId  String? // Optional link to main Contact
+  linkedCustomerId String? // Optional link to Customer
+  linkedSupplierId String? // Optional link to Supplier
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  lead              Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  linkedContact     Contact?          @relation(fields: [linkedContactId], references: [id])
-  linkedCustomer    Customer?         @relation(fields: [linkedCustomerId], references: [id])
-  linkedSupplier    Supplier?         @relation(fields: [linkedSupplierId], references: [id])
+  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  linkedContact  Contact?  @relation(fields: [linkedContactId], references: [id])
+  linkedCustomer Customer? @relation(fields: [linkedCustomerId], references: [id])
+  linkedSupplier Supplier? @relation(fields: [linkedSupplierId], references: [id])
 
   @@index([leadId])
   @@index([linkedContactId])
@@ -319,27 +320,28 @@ model LeadContact {
 }
 
 model LeadTask {
-  id                String              @id @default(cuid())
-  leadId            String
-  title             String
-  description       String?             @db.Text
-  assignedToId      String?
-  contactId         String?           // Contact related to the lead
-  status            TaskStatus          @default(NOT_STARTED)
-  order             Int                 @default(0)  // For ordering within same status
-  dueDate           DateTime?           // Task due date
-  reminderDate      DateTime?           // Reminder date
-  createdById       String              // User who created the task
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  
-  lead              Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  assignedTo        User?               @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  createdBy         User                @relation("TaskCreatedBy", fields: [createdById], references: [id])
-  contact           Contact?            @relation(fields: [contactId], references: [id])
-  attachments       LeadTaskAttachment[]
-  statusChanges     LeadTaskStatusChange[]
-  
+  id           String     @id @default(cuid())
+  leadId       String
+  title        String
+  description  String?    @db.Text
+  assignedToId String? // Main assignee (for backward compatibility)
+  contactId    String? // Contact related to the lead
+  status       TaskStatus @default(NOT_STARTED)
+  order        Int        @default(0) // For ordering within same status
+  dueDate      DateTime? // Task due date
+  reminderDate DateTime? // Reminder date
+  createdById  String // User who created the task
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  lead          Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedTo    User?                  @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  createdBy     User                   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  contact       Contact?               @relation(fields: [contactId], references: [id])
+  attachments   LeadTaskAttachment[]
+  statusChanges LeadTaskStatusChange[]
+  assignees     LeadTaskAssignee[] // Multiple assignees
+
   @@index([leadId])
   @@index([assignedToId])
   @@index([status])
@@ -349,33 +351,47 @@ model LeadTask {
 }
 
 model LeadTaskAttachment {
-  id                String      @id @default(cuid())
-  taskId            String
-  fileId            String
-  createdAt         DateTime    @default(now())
-  
-  task              LeadTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  file              File        @relation(fields: [fileId], references: [id])
-  
+  id        String   @id @default(cuid())
+  taskId    String
+  fileId    String
+  createdAt DateTime @default(now())
+
+  task LeadTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  file File     @relation(fields: [fileId], references: [id])
+
   @@unique([taskId, fileId])
   @@index([taskId])
   @@index([fileId])
 }
 
 model LeadTaskStatusChange {
-  id                String      @id @default(cuid())
-  taskId            String
-  fromStatus        String?
-  toStatus          TaskStatus
-  changedBy         String
-  note              String?     @db.Text
-  createdAt         DateTime    @default(now())
-  
-  task              LeadTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  changedByUser     User        @relation(fields: [changedBy], references: [id])
+  id         String     @id @default(cuid())
+  taskId     String
+  fromStatus String?
+  toStatus   TaskStatus
+  changedBy  String
+  note       String?    @db.Text
+  createdAt  DateTime   @default(now())
+
+  task          LeadTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedByUser User     @relation(fields: [changedBy], references: [id])
 
   @@index([taskId])
   @@index([changedBy])
+}
+
+model LeadTaskAssignee {
+  id         String   @id @default(cuid())
+  taskId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  task LeadTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User     @relation("LeadTaskAssignee", fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
 }
 
 model Opportunity {
@@ -384,14 +400,14 @@ model Opportunity {
   customerId        String
   name              String
   stage             OpportunityStage          @default(OPP_PROSPECTING)
-  status            OpportunityStatus          @default(ACTIVE)
+  status            OpportunityStatus         @default(ACTIVE)
   amount            Decimal?                  @db.Decimal(12, 2)
-  probability       Int?                       // Percentage
+  probability       Int? // Percentage
   expectedCloseDate DateTime?
   actualCloseDate   DateTime?
   description       String?                   @db.Text
-  assigneeId         String?
-  notes             String?                    @db.Text
+  assigneeId        String?
+  notes             String?                   @db.Text
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   customer          Customer                  @relation(fields: [customerId], references: [id])
@@ -1019,17 +1035,17 @@ model ProductImage {
 }
 
 model ProductSpec {
-  id              String                   @id @default(cuid())
-  productId       String
-  specKey         String
-  order           Int                      @default(0)
-  groupSpecId     String?                  // Link to ProductGroupSpec
-  aiProvider      String?                  // AI provider used (e.g., "openai", "deepseek")
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  product         Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  groupSpec       ProductGroupSpec?        @relation(fields: [groupSpecId], references: [id], onDelete: SetNull)
-  translations    ProductSpecTranslation[]
+  id           String                   @id @default(cuid())
+  productId    String
+  specKey      String
+  order        Int                      @default(0)
+  groupSpecId  String? // Link to ProductGroupSpec
+  aiProvider   String? // AI provider used (e.g., "openai", "deepseek")
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  product      Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  groupSpec    ProductGroupSpec?        @relation(fields: [groupSpecId], references: [id], onDelete: SetNull)
+  translations ProductSpecTranslation[]
 
   @@unique([productId, specKey])
   @@index([productId])
@@ -1053,19 +1069,19 @@ model ProductSpecTranslation {
 }
 
 model ProductGroupSpec {
-  id           String            @id @default(cuid())
+  id           String        @id @default(cuid())
   mtrgroupCode String
   mtrgroupId   String?
   specKey      String
-  specName     String            // English name
-  description  String?           @db.Text
-  isRequired   Boolean           @default(false)
-  order        Int               @default(0)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  mtrgroup     MtrGroup?         @relation(fields: [mtrgroupId], references: [id], onDelete: Cascade)
-  productSpecs ProductSpec[]     // Product specs linked to this group spec
-  
+  specName     String // English name
+  description  String?       @db.Text
+  isRequired   Boolean       @default(false)
+  order        Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  mtrgroup     MtrGroup?     @relation(fields: [mtrgroupId], references: [id], onDelete: Cascade)
+  productSpecs ProductSpec[] // Product specs linked to this group spec
+
   @@unique([mtrgroupCode, specKey])
   @@index([mtrgroupCode])
   @@index([mtrgroupId], map: "ProductGroupSpec_mtrgroupId_fkey")
@@ -1271,20 +1287,20 @@ model SiteSurvey {
   stage                       SurveyStage                  @default(INFRSTRUCTURE_PLANNING)
   title                       String
   type                        SurveyType
-  completedSteps              Json?                        // Track which steps are completed: {step1: true, step2: true, etc.}
-  erpOrderNumber              String?                     @unique
+  completedSteps              Json? // Track which steps are completed: {step1: true, step2: true, etc.}
+  erpOrderNumber              String?                      @unique
   erpSeries                   String?
   erpSeriesNum                String?
   erpFinCode                  String?
   erpTurnover                 Decimal?                     @db.Decimal(12, 2)
   erpVatAmount                Decimal?                     @db.Decimal(12, 2)
   // Comprehensive Infrastructure Data
-  infrastructureData          Json?                        // Complete infrastructure hierarchy
-  equipment                   Json?                        // Equipment/device data
-  siteConnections             Json?                        // Inter-building connections
+  infrastructureData          Json? // Complete infrastructure hierarchy
+  equipment                   Json? // Equipment/device data
+  siteConnections             Json? // Inter-building connections
   // Future Proposals
-  futureInfrastructureData    Json?                        // Future infrastructure proposals
-  futureEquipment             Json?                        // Future equipment proposals
+  futureInfrastructureData    Json? // Future infrastructure proposals
+  futureEquipment             Json? // Future equipment proposals
   buildingRecords             Building[]
   cableRuns                   CableRun[]
   cablingSurvey               CablingSurvey?
@@ -1357,7 +1373,7 @@ model Building {
   code         String?
   address      String?
   notes        String?      @db.Text
-  blueprints   Json?        // Array of blueprint file references
+  blueprints   Json? // Array of blueprint file references
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   siteSurvey   SiteSurvey   @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
@@ -1400,8 +1416,8 @@ model Floor {
   notes            String?      @db.Text
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  blueprintUrl     String?      // Legacy field - keep for backwards compatibility
-  blueprints       Json?        // Array of blueprint file references
+  blueprintUrl     String? // Legacy field - keep for backwards compatibility
+  blueprints       Json? // Array of blueprint file references
   similarToFloorId String?
   building         Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   similarToFloor   Floor?       @relation("SimilarFloors", fields: [similarToFloorId], references: [id])
@@ -1478,7 +1494,7 @@ model Device {
   serial        String?
   mgmtIp        String?
   notes         String?      @db.Text
-  images        Json?        // Array of image file references for equipment
+  images        Json? // Array of image file references for equipment
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   centralRackId String?
@@ -1907,15 +1923,15 @@ model MenuItem {
 }
 
 model MenuPermission {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   menuItemId   String
   role         String?
   departmentId String?
-  canView      Boolean    @default(true)
-  canEdit      Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  canView      Boolean     @default(true)
+  canEdit      Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  menuItem     MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   department   Department? @relation(fields: [departmentId], references: [id])
 
   @@unique([menuItemId, role, departmentId])
@@ -2070,31 +2086,31 @@ model SLA {
 }
 
 model RFP {
-  id                String            @id @default(cuid())
-  rfpNo             String?           @unique
-  leadId            String?
-  title              String
-  description        String?          @db.Text
-  stage              RFPStage         @default(RFP_RECEIVED)
-  status             RFPStatus        @default(DRAFT)
-  dueDate            DateTime?
-  receivedDate       DateTime?        // When RFP was received from customer
-  submittedDate      DateTime?        // When we submitted the proposal
-  requirements       Json?
-  customerId         String
-  contactId          String?
-  opportunityId      String?
-  assigneeId         String?
-  notes              String?         @db.Text
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  quotes             Quote[]
-  customer           Customer         @relation(fields: [customerId], references: [id])
-  contact            Contact?         @relation(fields: [contactId], references: [id])
-  opportunity        Opportunity?     @relation(fields: [opportunityId], references: [id])
-  lead               Lead?            @relation(fields: [leadId], references: [id])
-  assignee           User?           @relation("RFPAssignee", fields: [assigneeId], references: [id])
-  statusChanges      RFPStatusChange[]
+  id            String            @id @default(cuid())
+  rfpNo         String?           @unique
+  leadId        String?
+  title         String
+  description   String?           @db.Text
+  stage         RFPStage          @default(RFP_RECEIVED)
+  status        RFPStatus         @default(DRAFT)
+  dueDate       DateTime?
+  receivedDate  DateTime? // When RFP was received from customer
+  submittedDate DateTime? // When we submitted the proposal
+  requirements  Json?
+  customerId    String
+  contactId     String?
+  opportunityId String?
+  assigneeId    String?
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  quotes        Quote[]
+  customer      Customer          @relation(fields: [customerId], references: [id])
+  contact       Contact?          @relation(fields: [contactId], references: [id])
+  opportunity   Opportunity?      @relation(fields: [opportunityId], references: [id])
+  lead          Lead?             @relation(fields: [leadId], references: [id])
+  assignee      User?             @relation("RFPAssignee", fields: [assigneeId], references: [id])
+  statusChanges RFPStatusChange[]
 
   @@index([customerId], map: "RFP_customerId_fkey")
   @@index([contactId], map: "RFP_contactId_fkey")
@@ -2129,37 +2145,37 @@ model SupportContract {
 }
 
 model Customer {
-  id          String               @id @default(cuid())
-  trdr        Int?
-  code        String?              @unique
-  afm         String?              @unique
-  name        String
-  sotitle     String?
-  jobtypetrd  String?
-  address     String?
-  city        String?
-  zip         String?
-  district    String?
-  country     String?
-  isactive    CustomerActiveStatus @default(ACTIVE)
-  erp         Boolean              @default(false)
-  phone01     String?
-  phone02     String?
-  email       String?
-  emailacc    String?
-  irsdata     String?
-  socurrency  Int?
-  update      DateTime             @default(now()) @updatedAt
-  createdAt   DateTime             @default(now())
-  contacts    ContactCustomer[]
-  countryRel  Country?             @relation(fields: [country], references: [softoneCode])
-  siteSurveys SiteSurvey[]
-  emailThreads EmailThread[]
-  leads       Lead[]
-  assignedLeads Lead[]             @relation("AssignedLead")
-  leadContacts LeadContact[]
+  id            String               @id @default(cuid())
+  trdr          Int?
+  code          String?              @unique
+  afm           String?              @unique
+  name          String
+  sotitle       String?
+  jobtypetrd    String?
+  address       String?
+  city          String?
+  zip           String?
+  district      String?
+  country       String?
+  isactive      CustomerActiveStatus @default(ACTIVE)
+  erp           Boolean              @default(false)
+  phone01       String?
+  phone02       String?
+  email         String?
+  emailacc      String?
+  irsdata       String?
+  socurrency    Int?
+  update        DateTime             @default(now()) @updatedAt
+  createdAt     DateTime             @default(now())
+  contacts      ContactCustomer[]
+  countryRel    Country?             @relation(fields: [country], references: [softoneCode])
+  siteSurveys   SiteSurvey[]
+  emailThreads  EmailThread[]
+  leads         Lead[]
+  assignedLeads Lead[]               @relation("AssignedLead")
+  leadContacts  LeadContact[]
   opportunities Opportunity[]
-  rfps        RFP[]
+  rfps          RFP[]
 
   @@index([country])
   @@index([afm])
@@ -2168,31 +2184,31 @@ model Customer {
 }
 
 model Supplier {
-  id         String               @id @default(cuid())
-  trdr       Int?
-  code       String?              @unique
-  afm        String?              @unique
-  name       String
-  sotitle    String?
-  jobtypetrd String?
-  address    String?
-  city       String?
-  zip        String?
-  district   String?
-  country    String?
-  isactive   SupplierActiveStatus @default(ACTIVE)
-  erp        Boolean              @default(false)
-  phone01    String?
-  phone02    String?
-  email      String?
-  emailacc   String?
-  irsdata    String?
-  socurrency Int?
-  update     DateTime             @default(now()) @updatedAt
-  createdAt  DateTime             @default(now())
-  contacts   ContactSupplier[]
-  countryRel Country?             @relation("SupplierCountry", fields: [country], references: [softoneCode])
-  brands     BrandSupplier[]
+  id           String               @id @default(cuid())
+  trdr         Int?
+  code         String?              @unique
+  afm          String?              @unique
+  name         String
+  sotitle      String?
+  jobtypetrd   String?
+  address      String?
+  city         String?
+  zip          String?
+  district     String?
+  country      String?
+  isactive     SupplierActiveStatus @default(ACTIVE)
+  erp          Boolean              @default(false)
+  phone01      String?
+  phone02      String?
+  email        String?
+  emailacc     String?
+  irsdata      String?
+  socurrency   Int?
+  update       DateTime             @default(now()) @updatedAt
+  createdAt    DateTime             @default(now())
+  contacts     ContactSupplier[]
+  countryRel   Country?             @relation("SupplierCountry", fields: [country], references: [softoneCode])
+  brands       BrandSupplier[]
   emailThreads EmailThread[]
   leadContacts LeadContact[]
 
@@ -2252,17 +2268,17 @@ model ServiceTranslation {
 }
 
 model File {
-  id          String         @id @default(cuid())
-  entityId    String
-  type        FileEntityType
-  name        String
-  filetype    String
-  url         String
-  description String?        @db.Text
-  size        Int?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  title       String?
+  id                  String               @id @default(cuid())
+  entityId            String
+  type                FileEntityType
+  name                String
+  filetype            String
+  url                 String
+  description         String?              @db.Text
+  size                Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  title               String?
   leadTaskAttachments LeadTaskAttachment[]
 
   @@index([entityId, type])
@@ -2301,10 +2317,10 @@ enum Warehouse {
 
 /// ** Site Surveys **
 enum SurveyType {
-  COMPREHENSIVE  // New unified survey type for all infrastructure
-  VOIP          // Legacy - kept for backward compatibility
-  CABLING       // Legacy - kept for backward compatibility
-  WIFI          // Legacy - kept for backward compatibility
+  COMPREHENSIVE // New unified survey type for all infrastructure
+  VOIP // Legacy - kept for backward compatibility
+  CABLING // Legacy - kept for backward compatibility
+  WIFI // Legacy - kept for backward compatibility
   DIGITAL_SIGNAGE
   HOTEL_TV
   NETWORK
@@ -2313,10 +2329,10 @@ enum SurveyType {
 }
 
 enum SurveyStage {
-  INFRSTRUCTURE_PLANNING      // Step 1: Infrastructure planning and documentation
-  REQUIREMENTS_AND_PRODUCTS   // Step 2: Requirements and product/service associations
-  PRICING_COMPLETED          // Step 3: Pricing defined
-  DOCUMENTS_READY            // Step 4: All documents ready (BOM, infrastructure, proposal)
+  INFRSTRUCTURE_PLANNING // Step 1: Infrastructure planning and documentation
+  REQUIREMENTS_AND_PRODUCTS // Step 2: Requirements and product/service associations
+  PRICING_COMPLETED // Step 3: Pricing defined
+  DOCUMENTS_READY // Step 4: All documents ready (BOM, infrastructure, proposal)
 }
 
 /// ** Cabling Site Survey **
