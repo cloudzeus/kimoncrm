@@ -80,6 +80,8 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
   const [departmentId, setDepartmentId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
+  const [unfreezeReminderDate, setUnfreezeReminderDate] = useState("");
+  const [showUnfreezeDialog, setShowUnfreezeDialog] = useState(false);
 
   // Search combo states
   const [companyOpen, setCompanyOpen] = useState(false);
@@ -126,6 +128,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       setDepartmentId(lead.departmentId || "");
       setNotes(lead.notes || "");
       setExpectedCloseDate(lead.expectedCloseDate ? new Date(lead.expectedCloseDate).toISOString().split('T')[0] : "");
+      setUnfreezeReminderDate(lead.unfreezeReminderDate ? new Date(lead.unfreezeReminderDate).toISOString().split('T')[0] : "");
       
       // Fetch contacts for the customer if present
       if (custId) {
@@ -211,18 +214,19 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch ALL customers (use 10000 to trigger fetch-all mode)
-      const customersRes = await fetch("/api/customers?limit=10000");
+      // Fetch ALL customers (use very high limit to fetch all records)
+      const customersRes = await fetch("/api/customers?limit=100000");
       const customersData = await customersRes.json();
       const customerList = customersData.customers || customersData.data || [];
       console.log(`[Lead Form] Fetched ${customerList.length} customers`);
       setCustomers(Array.isArray(customerList) ? customerList : []);
 
       // Fetch customers to use as assigned companies (for subcontractor assignment)
-      const companiesRes = await fetch("/api/customers?limit=10000");
+      // NOTE: assignedCompanyId references Customer table in the schema
+      const companiesRes = await fetch("/api/customers?limit=100000");
       const companiesData = await companiesRes.json();
       const companiesList = companiesData.customers || companiesData.data || [];
-      console.log(`[Lead Form] Fetched ${companiesList.length} companies`);
+      console.log(`[Lead Form] Fetched ${companiesList.length} companies (using Customer records)`);
       setCompanies(Array.isArray(companiesList) ? companiesList : []);
 
       // Fetch ALL users (Admins, Managers, Employees)
@@ -296,6 +300,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         departmentId: departmentId || null,
         notes: notes || null,
         expectedCloseDate: expectedCloseDate || null,
+        unfreezeReminderDate: unfreezeReminderDate || null,
       };
 
       const url = lead ? `/api/leads/${lead.id}` : "/api/leads";
@@ -449,7 +454,12 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
 
             <div>
               <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={(value) => {
+                setStatus(value);
+                if (value === "FROZEN") {
+                  setShowUnfreezeDialog(true);
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -701,6 +711,47 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
           }
         }}
       />
+
+      {/* Unfreeze Reminder Dialog */}
+      <Dialog open={showUnfreezeDialog} onOpenChange={setShowUnfreezeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Unfreeze Reminder</DialogTitle>
+            <DialogDescription>
+              When would you like to be reminded to unfreeze this lead?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="unfreezeReminderDate">Reminder Date</Label>
+              <Input
+                id="unfreezeReminderDate"
+                type="datetime-local"
+                value={unfreezeReminderDate}
+                onChange={(e) => setUnfreezeReminderDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowUnfreezeDialog(false);
+                setUnfreezeReminderDate("");
+              }}
+            >
+              Skip
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setShowUnfreezeDialog(false)}
+            >
+              Set Reminder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Contact Form Dialog */}
       <ContactFormDialog

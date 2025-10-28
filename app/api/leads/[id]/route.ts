@@ -111,6 +111,36 @@ export async function GET(
           orderBy: { lastMessageAt: "desc" },
           take: 10,
         },
+        leadContacts: {
+          include: {
+            linkedContact: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                mobilePhone: true,
+                workPhone: true,
+              },
+            },
+            linkedCustomer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone01: true,
+              },
+            },
+            linkedSupplier: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone01: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -118,7 +148,13 @@ export async function GET(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    return NextResponse.json(lead);
+    // Convert Decimal to number for client components
+    const serializedLead = {
+      ...lead,
+      estimatedValue: lead.estimatedValue ? Number(lead.estimatedValue) : null,
+    };
+
+    return NextResponse.json(serializedLead);
   } catch (error: any) {
     console.error("Error fetching lead:", error);
     return NextResponse.json(
@@ -154,15 +190,26 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Prepare update data
-    const updateData: any = { ...validatedData };
+    // Convert empty strings to null for optional fields to avoid foreign key violations
+    const cleanedData = {
+      ...validatedData,
+      customerId: validatedData.customerId !== undefined ? (validatedData.customerId && validatedData.customerId !== "" ? validatedData.customerId : null) : undefined,
+      contactId: validatedData.contactId !== undefined ? (validatedData.contactId && validatedData.contactId !== "" ? validatedData.contactId : null) : undefined,
+      assignedCompanyId: validatedData.assignedCompanyId !== undefined ? (validatedData.assignedCompanyId && validatedData.assignedCompanyId !== "" ? validatedData.assignedCompanyId : null) : undefined,
+      ownerId: validatedData.ownerId !== undefined ? (validatedData.ownerId && validatedData.ownerId !== "" ? validatedData.ownerId : null) : undefined,
+      assigneeId: validatedData.assigneeId !== undefined ? (validatedData.assigneeId && validatedData.assigneeId !== "" ? validatedData.assigneeId : null) : undefined,
+      departmentId: validatedData.departmentId !== undefined ? (validatedData.departmentId && validatedData.departmentId !== "" ? validatedData.departmentId : null) : undefined,
+    };
 
-    if (validatedData.expectedCloseDate) {
-      updateData.expectedCloseDate = new Date(validatedData.expectedCloseDate);
+    // Prepare update data
+    const updateData: any = { ...cleanedData };
+
+    if (cleanedData.expectedCloseDate) {
+      updateData.expectedCloseDate = new Date(cleanedData.expectedCloseDate);
     }
 
-    if (validatedData.reviewDate) {
-      updateData.reviewDate = new Date(validatedData.reviewDate);
+    if (cleanedData.reviewDate) {
+      updateData.reviewDate = new Date(cleanedData.reviewDate);
     }
 
     const lead = await prisma.lead.update({
@@ -192,12 +239,12 @@ export async function PATCH(
     });
 
     // Track status changes
-    if (validatedData.status && validatedData.status !== currentLead.status) {
+    if (cleanedData.status && cleanedData.status !== currentLead.status) {
       await prisma.leadStatusChange.create({
         data: {
           leadId: id,
           fromStatus: currentLead.status,
-          toStatus: validatedData.status,
+          toStatus: cleanedData.status,
           changedBy: session.user.id,
           note: body.note || "Status updated",
         },

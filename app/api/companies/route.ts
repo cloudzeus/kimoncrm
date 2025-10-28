@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
       ],
     } : {};
 
+    // Return ALL companies if limit is 100000 or higher (for dropdowns)
+    const shouldFetchAll = limit >= 100000;
+
     const [companies, total] = await Promise.all([
       prisma.company.findMany({
         where,
@@ -49,8 +52,7 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { [sortBy]: sortOrder as 'asc' | 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...(shouldFetchAll ? {} : { skip: (page - 1) * limit, take: limit }),
       }),
       prisma.company.count({ where }),
     ]);

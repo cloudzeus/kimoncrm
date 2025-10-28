@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
               rfps: true,
               projects: true,
               emails: true,
+              leadContacts: true,
             },
           },
         },
@@ -162,6 +163,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createLeadSchema.parse(body);
 
+    // Convert empty strings to null for optional fields to avoid foreign key violations
+    const cleanedData = {
+      ...validatedData,
+      customerId: validatedData.customerId && validatedData.customerId !== "" ? validatedData.customerId : null,
+      contactId: validatedData.contactId && validatedData.contactId !== "" ? validatedData.contactId : null,
+      assignedCompanyId: validatedData.assignedCompanyId && validatedData.assignedCompanyId !== "" ? validatedData.assignedCompanyId : null,
+      ownerId: validatedData.ownerId && validatedData.ownerId !== "" ? validatedData.ownerId : null,
+      assigneeId: validatedData.assigneeId && validatedData.assigneeId !== "" ? validatedData.assigneeId : null,
+      departmentId: validatedData.departmentId && validatedData.departmentId !== "" ? validatedData.departmentId : null,
+    };
+
     // Generate lead number if not provided
     const latestLead = await prisma.lead.findFirst({
       orderBy: { createdAt: "desc" },
@@ -179,13 +191,13 @@ export async function POST(request: NextRequest) {
 
     const lead = await prisma.lead.create({
       data: {
-        ...validatedData,
+        ...cleanedData,
         leadNumber,
-        stage: validatedData.stage as DealStage,
-        status: validatedData.status as LeadStatus,
-        priority: validatedData.priority as LeadPriority,
-        expectedCloseDate: validatedData.expectedCloseDate
-          ? new Date(validatedData.expectedCloseDate)
+        stage: cleanedData.stage as DealStage,
+        status: cleanedData.status as LeadStatus,
+        priority: cleanedData.priority as LeadPriority,
+        expectedCloseDate: cleanedData.expectedCloseDate
+          ? new Date(cleanedData.expectedCloseDate)
           : null,
       },
       include: {
@@ -242,7 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If site survey was requested, create it
-    if (validatedData.requestedSiteSurvey && lead.customerId) {
+    if (cleanedData.requestedSiteSurvey && lead.customerId) {
       try {
         const siteSurvey = await prisma.siteSurvey.create({
           data: {

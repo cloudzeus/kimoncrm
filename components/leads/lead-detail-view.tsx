@@ -5,6 +5,17 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   Edit, 
@@ -24,8 +35,21 @@ import {
   Upload,
   File,
   Download,
-  Eye
+  Eye,
+  UserPlus,
+  Phone,
+  AtSign,
+  UserCheck,
+  Plus,
+  MoreVertical,
+  ClipboardList
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tabs,
   TabsContent,
@@ -43,10 +67,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { LeadEmailsTab } from "./lead-emails-tab";
+import { LeadTasksKanban } from "./lead-tasks-kanban";
 
 interface LeadDetailViewProps {
   lead: any;
   currentUserId: string;
+  users: any[];
 }
 
 const STAGE_COLORS: Record<string, string> = {
@@ -59,7 +86,7 @@ const STAGE_COLORS: Record<string, string> = {
   // ... add more as needed
 };
 
-export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
+export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -70,9 +97,25 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
   const [fileDescription, setFileDescription] = useState("");
   const [editingFile, setEditingFile] = useState<any>(null);
   const [editFileDescription, setEditFileDescription] = useState("");
+  
+  // Lead contacts state
+  const [leadContacts, setLeadContacts] = useState<any[]>([]);
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactRole, setContactRole] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
+  
+  // Site survey dialog state
+  const [showSiteSurveyDialog, setShowSiteSurveyDialog] = useState(false);
+  const [siteSurveyTitle, setSiteSurveyTitle] = useState("");
+  const [siteSurveyDescription, setSiteSurveyDescription] = useState("");
 
   useEffect(() => {
     fetchFiles();
+    fetchLeadContacts();
   }, [lead.id]);
 
   const fetchFiles = async () => {
@@ -82,6 +125,158 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
       setFiles(data.files || []);
     } catch (error) {
       console.error("Error fetching files:", error);
+    }
+  };
+
+  const fetchLeadContacts = async () => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/contacts`);
+      const data = await res.json();
+      setLeadContacts(data.contacts || []);
+    } catch (error) {
+      console.error("Error fetching lead contacts:", error);
+    }
+  };
+
+  const handleContactSave = async () => {
+    try {
+      if (editingContact) {
+        // Update existing contact
+        const res = await fetch(`/api/leads/${lead.id}/contacts/${editingContact.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+            role: contactRole,
+            notes: contactNotes,
+          }),
+        });
+
+        if (res.ok) {
+          toast.success("Contact updated successfully");
+          fetchLeadContacts();
+        } else {
+          toast.error("Failed to update contact");
+        }
+      } else {
+        // Create new contact
+        const res = await fetch(`/api/leads/${lead.id}/contacts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+            role: contactRole,
+            notes: contactNotes,
+          }),
+        });
+
+        if (res.ok) {
+          toast.success("Contact added successfully");
+          fetchLeadContacts();
+        } else {
+          toast.error("Failed to add contact");
+        }
+      }
+
+      setShowContactDialog(false);
+      resetContactForm();
+    } catch (error) {
+      console.error("Error saving contact:", error);
+      toast.error("An error occurred");
+    }
+  };
+
+  const handleContactDelete = async (contactId: string) => {
+    if (!confirm("Are you sure you want to delete this contact?")) return;
+
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/contacts/${contactId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success("Contact deleted successfully");
+        fetchLeadContacts();
+      } else {
+        toast.error("Failed to delete contact");
+      }
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      toast.error("An error occurred");
+    }
+  };
+
+  const handleAddToContacts = async (contactId: string) => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/contacts/${contactId}/add-to-contacts`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || "Contact added to main Contacts");
+        fetchLeadContacts();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to add contact to main Contacts");
+      }
+    } catch (error) {
+      console.error("Error adding contact to main Contacts:", error);
+      toast.error("An error occurred");
+    }
+  };
+
+  const resetContactForm = () => {
+    setContactName("");
+    setContactEmail("");
+    setContactPhone("");
+    setContactRole("");
+    setContactNotes("");
+    setEditingContact(null);
+  };
+
+  const openContactDialog = (contact?: any) => {
+    if (contact) {
+      setEditingContact(contact);
+      setContactName(contact.name);
+      setContactEmail(contact.email || "");
+      setContactPhone(contact.phone || "");
+      setContactRole(contact.role || "");
+      setContactNotes(contact.notes || "");
+    } else {
+      resetContactForm();
+    }
+    setShowContactDialog(true);
+  };
+
+  const handleCreateSiteSurvey = async () => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/create-site-survey`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: siteSurveyTitle || `Site Survey - ${lead.title}`,
+          description: siteSurveyDescription,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Site survey created successfully");
+        setShowSiteSurveyDialog(false);
+        setSiteSurveyTitle("");
+        setSiteSurveyDescription("");
+        router.refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to create site survey");
+      }
+    } catch (error) {
+      console.error("Error creating site survey:", error);
+      toast.error("An error occurred");
     }
   };
 
@@ -198,6 +393,29 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
         </div>
 
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+                <MoreVertical className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openContactDialog()}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Contact
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowSiteSurveyDialog(true)}>
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Request Site Survey
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload File
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm">
             <Edit className="h-4 w-4 mr-2" />
             Edit
@@ -247,7 +465,11 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
               <div>
                 <label className="text-sm text-muted-foreground">Expected Close Date</label>
                 <div className="font-medium">
-                  {new Date(lead.expectedCloseDate).toLocaleDateString()}
+                  {new Date(lead.expectedCloseDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  })}
                 </div>
               </div>
             )}
@@ -291,6 +513,9 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
           <Tabs defaultValue="overview" className="w-full">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="contacts">Contacts ({leadContacts.length})</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="emails">Emails</TabsTrigger>
               <TabsTrigger value="files">Files ({files.length})</TabsTrigger>
               <TabsTrigger value="quotes">Quotes ({lead.quotes.length})</TabsTrigger>
               <TabsTrigger value="rfps">RFPs ({lead.rfps.length})</TabsTrigger>
@@ -343,16 +568,43 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{lead.siteSurvey.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Status: {lead.siteSurvey.status}
+                        <div className="font-medium flex items-center gap-2">
+                          {lead.siteSurvey.title}
+                          {lead.siteSurvey.status === "Completed" && (
+                            <Badge className="bg-green-500 text-white">
+                              ✓ Completed
+                            </Badge>
+                          )}
+                          {lead.siteSurvey.status === "In Progress" && (
+                            <Badge className="bg-blue-500 text-white">
+                              ⟳ In Progress
+                            </Badge>
+                          )}
+                          {lead.siteSurvey.status === "Scheduled" && (
+                            <Badge className="bg-yellow-500 text-white">
+                              📅 Scheduled
+                            </Badge>
+                          )}
+                          {lead.siteSurvey.status === "Cancelled" && (
+                            <Badge className="bg-red-500 text-white">
+                              ✗ Cancelled
+                            </Badge>
+                          )}
+                          {!["Completed", "In Progress", "Scheduled", "Cancelled"].includes(lead.siteSurvey.status) && (
+                            <Badge className="bg-gray-500 text-white">
+                              {lead.siteSurvey.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          Type: {lead.siteSurvey.type}
                         </div>
                       </div>
                       <Button
                         variant="outline"
-                        onClick={() => router.push(`/site-surveys/${lead.siteSurvey.id}`)}
+                        onClick={() => router.push(`/site-surveys/${lead.siteSurvey.id}/wizard`)}
                       >
-                        View Survey
+                        Open Wizard
                       </Button>
                     </div>
                   </CardContent>
@@ -384,7 +636,7 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
                               <div className="text-sm text-muted-foreground">{file.description}</div>
                             )}
                             <div className="text-xs text-muted-foreground">
-                              Uploaded: {new Date(file.createdAt).toLocaleDateString()}
+                              Uploaded: {new Date(file.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" })}
                               {file.size && ` • ${(file.size / 1024).toFixed(1)} KB`}
                             </div>
                           </div>
@@ -427,6 +679,118 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="contacts" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold">Lead Contacts</h3>
+                <Button onClick={() => openContactDialog()} size="sm">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Contact
+                </Button>
+              </div>
+              
+              {leadContacts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No contacts added yet</p>
+              ) : (
+                <div className="grid gap-2">
+                  {leadContacts.map((contact: any) => (
+                    <Card key={contact.id}>
+                      <CardContent className="flex items-center justify-between py-4">
+                        <div className="flex items-center gap-3 flex-1">
+                          <User className="h-5 w-5 text-muted-foreground" />
+                          <div className="flex-1">
+                            <div className="font-medium flex items-center gap-2">
+                              {contact.name}
+                              {contact.linkedContact && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <UserCheck className="h-3 w-3 mr-1" />
+                                  Linked
+                                </Badge>
+                              )}
+                            </div>
+                            {/* Email and Phone */}
+                            {(contact.email || contact.phone) && (
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                {contact.email && (
+                                  <div className="flex items-center gap-1">
+                                    <AtSign className="h-3 w-3" />
+                                    {contact.email}
+                                  </div>
+                                )}
+                                {contact.phone && (
+                                  <div className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3" />
+                                    {contact.phone}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Role as Description */}
+                            {contact.role && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                <strong>Title:</strong> {contact.role}
+                              </div>
+                            )}
+                            
+                            {/* Notes/Description */}
+                            {contact.notes && (
+                              <div className="text-sm text-muted-foreground mt-1 italic">
+                                {contact.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {!contact.linkedContact && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddToContacts(contact.id)}
+                              title="Add to main Contacts"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openContactDialog(contact)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleContactDelete(contact.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="tasks" className="space-y-4">
+              <LeadTasksKanban
+                leadId={lead.id}
+                leadContacts={leadContacts}
+                users={users}
+              />
+            </TabsContent>
+
+            <TabsContent value="emails" className="space-y-4">
+              <LeadEmailsTab
+                leadId={lead.id}
+                leadNumber={lead.leadNumber || ""}
+                leadContacts={leadContacts}
+                ownerEmail={lead.owner?.email}
+                assigneeEmail={lead.assignee?.email}
+              />
             </TabsContent>
 
             <TabsContent value="quotes" className="space-y-2">
@@ -477,9 +841,17 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
                       <div>
                         <div className="font-medium">{project.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {project.startAt && new Date(project.startAt).toLocaleDateString()}
+                          {project.startAt && new Date(project.startAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })}
                           {project.startAt && project.endAt && " - "}
-                          {project.endAt && new Date(project.endAt).toLocaleDateString()}
+                          {project.endAt && new Date(project.endAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })}
                         </div>
                       </div>
                       <Badge>{project.status}</Badge>
@@ -522,6 +894,125 @@ export function LeadDetailView({ lead, currentUserId }: LeadDetailViewProps) {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Contact Dialog */}
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact"}</DialogTitle>
+            <DialogDescription>
+              {editingContact ? "Update contact information" : "Add a new contact to this lead"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="contact-name">Name *</Label>
+              <Input
+                id="contact-name"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Enter contact name"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contact-email">Email</Label>
+              <Input
+                id="contact-email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contact-phone">Phone</Label>
+              <Input
+                id="contact-phone"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="Enter phone number"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contact-role">Role</Label>
+              <Input
+                id="contact-role"
+                value={contactRole}
+                onChange={(e) => setContactRole(e.target.value)}
+                placeholder="e.g., Decision Maker, Technical Contact"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contact-notes">Notes</Label>
+              <Textarea
+                id="contact-notes"
+                value={contactNotes}
+                onChange={(e) => setContactNotes(e.target.value)}
+                placeholder="Additional notes about this contact"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowContactDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleContactSave} disabled={!contactName.trim()}>
+              {editingContact ? "Update" : "Add"} Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Site Survey Dialog */}
+      <Dialog open={showSiteSurveyDialog} onOpenChange={setShowSiteSurveyDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Site Survey</DialogTitle>
+            <DialogDescription>
+              Create a site survey request for this lead
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="site-survey-title">Title</Label>
+              <Input
+                id="site-survey-title"
+                value={siteSurveyTitle}
+                onChange={(e) => setSiteSurveyTitle(e.target.value)}
+                placeholder="Site Survey - Lead Title"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="site-survey-description">Description</Label>
+              <Textarea
+                id="site-survey-description"
+                value={siteSurveyDescription}
+                onChange={(e) => setSiteSurveyDescription(e.target.value)}
+                placeholder="Enter description for the site survey"
+                rows={4}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSiteSurveyDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateSiteSurvey}>
+              Create Site Survey
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

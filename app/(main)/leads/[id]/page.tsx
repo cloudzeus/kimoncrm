@@ -102,7 +102,24 @@ async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  return <LeadDetailView lead={lead} currentUserId={session.user.id} />;
+  // Fetch users for task assignment
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  // Convert Decimal to number for client components
+  const serializedLead = {
+    ...lead,
+    estimatedValue: lead.estimatedValue ? Number(lead.estimatedValue) : null,
+  };
+
+  return <LeadDetailView lead={serializedLead} currentUserId={session.user.id} users={users} />;
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {

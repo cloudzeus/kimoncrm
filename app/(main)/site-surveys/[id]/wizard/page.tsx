@@ -101,16 +101,16 @@ export default function SiteSurveyWizardPage() {
           Back to Site Survey Details
         </Button>
         
-        <div className="flex items-center justify-between">
+        <div className="space-y-2">
           <div>
-            <h1 className="text-3xl font-bold">{siteSurvey.title}</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold">{siteSurvey.title}</h1>
+            <p className="text-muted-foreground text-sm mt-1">
               Complete the infrastructure, equipment, and pricing for this site survey
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Customer</p>
-            <p className="font-semibold">{siteSurvey.customer.name}</p>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Customer</p>
+            <p className="text-base font-semibold">{siteSurvey.customer.name}</p>
           </div>
         </div>
       </div>

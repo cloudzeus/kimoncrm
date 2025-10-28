@@ -12,6 +12,8 @@ interface Customer {
   code: string | null;
   afm?: string | null;
   email?: string | null;
+  phone01?: string | null;
+  city?: string | null;
 }
 
 interface SingleSelectCustomerSearchProps {
@@ -70,10 +72,12 @@ export function SingleSelectCustomerSearch({
     const filteredCustomers = customers.filter((c) => {
       const search = searchTerm.trim();
       return (
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.name?.toLowerCase().includes(search.toLowerCase()) ||
         c.afm?.trim().toUpperCase().includes(search.toUpperCase()) ||
         c.email?.toLowerCase().includes(search.toLowerCase()) ||
-        c.code?.toLowerCase().includes(search.toLowerCase())
+        c.code?.toLowerCase().includes(search.toLowerCase()) ||
+        c.phone01?.toLowerCase().includes(search.toLowerCase()) ||
+        c.city?.toLowerCase().includes(search.toLowerCase())
       );
     });
 
@@ -107,7 +111,9 @@ export function SingleSelectCustomerSearch({
       c.name?.toLowerCase().includes(search.toLowerCase()) ||
       c.afm?.trim().toUpperCase().includes(search.toUpperCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
-      c.code?.toLowerCase().includes(search.toLowerCase())
+      c.code?.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone01?.toLowerCase().includes(search.toLowerCase()) ||
+      c.city?.toLowerCase().includes(search.toLowerCase())
     );
   });
   

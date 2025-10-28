@@ -52,18 +52,22 @@ export async function POST(
       equipment, 
       siteConnections, 
       futureInfrastructureData, 
-      futureEquipment 
+      futureEquipment,
+      completedStep 
     } = body;
 
     // Validate that the site survey exists
     const existingSurvey = await prisma.siteSurvey.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, completedSteps: true },
     });
 
     if (!existingSurvey) {
       return NextResponse.json({ error: "Site survey not found" }, { status: 404 });
     }
+
+    // Update completed steps
+    const completedSteps = { ...(existingSurvey.completedSteps as any || {}), ...(completedStep ? { [`step${completedStep}`]: true } : {}) };
 
     // Update the site survey with comprehensive infrastructure data
     const updatedSurvey = await prisma.siteSurvey.update({
@@ -74,6 +78,7 @@ export async function POST(
         siteConnections: siteConnections || null,
         futureInfrastructureData: futureInfrastructureData || null,
         futureEquipment: futureEquipment || null,
+        completedSteps: completedSteps,
         updatedAt: new Date(),
       },
       select: {

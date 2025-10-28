@@ -10,6 +10,10 @@ interface Customer {
   id: string;
   name: string;
   code: string | null;
+  afm?: string | null;
+  email?: string | null;
+  phone01?: string | null;
+  city?: string | null;
 }
 
 interface SingleSelectCustomerProps {
@@ -63,12 +67,11 @@ export function SingleSelectCustomer({
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        limit: "10000",
-      });
+      const params = new URLSearchParams();
       if (searchTerm) {
         params.append("search", searchTerm);
       }
+      params.append("limit", "100000"); // Very high limit to fetch all search results
 
       const response = await fetch(`/api/customers?${params}`);
       const data = await response.json();
@@ -91,6 +94,18 @@ export function SingleSelectCustomer({
     setFocusedIndex(-1);
   };
 
+  const filteredCustomers = searchTerm
+    ? customers.filter(
+        (c) =>
+          c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.afm?.trim().toUpperCase().includes(searchTerm.toUpperCase()) ||
+          c.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.phone01?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.city?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : customers;
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (!open) {
       if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
@@ -104,7 +119,7 @@ export function SingleSelectCustomer({
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setFocusedIndex((prev) => Math.min(prev + 1, customers.length - 1));
+        setFocusedIndex((prev) => Math.min(prev + 1, filteredCustomers.length - 1));
         break;
       case "ArrowUp":
         event.preventDefault();
@@ -112,8 +127,8 @@ export function SingleSelectCustomer({
         break;
       case "Enter":
         event.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < customers.length) {
-          handleSelect(customers[focusedIndex].id);
+        if (focusedIndex >= 0 && focusedIndex < filteredCustomers.length) {
+          handleSelect(filteredCustomers[focusedIndex].id);
         }
         break;
       case "Escape":
@@ -123,14 +138,6 @@ export function SingleSelectCustomer({
         break;
     }
   };
-
-  const filteredCustomers = searchTerm
-    ? customers.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.code?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : customers;
 
   return (
     <div ref={containerRef} className="relative w-full">

@@ -476,7 +476,7 @@ export function ComprehensiveInfrastructureWizard({
     }
   };
 
-  const saveProgress = async () => {
+  const saveProgress = async (markStepComplete?: number) => {
     try {
       setSaving(true);
       
@@ -489,10 +489,15 @@ export function ComprehensiveInfrastructureWizard({
             buildings: wizardData.buildings,
           },
           siteConnections: wizardData.siteConnections,
+          completedStep: markStepComplete,
         }),
       });
 
-      toast.success("Progress saved successfully");
+      if (markStepComplete) {
+        toast.success(`Step ${markStepComplete} completed and saved`);
+      } else {
+        toast.success("Progress saved successfully");
+      }
     } catch (error) {
       console.error("Error saving progress:", error);
       toast.error("Failed to save progress");
@@ -503,11 +508,11 @@ export function ComprehensiveInfrastructureWizard({
 
   const handleNext = async () => {
     if (currentStep < STEPS.length) {
-      // Auto-save before moving to next step (especially important before Equipment step)
+      // Auto-save before moving to next step and mark current step as complete
+      await saveProgress(currentStep);
+      
+      // Update stage based on completed step
       if (currentStep === 1) {
-        toast.info("Saving infrastructure data...");
-        await saveProgress();
-        
         // Update stage to REQUIREMENTS_AND_PRODUCTS when completing infrastructure step
         try {
           await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
@@ -520,7 +525,6 @@ export function ComprehensiveInfrastructureWizard({
         }
       } else if (currentStep === 2) {
         // Update stage to PRICING_COMPLETED when completing products step
-        await saveProgress();
         try {
           await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
             method: "PUT",
@@ -530,8 +534,6 @@ export function ComprehensiveInfrastructureWizard({
         } catch (error) {
           console.error("Failed to update stage:", error);
         }
-      } else {
-        saveProgress(); // Background save for other steps
       }
       
       setCurrentStep(currentStep + 1);
