@@ -205,9 +205,10 @@ export async function PATCH(
 
       // Send notification email to all participants using session user's email
       try {
-        // Import and call the notification function
-        const { sendLeadNotifications } = await import("./notify/route");
-        await sendLeadNotifications(lead, session.user.email!);
+        // Call the notification endpoint
+        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/leads/${id}/notify`, {
+          method: 'POST',
+        });
       } catch (emailError) {
         console.error("Error sending status change notifications:", emailError);
         // Don't fail the update if email fails

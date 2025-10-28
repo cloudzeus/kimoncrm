@@ -48,7 +48,7 @@ export async function fetchContactEmails(contactId: string) {
       orderBy: { lastMessageAt: 'desc' },
     });
 
-    let emailThreads = initialEmailThreads;
+    const emailThreads = initialEmailThreads;
 
     // If no threads found, try Office 365
     if (emailThreads.length === 0 && contact.email) {

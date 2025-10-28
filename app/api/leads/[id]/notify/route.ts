@@ -72,7 +72,7 @@ export async function POST(
 }
 
 // Helper function to send lead notification emails
-export async function sendLeadNotifications(lead: any, senderEmail: string) {
+async function sendLeadNotifications(lead: any, senderEmail: string) {
   try {
 
     // Collect all recipients
