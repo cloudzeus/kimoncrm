@@ -1176,8 +1176,15 @@ model SiteSurvey {
   email                       String?
   phone                       String?
   status                      String                       @default("Scheduled")
+  stage                       SurveyStage                  @default(INFRSTRUCTURE_PLANNING)
   title                       String
   type                        SurveyType
+  erpOrderNumber              String?                     @unique
+  erpSeries                   String?
+  erpSeriesNum                String?
+  erpFinCode                  String?
+  erpTurnover                 Decimal?                     @db.Decimal(12, 2)
+  erpVatAmount                Decimal?                     @db.Decimal(12, 2)
   // Comprehensive Infrastructure Data
   infrastructureData          Json?                        // Complete infrastructure hierarchy
   equipment                   Json?                        // Equipment/device data
@@ -2206,6 +2213,13 @@ enum SurveyType {
   NETWORK
   CCTV
   IOT
+}
+
+enum SurveyStage {
+  INFRSTRUCTURE_PLANNING      // Step 1: Infrastructure planning and documentation
+  REQUIREMENTS_AND_PRODUCTS   // Step 2: Requirements and product/service associations
+  PRICING_COMPLETED          // Step 3: Pricing defined
+  DOCUMENTS_READY            // Step 4: All documents ready (BOM, infrastructure, proposal)
 }
 
 /// ** Cabling Site Survey **

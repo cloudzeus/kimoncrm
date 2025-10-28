@@ -507,11 +507,34 @@ export function ComprehensiveInfrastructureWizard({
       if (currentStep === 1) {
         toast.info("Saving infrastructure data...");
         await saveProgress();
-      }
-      setCurrentStep(currentStep + 1);
-      if (currentStep !== 1) {
+        
+        // Update stage to REQUIREMENTS_AND_PRODUCTS when completing infrastructure step
+        try {
+          await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage: "REQUIREMENTS_AND_PRODUCTS" }),
+          });
+        } catch (error) {
+          console.error("Failed to update stage:", error);
+        }
+      } else if (currentStep === 2) {
+        // Update stage to PRICING_COMPLETED when completing products step
+        await saveProgress();
+        try {
+          await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage: "PRICING_COMPLETED" }),
+          });
+        } catch (error) {
+          console.error("Failed to update stage:", error);
+        }
+      } else {
         saveProgress(); // Background save for other steps
       }
+      
+      setCurrentStep(currentStep + 1);
     }
   };
 
@@ -525,6 +548,18 @@ export function ComprehensiveInfrastructureWizard({
     try {
       setLoading(true);
       await saveProgress();
+      
+      // Update stage to DOCUMENTS_READY when all steps are completed
+      try {
+        await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: "DOCUMENTS_READY" }),
+        });
+      } catch (error) {
+        console.error("Failed to update stage:", error);
+      }
+      
       toast.success('Infrastructure survey completed successfully!');
       onComplete?.();
     } catch (error) {
