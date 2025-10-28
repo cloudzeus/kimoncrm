@@ -109,10 +109,19 @@ export async function insertProductToSoftOne(
       );
 
       if (duplicateCheck.isDuplicate) {
+        const duplicateFields = [];
+        if (productData.code1 && duplicateCheck.existingProduct?.code1 === productData.code1) {
+          duplicateFields.push(`EAN Code: ${productData.code1}`);
+        }
+        if (productData.code2 && duplicateCheck.existingProduct?.code2 === productData.code2) {
+          duplicateFields.push(`Manufacturer Code: ${productData.code2}`);
+        }
+        
         return {
           success: false,
           isDuplicate: true,
-          error: `Product already exists: ${duplicateCheck.existingProduct?.name} (EAN: ${duplicateCheck.existingProduct?.code1}, Mfr Code: ${duplicateCheck.existingProduct?.code2})`
+          error: `Product already exists with: ${duplicateFields.join(', ')}`,
+          duplicateProduct: duplicateCheck.existingProduct
         };
       }
     }
@@ -166,10 +175,12 @@ export async function insertProductToSoftOne(
     // Parse unit code as number (default 101)
     const unitCodeNum = unit?.softoneCode ? parseInt(unit.softoneCode, 10) : 101;
 
-    // Generate next available product code: CATEGORY.MANUFACTURER.XXXXX
+    // Generate next available product code: CATEGORY.BRAND.XXXXX
+    // Brand code should be 3 digits padded
+    const brandCodePadded = brand.softoneCode.padStart(3, '0');
     const generatedCode = await generateNextAvailableCode(
       categoryCodePadded, // Use padded category code (007)
-      manufacturer?.code || brand.softoneCode || categoryCodePadded
+      brandCodePadded // Use brand ERP code (3 digits, e.g., "001")
     );
 
     console.log('🔢 Generated available product code:', generatedCode);

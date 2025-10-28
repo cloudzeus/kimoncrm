@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
+import { requireAdmin } from '@/lib/auth/guards';
 import { UserManager } from '@/components/admin/user-manager';
 import { prisma } from '@/lib/db/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Users } from 'lucide-react';
 
 export default async function AdminUsersPage() {
-  const session = await auth();
-
-  if (!session || session.user?.role !== 'ADMIN') {
-    redirect('/dashboard');
-  }
+  await requireAdmin();
 
   // Fetch initial data
   const [rawUsers, departments, workPositions, branches] = await Promise.all([

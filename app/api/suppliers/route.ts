@@ -39,6 +39,17 @@ export async function GET(req: NextRequest) {
         where,
         include: {
           countryRel: true,
+          brands: {
+            include: {
+              brand: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { update: "desc" },
         skip,

@@ -88,8 +88,11 @@ export default function ServicesManager() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState<string>('all');
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [serviceCategories, setServiceCategories] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -114,8 +117,8 @@ export default function ServicesManager() {
         limit: pageSize.toString(),
       });
       
-      if (searchTerm) {
-        params.append('search', searchTerm);
+      if (debouncedSearchTerm) {
+        params.append('search', debouncedSearchTerm);
       }
       
       if (isActiveFilter !== 'all') {
@@ -126,8 +129,17 @@ export default function ServicesManager() {
         params.append('serviceCategoryCode', serviceCategoryFilter);
       }
 
-      const response = await fetch(`/api/services?${params.toString()}`);
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
+
+      console.log('🔍 Fetching services with params:', params.toString());
+
+      const response = await fetch(`/api/services?${params.toString()}`, {
+        cache: 'no-store',
+      });
       const data = await response.json();
+
+      console.log('📥 Services response:', data);
 
       if (data.success) {
         setServices(data.data);
@@ -165,9 +177,21 @@ export default function ServicesManager() {
     fetchServiceCategories();
   }, []);
 
+  // Debounce search term
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(1);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchServices();
-  }, [page, pageSize, searchTerm, isActiveFilter, serviceCategoryFilter]);
+  }, [page, pageSize, isActiveFilter, serviceCategoryFilter, debouncedSearchTerm, sortBy, sortOrder]);
+
+
 
   // Handle service selection
   const toggleServiceSelection = (serviceId: string) => {
@@ -250,7 +274,7 @@ export default function ServicesManager() {
 
   const handleSearch = () => {
     setPage(1);
-    fetchServices();
+    // fetchServices will be called by useEffect after page state updates
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -320,6 +344,29 @@ export default function ServicesManager() {
               <SelectItem value="all">ALL STATUS</SelectItem>
               <SelectItem value="true">ACTIVE</SelectItem>
               <SelectItem value="false">INACTIVE</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="SORT BY" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">NAME</SelectItem>
+              <SelectItem value="code">CODE</SelectItem>
+              <SelectItem value="mtrl">MTRL</SelectItem>
+              <SelectItem value="createdAt">CREATED</SelectItem>
+              <SelectItem value="updatedAt">UPDATED</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as 'asc' | 'desc')}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="asc">ASC</SelectItem>
+              <SelectItem value="desc">DESC</SelectItem>
             </SelectContent>
           </Select>
 

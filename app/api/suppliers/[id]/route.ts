@@ -19,6 +19,17 @@ export async function GET(
             contact: true,
           },
         },
+        brands: {
+          include: {
+            brand: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
       },
     });
 

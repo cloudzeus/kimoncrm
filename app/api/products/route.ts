@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+    
+    // Disable caching for fresh data every time
+    const responseHeaders = new Headers();
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    responseHeaders.set('Pragma', 'no-cache');
+    responseHeaders.set('Expires', '0');
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -36,43 +42,49 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get('categoryId');
     const brandIds = searchParams.getAll('brandIds');
     const categoryIds = searchParams.getAll('categoryIds');
+    const mtrgroupCodes = searchParams.getAll('mtrgroupCodes');
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const includeSpecs = searchParams.get('includeSpecs') === 'true';
 
     // Build where clause
     const where: any = {};
     const andConditions: any[] = [];
 
-    // Handle search - MySQL uses collation for case-insensitivity
+    // Handle search with case-insensitive matching
     if (search) {
-      const searchCondition: any = {};
+      const searchLower = search.toLowerCase();
+      
+      console.log('🔍 Search params:', { search, searchLower, searchField });
+      
+      // Add wildcards to search term for proper LIKE matching
+      const searchTerm = `%${search}%`;
       
       if (searchField === 'all') {
-        searchCondition.OR = [
-          { name: { contains: search } },
-          { code: { contains: search } },
-          { code1: { contains: search } },
-          { code2: { contains: search } },
-          { mtrl: { contains: search } },
-        ];
+        andConditions.push({
+          OR: [
+            { name: { contains: search } },
+            { code: { contains: search } },
+            { code1: { contains: search } },
+            { code2: { contains: search } },
+            { mtrl: { contains: search } },
+          ],
+        });
       } else if (searchField === 'name') {
-        searchCondition.name = { contains: search };
+        andConditions.push({ name: { contains: search } });
       } else if (searchField === 'brand') {
-        searchCondition.brand = { name: { contains: search } };
+        andConditions.push({ brand: { name: { contains: search } } });
       } else if (searchField === 'category') {
-        searchCondition.category = { name: { contains: search } };
+        andConditions.push({ category: { name: { contains: search } } });
       } else if (searchField === 'ean') {
-        searchCondition.code1 = { contains: search };
+        andConditions.push({ code1: { contains: search } });
       } else if (searchField === 'mfrcode') {
-        searchCondition.code2 = { contains: search };
+        andConditions.push({ code2: { contains: search } });
       } else if (searchField === 'code') {
-        searchCondition.code = { contains: search };
+        andConditions.push({ code: { contains: search } });
       }
-
-      // Add search condition to AND conditions
-      if (Object.keys(searchCondition).length > 0) {
-        andConditions.push(searchCondition);
-      }
+      
+      console.log('🔍 Search added to conditions, total conditions:', andConditions.length);
     }
 
     // Handle isActive filter
@@ -80,8 +92,12 @@ export async function GET(request: NextRequest) {
       andConditions.push({ isActive: isActive === 'true' });
     }
 
+    // Debug: Log filter parameters
+    console.log('🔍 Filter params:', { brandId, brandIds, manufacturerId, categoryId, categoryIds, mtrgroupCodes });
+
     // Handle single brand filter
     if (brandId) {
+      console.log('🔍 Adding single brand filter:', brandId);
       andConditions.push({ brandId: brandId });
     }
 
@@ -97,9 +113,11 @@ export async function GET(request: NextRequest) {
 
     // Multi-select filters (these override single filters)
     if (brandIds.length > 0) {
+      console.log('🔍 Adding multi-select brand filter:', brandIds);
       // Remove single brandId condition if exists
       const brandIdIndex = andConditions.findIndex(c => c.brandId && typeof c.brandId === 'string');
       if (brandIdIndex !== -1) {
+        console.log('🔍 Removing single brand filter at index:', brandIdIndex);
         andConditions.splice(brandIdIndex, 1);
       }
       andConditions.push({ brandId: { in: brandIds } });
@@ -114,10 +132,19 @@ export async function GET(request: NextRequest) {
       andConditions.push({ categoryId: { in: categoryIds } });
     }
 
+    if (mtrgroupCodes.length > 0) {
+      console.log('Filtering by mtrgroups:', mtrgroupCodes);
+      andConditions.push({ mtrgroup: { in: mtrgroupCodes } });
+    }
+
     // Combine all AND conditions
     if (andConditions.length > 0) {
       where.AND = andConditions;
     }
+
+    // Debug logging
+    console.log('🔍 Product filters:', JSON.stringify(where, null, 2));
+    console.log('🔍 Sort by:', sortBy, sortOrder);
 
     // Get total count
     const total = await prisma.product.count({ where });
@@ -131,13 +158,37 @@ export async function GET(request: NextRequest) {
     } else if (sortBy === 'category') {
       orderBy = { category: { name: sortOrder } };
     } else {
+      // For nullable fields like code1, handle null sorting properly
       orderBy = { [sortBy]: sortOrder };
     }
+
+    console.log('🔍 Order by:', JSON.stringify(orderBy, null, 2));
 
     // Get products with pagination
     const products = await prisma.product.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        mtrl: true,
+        code: true,
+        code1: true,
+        code2: true,
+        name: true,
+        mtrmark: true,
+        mtrmanfctr: true,
+        mtrcategory: true,
+        mtrgroup: true,
+        isActive: true,
+        brandId: true,
+        manufacturerId: true,
+        categoryId: true,
+        unitId: true,
+        width: true,
+        length: true,
+        height: true,
+        weight: true,
+        createdAt: true,
+        updatedAt: true,
         brand: {
           select: {
             id: true,
@@ -185,7 +236,21 @@ export async function GET(request: NextRequest) {
             order: 'asc',
           },
         },
-        specifications: true,
+        specifications: includeSpecs ? {
+          select: {
+            id: true,
+            specKey: true,
+            order: true,
+            translations: {
+              select: {
+                languageCode: true,
+                specName: true,
+                specValue: true,
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        } : true,
         stock: {
           select: {
             id: true,
@@ -209,6 +274,8 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+    }, {
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -256,6 +323,7 @@ export async function POST(request: NextRequest) {
       manufacturerId,
       manufacturerCode, // Using code instead of ID
       categoryId,
+      mtrgroupCode, // MtrGroup code
       unitId,
       width,
       length,
@@ -281,15 +349,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if product with same code already exists (only if code provided)
+    // Check for duplicate products based on code, code1 (EAN), or code2 (Manufacturer Code)
+    const duplicateChecks = [];
+    
     if (code) {
-      const existingProduct = await prisma.product.findUnique({
-        where: { code },
+      duplicateChecks.push({ code });
+    }
+    if (code1) {
+      duplicateChecks.push({ code1 });
+    }
+    if (code2) {
+      duplicateChecks.push({ code2 });
+    }
+
+    if (duplicateChecks.length > 0) {
+      const existingProduct = await prisma.product.findFirst({
+        where: {
+          OR: duplicateChecks
+        },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          code1: true,
+          code2: true,
+        }
       });
 
       if (existingProduct) {
+        const duplicateFields = [];
+        if (code && existingProduct.code === code) duplicateFields.push(`ERP Code: ${code}`);
+        if (code1 && existingProduct.code1 === code1) duplicateFields.push(`EAN Code: ${code1}`);
+        if (code2 && existingProduct.code2 === code2) duplicateFields.push(`Manufacturer Code: ${code2}`);
+        
         return NextResponse.json(
-          { error: 'Product with this code already exists' },
+          { 
+            error: `Product already exists with: ${duplicateFields.join(', ')}`,
+            duplicateProduct: {
+              id: existingProduct.id,
+              name: existingProduct.name,
+            }
+          },
           { status: 400 }
         );
       }
@@ -351,6 +451,7 @@ export async function POST(request: NextRequest) {
           name,
           mtrmark,
           mtrmanfctr,
+          mtrgroup: mtrgroupCode || null, // Add mtrgroup
           brandId,
           manufacturerId: finalManufacturerId,
           categoryId,
@@ -428,6 +529,7 @@ export async function POST(request: NextRequest) {
         name,
         mtrmark,
         mtrmanfctr,
+        mtrgroup: mtrgroupCode || null, // Add mtrgroup
         brandId,
         manufacturerId: finalManufacturerId,
         categoryId,

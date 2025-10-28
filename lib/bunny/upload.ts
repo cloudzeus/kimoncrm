@@ -100,3 +100,19 @@ export async function uploadFileToBunny(
   
   return await bunnyPut(path, buffer);
 }
+
+/**
+ * Upload a File object to BunnyCDN storage
+ * @param file - File object from form data
+ * @param path - Full path including directory and filename
+ * @returns Object with the CDN URL
+ */
+export async function uploadToBunnyCDN(
+  file: File,
+  path: string
+): Promise<{ url: string }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  
+  return await bunnyPut(path, buffer);
+}

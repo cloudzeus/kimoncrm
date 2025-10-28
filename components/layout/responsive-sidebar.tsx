@@ -113,10 +113,11 @@ interface MenuPermission {
 
 interface ResponsiveSidebarProps {
   userRole: string;
+  departmentId: string | null;
   className?: string;
 }
 
-export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProps) {
+export function ResponsiveSidebar({ userRole, departmentId, className }: ResponsiveSidebarProps) {
   const [menuGroups, setMenuGroups] = useState<MenuGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -130,7 +131,7 @@ export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProp
   // Load menu data
   useEffect(() => {
     loadMenuData();
-  }, [userRole]);
+  }, [userRole, departmentId]);
 
   // Avoid hydration mismatch for Radix Sheet IDs by rendering Sheet after mount
   useEffect(() => {
@@ -140,7 +141,15 @@ export function ResponsiveSidebar({ userRole, className }: ResponsiveSidebarProp
   const loadMenuData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/menu/groups?includeItems=true&role=${userRole}`);
+      const params = new URLSearchParams({
+        includeItems: 'true',
+        role: userRole,
+      });
+      if (departmentId) {
+        params.append('departmentId', departmentId);
+      }
+      
+      const response = await fetch(`/api/menu/groups?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setMenuGroups(data.menuGroups);

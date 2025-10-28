@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
+import { LeadStatus } from '@prisma/client';
 
 const updateStatusSchema = z.object({
   status: z.enum(['New', 'Contacted', 'Qualified', 'Unqualified', 'Converted']),
@@ -25,7 +26,7 @@ export async function PUT(
     const lead = await prisma.lead.findUnique({
       where: { id: id },
       include: {
-        company: true,
+        customer: true,
         contact: true,
       },
     });
@@ -35,10 +36,10 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { status, note } = updateStatusSchema.parse(body);
+    const { status: newStatus, note } = updateStatusSchema.parse(body);
 
     // Don't update if status hasn't changed
-    if (lead.status === status) {
+    if (lead.status === newStatus as LeadStatus) {
       return NextResponse.json(lead);
     }
 
@@ -46,9 +47,9 @@ export async function PUT(
       // Update lead status
       const updatedLead = await tx.lead.update({
         where: { id: id },
-        data: { status },
+        data: { status: newStatus as LeadStatus },
         include: {
-          company: true,
+          customer: true,
           contact: true,
         },
       });
@@ -58,7 +59,7 @@ export async function PUT(
         data: {
           leadId: id,
           fromStatus: lead.status,
-          toStatus: status,
+          toStatus: newStatus as LeadStatus,
           changedBy: session.user.id,
           note,
         },

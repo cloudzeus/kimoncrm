@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +29,12 @@ import {
   ExternalLink,
   MoreVertical,
   Upload,
+  Tag,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  User,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -39,6 +45,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SupplierFormDialog } from "./supplier-form-dialog";
+import { SupplierBrandDialog } from "./supplier-brand-dialog";
+import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
 import { ResizableTableHeader } from "./resizable-table-header";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/files/file-upload";
@@ -105,6 +113,14 @@ interface Supplier {
     name: string;
     softoneCode: string;
   } | null;
+  brands?: Array<{
+    id: string;
+    brand: {
+      id: string;
+      name: string;
+      code: string | null;
+    };
+  }>;
 }
 
 export function SuppliersManager() {
@@ -124,6 +140,10 @@ export function SuppliersManager() {
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [supplierForUpload, setSupplierForUpload] = useState<Supplier | null>(null);
+  const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+  const [supplierForBrand, setSupplierForBrand] = useState<Supplier | null>(null);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [supplierForContact, setSupplierForContact] = useState<Supplier | null>(null);
   // Default values that work for both server and client
   const defaultColumnWidths = {
       trdr: 100,
@@ -177,6 +197,8 @@ export function SuppliersManager() {
   const [columnWidths, setColumnWidths] = useState(defaultColumnWidths);
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load from localStorage after hydration
   useEffect(() => {
@@ -259,6 +281,27 @@ export function SuppliersManager() {
     fetchSuppliers(searchTerm, searchField, page, pageSize);
   }, [page, pageSize]);
 
+  // Auto-search with debounce
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout to trigger search after 500ms of no typing
+    searchTimeoutRef.current = setTimeout(() => {
+      setPage(1);
+      fetchSuppliers(searchTerm, searchField, 1, pageSize);
+    }, 500);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, searchField]);
+
   const handleSearch = () => {
     setPage(1);
     fetchSuppliers(searchTerm, searchField, 1, pageSize);
@@ -316,6 +359,10 @@ export function SuppliersManager() {
     router.push(`/suppliers/${supplierId}`);
   };
 
+  const handleViewEmails = (supplierId: string) => {
+    router.push(`/suppliers/${supplierId}#emails`);
+  };
+
   const handleEdit = (supplier: Supplier) => {
     setEditingSupplier(supplier);
     setIsDialogOpen(true);
@@ -329,6 +376,16 @@ export function SuppliersManager() {
   const handleUploadFiles = (supplier: Supplier) => {
     setSupplierForUpload(supplier);
     setUploadDialogOpen(true);
+  };
+
+  const handleManageBrands = (supplier: Supplier) => {
+    setSupplierForBrand(supplier);
+    setBrandDialogOpen(true);
+  };
+
+  const handleAddContact = (supplier: Supplier) => {
+    setSupplierForContact(supplier);
+    setContactDialogOpen(true);
   };
 
   const handleUpdateFromAFM = async (supplier: Supplier) => {
@@ -439,6 +496,78 @@ export function SuppliersManager() {
     if (isHydrated) {
       localStorage.setItem("suppliers-visible-columns", JSON.stringify(newVisibility));
     }
+  };
+
+  // Handle column sorting
+  const handleSort = (column: string) => {
+    let newSortConfig: { key: string; direction: 'asc' | 'desc' } | null = null;
+    
+    if (!sortConfig || sortConfig.key !== column) {
+      // New column, sort ascending
+      newSortConfig = { key: column, direction: 'asc' };
+    } else if (sortConfig.direction === 'asc') {
+      // Same column, change to descending
+      newSortConfig = { key: column, direction: 'desc' };
+    } else {
+      // Already descending, reset to default (by update date desc)
+      newSortConfig = { key: 'update', direction: 'desc' };
+    }
+    
+    setSortConfig(newSortConfig);
+    applySorting(newSortConfig.key, newSortConfig.direction);
+  };
+
+  // Apply sorting to suppliers
+  const applySorting = (column: string, direction: 'asc' | 'desc') => {
+    const sorted = [...suppliers].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      // Get values based on column
+      if (column === 'phone' || column === 'phone01') {
+        aVal = a.phone01;
+        bVal = b.phone01;
+      } else if (column === 'phone02') {
+        aVal = a.phone02;
+        bVal = b.phone02;
+      } else if (column === 'update' || column === 'updatedAt') {
+        aVal = new Date(a.update).getTime();
+        bVal = new Date(b.update).getTime();
+      } else if (column === 'createdAt') {
+        aVal = new Date(a.createdAt).getTime();
+        bVal = new Date(b.createdAt).getTime();
+      } else if (column === 'socurrency') {
+        aVal = a.socurrency || 0;
+        bVal = b.socurrency || 0;
+      } else if (column === 'isactive' || column === 'status') {
+        aVal = a.isactive;
+        bVal = b.isactive;
+      } else if (column === 'erp') {
+        aVal = a.erp ? 1 : 0;
+        bVal = b.erp ? 1 : 0;
+      } else {
+        aVal = a[column as keyof Supplier];
+        bVal = b[column as keyof Supplier];
+      }
+
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) aVal = '';
+      if (bVal === null || bVal === undefined) bVal = '';
+
+      // Convert to string or compare as numbers/dates
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+
+      if (aStr < bStr) return direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setSuppliers(sorted);
   };
 
   // Reset view to defaults
@@ -609,16 +738,15 @@ export function SuppliersManager() {
             <div className="w-[140px] h-9 border rounded-md" />
           )}
           
-          <Input
-            placeholder={`Search ${searchField === "all" ? "all fields" : searchField}...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="flex-1"
-          />
-          <Button variant="outline" size="icon" onClick={handleSearch}>
-            <Search className="h-4 w-4" />
-          </Button>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={`Search ${searchField === "all" ? "all fields" : searchField}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -891,6 +1019,10 @@ export function SuppliersManager() {
                   width={columnWidths.trdr}
                   onResize={(w) => handleColumnResize("trdr", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("trdr")}
+                  sortConfig={sortConfig}
+                  sortKey="trdr"
                 >
                   TRDR
                 </ResizableTableHeader>
@@ -900,6 +1032,10 @@ export function SuppliersManager() {
                   width={columnWidths.code}
                   onResize={(w) => handleColumnResize("code", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("code")}
+                  sortConfig={sortConfig}
+                  sortKey="code"
                 >
                   CODE
                 </ResizableTableHeader>
@@ -909,6 +1045,10 @@ export function SuppliersManager() {
                   width={columnWidths.afm}
                   onResize={(w) => handleColumnResize("afm", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("afm")}
+                  sortConfig={sortConfig}
+                  sortKey="afm"
                 >
                   AFM
                 </ResizableTableHeader>
@@ -918,6 +1058,10 @@ export function SuppliersManager() {
                   width={columnWidths.name}
                   onResize={(w) => handleColumnResize("name", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("name")}
+                  sortConfig={sortConfig}
+                  sortKey="name"
                 >
                   NAME
                 </ResizableTableHeader>
@@ -954,6 +1098,10 @@ export function SuppliersManager() {
                   width={columnWidths.city}
                   onResize={(w) => handleColumnResize("city", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("city")}
+                  sortConfig={sortConfig}
+                  sortKey="city"
                 >
                   CITY
                 </ResizableTableHeader>
@@ -990,6 +1138,10 @@ export function SuppliersManager() {
                   width={columnWidths.phone}
                   onResize={(w) => handleColumnResize("phone", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("phone01")}
+                  sortConfig={sortConfig}
+                  sortKey="phone01"
                 >
                   PHONE 1
                 </ResizableTableHeader>
@@ -999,6 +1151,10 @@ export function SuppliersManager() {
                   width={columnWidths.phone02}
                   onResize={(w) => handleColumnResize("phone02", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("phone02")}
+                  sortConfig={sortConfig}
+                  sortKey="phone02"
                 >
                   PHONE 2
                 </ResizableTableHeader>
@@ -1008,6 +1164,10 @@ export function SuppliersManager() {
                   width={columnWidths.email}
                   onResize={(w) => handleColumnResize("email", w)}
                   className="font-semibold"
+                  sortable
+                  onSort={() => handleSort("email")}
+                  sortConfig={sortConfig}
+                  sortKey="email"
                 >
                   EMAIL
                 </ResizableTableHeader>
@@ -1104,19 +1264,19 @@ export function SuppliersManager() {
                     <TableCell 
                       style={{ width: `${columnWidths.trdr}px`, minWidth: `${columnWidths.trdr}px` }}
                     >
-                      <div className="font-mono text-[11px]">{supplier.trdr || "-"}</div>
+                      <div className="font-mono text-xs">{supplier.trdr || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.code && (
                     <TableCell 
                       style={{ width: `${columnWidths.code}px`, minWidth: `${columnWidths.code}px` }}
                     >
-                      <div className="font-medium text-[11px]">{supplier.code || "-"}</div>
+                      <div className="font-medium text-xs">{supplier.code || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.afm && (
                     <TableCell style={{ width: `${columnWidths.afm}px`, minWidth: `${columnWidths.afm}px` }}>
-                      <div className="text-[11px]">{supplier.afm || "-"}</div>
+                      <div className="text-xs">{supplier.afm || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.name && (
@@ -1125,7 +1285,7 @@ export function SuppliersManager() {
                       minWidth: `${columnWidths.name}px`,
                       maxWidth: `${columnWidths.name}px`
                     }}>
-                      <div className="font-medium text-[11px] break-words whitespace-normal">{supplier.name}</div>
+                      <div className="font-medium text-xs break-words whitespace-normal">{supplier.name}</div>
                     </TableCell>
                   )}
                   {visibleColumns.sotitle && (
@@ -1133,75 +1293,75 @@ export function SuppliersManager() {
                       width: `${columnWidths.sotitle}px`, 
                       minWidth: `${columnWidths.sotitle}px`
                     }}>
-                      <div className="text-[11px] break-words whitespace-normal">
+                      <div className="text-xs break-words whitespace-normal">
                         {supplier.sotitle || "-"}
                       </div>
                     </TableCell>
                   )}
                   {visibleColumns.jobtypetrd && (
                     <TableCell style={{ width: `${columnWidths.jobtypetrd}px`, minWidth: `${columnWidths.jobtypetrd}px` }}>
-                      <div className="text-[11px]">{supplier.jobtypetrd || "-"}</div>
+                      <div className="text-xs">{supplier.jobtypetrd || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.address && (
                     <TableCell style={{ width: `${columnWidths.address}px`, minWidth: `${columnWidths.address}px` }}>
-                      <div className="text-[11px] break-words whitespace-normal">
+                      <div className="text-xs break-words whitespace-normal">
                         {supplier.address || "-"}
                       </div>
                     </TableCell>
                   )}
                   {visibleColumns.city && (
                     <TableCell style={{ width: `${columnWidths.city}px`, minWidth: `${columnWidths.city}px` }}>
-                      <div className="text-[11px]">{supplier.city || "-"}</div>
+                      <div className="text-xs">{supplier.city || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.zip && (
                     <TableCell style={{ width: `${columnWidths.zip}px`, minWidth: `${columnWidths.zip}px` }}>
-                      <div className="text-[11px]">{supplier.zip || "-"}</div>
+                      <div className="text-xs">{supplier.zip || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.district && (
                     <TableCell style={{ width: `${columnWidths.district}px`, minWidth: `${columnWidths.district}px` }}>
-                      <div className="text-[11px]">{supplier.district || "-"}</div>
+                      <div className="text-xs">{supplier.district || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.country && (
                     <TableCell style={{ width: `${columnWidths.country}px`, minWidth: `${columnWidths.country}px` }}>
-                      <div className="text-[11px]">{supplier.countryRel?.name || supplier.country || "-"}</div>
+                      <div className="text-xs">{supplier.countryRel?.name || supplier.country || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.phone && (
                     <TableCell style={{ width: `${columnWidths.phone}px`, minWidth: `${columnWidths.phone}px` }}>
-                      <div className="text-[11px]">{supplier.phone01 || "-"}</div>
+                      <div className="text-xs">{supplier.phone01 || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.phone02 && (
                     <TableCell style={{ width: `${columnWidths.phone02}px`, minWidth: `${columnWidths.phone02}px` }}>
-                      <div className="text-[11px]">{supplier.phone02 || "-"}</div>
+                      <div className="text-xs">{supplier.phone02 || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.email && (
                     <TableCell 
                       style={{ width: `${columnWidths.email}px`, minWidth: `${columnWidths.email}px` }}
                     >
-                      <div className="text-[11px] truncate">{supplier.email || "-"}</div>
+                      <div className="text-xs truncate">{supplier.email || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.emailacc && (
                     <TableCell 
                       style={{ width: `${columnWidths.emailacc}px`, minWidth: `${columnWidths.emailacc}px` }}
                     >
-                      <div className="text-[11px] truncate">{supplier.emailacc || "-"}</div>
+                      <div className="text-xs truncate">{supplier.emailacc || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.irsdata && (
                     <TableCell style={{ width: `${columnWidths.irsdata}px`, minWidth: `${columnWidths.irsdata}px` }}>
-                      <div className="text-[11px]">{supplier.irsdata || "-"}</div>
+                      <div className="text-xs">{supplier.irsdata || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.socurrency && (
                     <TableCell style={{ width: `${columnWidths.socurrency}px`, minWidth: `${columnWidths.socurrency}px` }}>
-                      <div className="text-[11px]">{supplier.socurrency || "-"}</div>
+                      <div className="text-xs">{supplier.socurrency || "-"}</div>
                     </TableCell>
                   )}
                   {visibleColumns.status && (
@@ -1210,6 +1370,7 @@ export function SuppliersManager() {
                         variant={
                           supplier.isactive === "ACTIVE" ? "default" : "secondary"
                         }
+                        className="text-xs"
                       >
                         {supplier.isactive === "ACTIVE" ? (
                           <>
@@ -1228,12 +1389,12 @@ export function SuppliersManager() {
                   {visibleColumns.erp && (
                     <TableCell style={{ width: `${columnWidths.erp}px`, minWidth: `${columnWidths.erp}px` }}>
                       {supplier.erp ? (
-                        <Badge variant="outline" className="bg-green-50">
+                        <Badge variant="outline" className="bg-green-50 text-xs">
                           <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
                           <span className="text-green-600">Synced</span>
                         </Badge>
                       ) : (
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="text-xs">
                           <XCircle className="h-3 w-3 mr-1" />
                           Not Synced
                         </Badge>
@@ -1242,14 +1403,14 @@ export function SuppliersManager() {
                   )}
                   {visibleColumns.createdAt && (
                     <TableCell style={{ width: `${columnWidths.createdAt}px`, minWidth: `${columnWidths.createdAt}px` }}>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {new Date(supplier.createdAt).toLocaleDateString()}
                       </div>
                     </TableCell>
                   )}
                   {visibleColumns.updatedAt && (
                     <TableCell style={{ width: `${columnWidths.updatedAt}px`, minWidth: `${columnWidths.updatedAt}px` }}>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {new Date(supplier.update).toLocaleDateString()}
                       </div>
                     </TableCell>
@@ -1275,6 +1436,18 @@ export function SuppliersManager() {
                           <DropdownMenuItem onClick={() => handleEdit(supplier)}>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleManageBrands(supplier)}>
+                            <Tag className="h-4 w-4 mr-2" />
+                            Manage Brands
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAddContact(supplier)}>
+                            <User className="h-4 w-4 mr-2" />
+                            Add Contact
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewEmails(supplier.id)}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            View Associated Emails
                           </DropdownMenuItem>
                           {supplier.afm && (
                             <>
@@ -1318,7 +1491,7 @@ export function SuppliersManager() {
           >
             Previous
           </Button>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Page {page} of {totalPages}
           </span>
           <Button
@@ -1388,6 +1561,43 @@ export function SuppliersManager() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Manage Brands Dialog */}
+      {supplierForBrand && (
+        <SupplierBrandDialog
+          open={brandDialogOpen}
+          onOpenChange={(open) => {
+            setBrandDialogOpen(open);
+            if (!open) {
+              setSupplierForBrand(null);
+            }
+          }}
+          supplierId={supplierForBrand.id}
+          existingBrandIds={[]}
+          onSuccess={() => {
+            fetchSuppliers(searchTerm, searchField, page, pageSize);
+          }}
+        />
+      )}
+
+      {/* Add Contact Dialog */}
+      {supplierForContact && (
+        <AddContactDialog
+          open={contactDialogOpen}
+          onOpenChange={(open) => {
+            setContactDialogOpen(open);
+            if (!open) {
+              setSupplierForContact(null);
+            }
+          }}
+          type="supplier"
+          entityId={supplierForContact.id}
+          entityName={supplierForContact.name}
+          onSuccess={() => {
+            fetchSuppliers(searchTerm, searchField, page, pageSize);
+          }}
+        />
+      )}
     </div>
   );
 }

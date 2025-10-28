@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
+import { requireManagerOrAdmin } from '@/lib/auth/guards';
 import { PricingManager } from '@/components/admin/pricing-manager';
 import { MarkupRulesManager } from '@/components/admin/markup-rules-manager';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,11 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calculator, Settings } from 'lucide-react';
 
 export default async function PricingPage() {
-  const session = await auth();
-
-  if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
-    redirect('/dashboard');
-  }
+  await requireManagerOrAdmin();
 
   return (
     <div className="container mx-auto p-6 space-y-6">

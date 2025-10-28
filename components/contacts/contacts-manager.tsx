@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,6 +21,12 @@ import {
   Eye,
   MoreVertical,
   Link as LinkIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Columns2,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -51,8 +57,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContactFormDialog } from "./contact-form-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ResizableTableHeader } from "./resizable-table-header";
+import { ContactEmailsModal } from "./contact-emails-modal";
 
 interface Contact {
   id: string;
@@ -99,6 +115,7 @@ export function ContactsManager() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchField, setSearchField] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
@@ -108,6 +125,44 @@ export function ContactsManager() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [emailsModalOpen, setEmailsModalOpen] = useState(false);
+  const [selectedContactForEmails, setSelectedContactForEmails] = useState<Contact | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    name: true,
+    email: true,
+    mobilePhone: true,
+    city: true,
+    country: true,
+    customers: true,
+    suppliers: true,
+    projects: true,
+  });
+
+  // Column width state - only load from localStorage after mount to avoid hydration mismatch
+  const [columnWidths, setColumnWidths] = useState({
+    name: 200,
+    email: 200,
+    mobilePhone: 150,
+    city: 150,
+    country: 150,
+    customers: 200,
+    suppliers: 200,
+    projects: 200,
+  });
+
+  // Load column widths from localStorage after mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('contacts-column-widths');
+      if (saved) {
+        setColumnWidths(JSON.parse(saved));
+      }
+    }
+  }, []);
 
   const fetchContacts = async () => {
     setLoading(true);
@@ -141,14 +196,96 @@ export function ContactsManager() {
     setMounted(true);
   }, []);
 
+  // Save column widths to localStorage
   useEffect(() => {
-    fetchContacts();
-  }, [page, pageSize, searchTerm]);
+    if (mounted) {
+      localStorage.setItem('contacts-column-widths', JSON.stringify(columnWidths));
+    }
+  }, [columnWidths, mounted]);
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    setPage(1);
+  // Auto-search with debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setPage(1);
+      fetchContacts();
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, searchField, pageSize]);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchContacts();
+    }
+  }, [page]);
+
+  const handleSort = (column: string) => {
+    setSortConfig((prev) => {
+      if (prev?.key === column) {
+        return prev.direction === 'asc' 
+          ? { key: column, direction: 'desc' }
+          : null;
+      }
+      return { key: column, direction: 'asc' };
+    });
   };
+
+  const applySorting = (column: string, direction: 'asc' | 'desc') => {
+    const sorted = [...contacts].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (column) {
+        case 'name':
+          aVal = a.name;
+          bVal = b.name;
+          break;
+        case 'email':
+          aVal = a.email;
+          bVal = b.email;
+          break;
+        case 'mobilePhone':
+          aVal = a.mobilePhone;
+          bVal = b.mobilePhone;
+          break;
+        case 'city':
+          aVal = a.city;
+          bVal = b.city;
+          break;
+        case 'country':
+          aVal = a.country?.name;
+          bVal = b.country?.name;
+          break;
+        default:
+          return 0;
+      }
+
+      if (!aVal && !bVal) return 0;
+      if (!aVal) return 1;
+      if (!bVal) return -1;
+
+      const comparison = aVal.toString().localeCompare(bVal.toString(), undefined, { numeric: true });
+      return direction === 'asc' ? comparison : -comparison;
+    });
+
+    setContacts(sorted);
+  };
+
+  useEffect(() => {
+    if (sortConfig) {
+      applySorting(sortConfig.key, sortConfig.direction);
+    }
+  }, [sortConfig]);
+
+
 
   const handleEdit = (contact: Contact) => {
     setEditingContact(contact);
@@ -255,6 +392,11 @@ export function ContactsManager() {
     router.push(`/contacts/${contactId}`);
   };
 
+  const handleViewEmails = (contact: Contact) => {
+    setSelectedContactForEmails(contact);
+    setEmailsModalOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -299,15 +441,71 @@ export function ContactsManager() {
 
       {/* Search and Filters */}
       <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search contacts by name, email, phone, or city..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex gap-2 flex-1 max-w-2xl">
+          <Select
+            value={searchField}
+            onValueChange={setSearchField}
+            defaultValue="all"
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Fields</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="mobilePhone">Mobile</SelectItem>
+              <SelectItem value="city">City</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={`Search ${searchField === "all" ? "all fields" : searchField}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Columns2 className="h-4 w-4" />
+              COLUMNS
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56" align="end">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">VISIBLE COLUMNS</Label>
+              <ScrollArea className="h-64">
+                <div className="space-y-2 mt-2">
+                  {Object.entries(columnVisibility).map(([key, visible]) => (
+                    <div key={key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={key}
+                        checked={visible}
+                        onCheckedChange={(checked) => {
+                          setColumnVisibility((prev) => ({
+                            ...prev,
+                            [key]: checked as boolean,
+                          }));
+                        }}
+                      />
+                      <label
+                        htmlFor={key}
+                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize cursor-pointer"
+                      >
+                        {key}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </PopoverContent>
+        </Popover>
         {mounted && (
           <Select
             value={pageSize.toString()}
@@ -330,7 +528,7 @@ export function ContactsManager() {
       </div>
 
       {/* Stats */}
-      <div className="text-sm text-muted-foreground">
+      <div className="text-xs text-muted-foreground">
         Showing {contacts.length} of {total} contacts
       </div>
 
@@ -339,14 +537,75 @@ export function ContactsManager() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>NAME</TableHead>
-              <TableHead>EMAIL</TableHead>
-              <TableHead>MOBILE PHONE</TableHead>
-              <TableHead>CITY</TableHead>
-              <TableHead>COUNTRY</TableHead>
-              <TableHead>CUSTOMERS</TableHead>
-              <TableHead>SUPPLIERS</TableHead>
-              <TableHead>PROJECTS</TableHead>
+              {columnVisibility.name && (
+                <ResizableTableHeader
+                  width={columnWidths.name}
+                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, name: newWidth }))}
+                  sortable
+                  sortKey="name"
+                  sortConfig={sortConfig}
+                  onSort={() => handleSort('name')}
+                >
+                  NAME
+                </ResizableTableHeader>
+              )}
+              {columnVisibility.email && (
+                <ResizableTableHeader
+                  width={columnWidths.email}
+                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, email: newWidth }))}
+                  sortable
+                  sortKey="email"
+                  sortConfig={sortConfig}
+                  onSort={() => handleSort('email')}
+                >
+                  EMAIL
+                </ResizableTableHeader>
+              )}
+              {columnVisibility.mobilePhone && (
+                <ResizableTableHeader
+                  width={columnWidths.mobilePhone}
+                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, mobilePhone: newWidth }))}
+                  sortable
+                  sortKey="mobilePhone"
+                  sortConfig={sortConfig}
+                  onSort={() => handleSort('mobilePhone')}
+                >
+                  MOBILE PHONE
+                </ResizableTableHeader>
+              )}
+              {columnVisibility.city && (
+                <ResizableTableHeader
+                  width={columnWidths.city}
+                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, city: newWidth }))}
+                  sortable
+                  sortKey="city"
+                  sortConfig={sortConfig}
+                  onSort={() => handleSort('city')}
+                >
+                  CITY
+                </ResizableTableHeader>
+              )}
+              {columnVisibility.country && (
+                <ResizableTableHeader
+                  width={columnWidths.country}
+                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, country: newWidth }))}
+                  sortable
+                  sortKey="country"
+                  sortConfig={sortConfig}
+                  onSort={() => handleSort('country')}
+                >
+                  COUNTRY
+                </ResizableTableHeader>
+              )}
+              {columnVisibility.customers && (
+                <TableHead style={{ width: `${columnWidths.customers}px` }}>CUSTOMERS</TableHead>
+              )}
+              {columnVisibility.suppliers && (
+                <TableHead style={{ width: `${columnWidths.suppliers}px` }}>SUPPLIERS</TableHead>
+              )}
+              {columnVisibility.projects && (
+                <TableHead style={{ width: `${columnWidths.projects}px` }}>PROJECTS</TableHead>
+              )}
               <TableHead className="w-[80px]">ACTIONS</TableHead>
             </TableRow>
           </TableHeader>
@@ -367,79 +626,95 @@ export function ContactsManager() {
               ))
             ) : contacts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center text-xs">
                   No contacts found.
                 </TableCell>
               </TableRow>
             ) : (
               contacts.map((contact) => (
                 <TableRow key={contact.id}>
-                  <TableCell className="font-medium">
-                    {contact.title && (
-                      <span className="text-muted-foreground mr-1">
-                        {contact.title}
-                      </span>
-                    )}
-                    {contact.name}
-                  </TableCell>
-                  <TableCell>{contact.email || "-"}</TableCell>
-                  <TableCell>{contact.mobilePhone || "-"}</TableCell>
-                  <TableCell>{contact.city || "-"}</TableCell>
-                  <TableCell>{contact.country?.name || "-"}</TableCell>
-                  <TableCell>
-                    {contact.customers && contact.customers.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {contact.customers.slice(0, 2).map((c) => (
-                          <Badge key={c.customer.id} variant="secondary">
-                            {c.customer.name}
-                          </Badge>
-                        ))}
-                        {contact.customers.length > 2 && (
-                          <Badge variant="secondary">
-                            +{contact.customers.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {contact.suppliers && contact.suppliers.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {contact.suppliers.slice(0, 2).map((s) => (
-                          <Badge key={s.supplier.id} variant="secondary">
-                            {s.supplier.name}
-                          </Badge>
-                        ))}
-                        {contact.suppliers.length > 2 && (
-                          <Badge variant="secondary">
-                            +{contact.suppliers.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {contact.contactProjects && contact.contactProjects.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {contact.contactProjects.slice(0, 2).map((p) => (
-                          <Badge key={p.project.id} variant="secondary">
-                            {p.project.name}
-                          </Badge>
-                        ))}
-                        {contact.contactProjects.length > 2 && (
-                          <Badge variant="secondary">
-                            +{contact.contactProjects.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
+                  {columnVisibility.name && (
+                    <TableCell className="font-medium text-xs">
+                      {contact.title && (
+                        <span className="text-muted-foreground mr-1">
+                          {contact.title}
+                        </span>
+                      )}
+                      {contact.name}
+                    </TableCell>
+                  )}
+                  {columnVisibility.email && (
+                    <TableCell className="text-xs">{contact.email || "-"}</TableCell>
+                  )}
+                  {columnVisibility.mobilePhone && (
+                    <TableCell className="text-xs">{contact.mobilePhone || "-"}</TableCell>
+                  )}
+                  {columnVisibility.city && (
+                    <TableCell className="text-xs">{contact.city || "-"}</TableCell>
+                  )}
+                  {columnVisibility.country && (
+                    <TableCell className="text-xs">{contact.country?.name || "-"}</TableCell>
+                  )}
+                  {columnVisibility.customers && (
+                    <TableCell className="text-xs">
+                      {contact.customers && contact.customers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {contact.customers.slice(0, 2).map((c) => (
+                            <Badge key={c.customer.id} variant="secondary">
+                              {c.customer.name}
+                            </Badge>
+                          ))}
+                          {contact.customers.length > 2 && (
+                            <Badge variant="secondary">
+                              +{contact.customers.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  )}
+                  {columnVisibility.suppliers && (
+                    <TableCell className="text-xs">
+                      {contact.suppliers && contact.suppliers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {contact.suppliers.slice(0, 2).map((s) => (
+                            <Badge key={s.supplier.id} variant="secondary">
+                              {s.supplier.name}
+                            </Badge>
+                          ))}
+                          {contact.suppliers.length > 2 && (
+                            <Badge variant="secondary">
+                              +{contact.suppliers.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  )}
+                  {columnVisibility.projects && (
+                    <TableCell className="text-xs">
+                      {contact.contactProjects && contact.contactProjects.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {contact.contactProjects.slice(0, 2).map((p) => (
+                            <Badge key={p.project.id} variant="secondary">
+                              {p.project.name}
+                            </Badge>
+                          ))}
+                          {contact.contactProjects.length > 2 && (
+                            <Badge variant="secondary">
+                              +{contact.contactProjects.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -453,6 +728,13 @@ export function ContactsManager() {
                         <DropdownMenuItem onClick={() => handleViewDetails(contact.id)}>
                           <Eye className="mr-2 h-4 w-4" />
                           VIEW DETAILS
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleViewEmails(contact)}
+                          disabled={!contact.email}
+                        >
+                          <Mail className="mr-2 h-4 w-4" />
+                          VIEW EMAILS
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEdit(contact)}>
                           <Edit className="mr-2 h-4 w-4" />
@@ -481,7 +763,7 @@ export function ContactsManager() {
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           Page {page} of {totalPages}
         </div>
         <div className="flex items-center gap-2">
@@ -535,6 +817,16 @@ export function ContactsManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Contact Emails Modal */}
+      {selectedContactForEmails && (
+        <ContactEmailsModal
+          open={emailsModalOpen}
+          onOpenChange={setEmailsModalOpen}
+          contactId={selectedContactForEmails.id}
+          contactEmail={selectedContactForEmails.email}
+        />
+      )}
     </div>
   );
 }

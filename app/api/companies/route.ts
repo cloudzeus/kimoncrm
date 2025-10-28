@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               contacts: true,
-              leads: true,
-              opportunities: true,
-              tickets: true,
+              assignedLeads: true,
               orders: true,
               quotes: true,
+              supportContracts: true,
+              tickets: true,
             },
           },
         },
@@ -91,11 +91,11 @@ export async function POST(request: NextRequest) {
         _count: {
           select: {
             contacts: true,
-            leads: true,
-            opportunities: true,
-            tickets: true,
+            assignedLeads: true,
             orders: true,
             quotes: true,
+            supportContracts: true,
+            tickets: true,
           },
         },
       },

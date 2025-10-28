@@ -74,7 +74,11 @@ model User {
   emailSettings            EmailSettings?
   emailSignatures          EmailSignature[]
   leadStatusChanges        LeadStatusChange[]
+  ownedLeads               Lead[]                 @relation("LeadOwner")
+  assignedLeads            Lead[]                 @relation("LeadAssignee")
   opportunityStatusChanges OpportunityStatusChange[]
+  assignedOpportunities    Opportunity[]          @relation("OpportunityAssignee")
+  assignedRFPs            RFP[]                  @relation("RFPAssignee")
   orders                   Order[]                   @relation("OrderPlacedBy")
   pricingChanges           ProductPricingHistory[]
   projectAssignments       ProjectAssignment[]
@@ -101,18 +105,20 @@ model User {
 }
 
 model Department {
-  id         String         @id @default(cuid())
-  name       String
-  emailGroup String?        @unique
-  parentId   String?
-  managerId  String?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  manager    User?          @relation("DeptManager", fields: [managerId], references: [id])
-  parent     Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
-  children   Department[]   @relation("DeptHierarchy")
-  users      User[]
-  positions  WorkPosition[]
+  id              String           @id @default(cuid())
+  name            String
+  emailGroup      String?          @unique
+  parentId        String?
+  managerId       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  manager         User?            @relation("DeptManager", fields: [managerId], references: [id])
+  parent          Department?      @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children        Department[]     @relation("DeptHierarchy")
+  users           User[]
+  positions       WorkPosition[]
+  menuPermissions MenuPermission[]
+  leads           Lead[]
 
   @@index([managerId], map: "Department_managerId_fkey")
   @@index([parentId], map: "Department_parentId_fkey")
@@ -144,12 +150,10 @@ model Company {
   contacts         Contact[]
   emails           EmailThread[]
   files            FileRef[]
-  leads            Lead[]
-  opportunities    Opportunity[]
+  assignedLeads    Lead[]            @relation("AssignedLead")
   orders           Order[]
   projects         Project[]
   quotes           Quote[]
-  rfps             RFP[]
   supportContracts SupportContract[]
   tickets          Ticket[]
 }
@@ -235,45 +239,81 @@ model ContactProject {
 }
 
 model Lead {
-  id            String             @id @default(cuid())
-  companyId     String?
-  contactId     String?
-  name          String
-  email         String?
-  phone         String?
-  source        String?
-  status        String             @default("New")
-  score         Int?
-  ownerId       String?
-  notes         String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  emails        EmailThread[]
-  company       Company?           @relation(fields: [companyId], references: [id])
-  contact       Contact?           @relation("LeadContact", fields: [contactId], references: [id])
-  statusChanges LeadStatusChange[]
-  quotes        Quote[]
+  id                       String              @id @default(cuid())
+  leadNumber               String?             @unique  // LL+number format
+  title                    String
+  description              String?             @db.Text
+  customerId               String?             // Customer from our list
+  contactId                String?
+  assignedCompanyId        String?             // For subcontractor work - company assigning us
+  stage                    DealStage            @default(LEAD_NEW)
+  status                   LeadStatus           @default(ACTIVE)
+  priority                 LeadPriority         @default(MEDIUM)
+  source                   String?
+  estimatedValue           Decimal?             @db.Decimal(12, 2)
+  probability              Int?                 // Percentage
+  requestedSiteSurvey      Boolean              @default(false)
+  ownerId                  String?              // Assigned to Sales Manager for review
+  assigneeId               String?              // Assigned to presales/sales person
+  departmentId             String?              // Sales or Presales
+  notes                    String?             @db.Text
+  expectedCloseDate        DateTime?
+  reviewDate               DateTime?            // For FROZEN leads
+  createdAt                DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+  emails                   EmailThread[]
+  customer                 Customer?            @relation(fields: [customerId], references: [id])
+  contact                  Contact?             @relation("LeadContact", fields: [contactId], references: [id])
+  assignedCompany          Company?             @relation("AssignedLead", fields: [assignedCompanyId], references: [id])
+  owner                    User?                @relation("LeadOwner", fields: [ownerId], references: [id])
+  assignee                 User?                @relation("LeadAssignee", fields: [assigneeId], references: [id])
+  department               Department?         @relation(fields: [departmentId], references: [id])
+  siteSurvey               SiteSurvey?          
+  statusChanges            LeadStatusChange[]
+  quotes                   Quote[]
+  rfps                     RFP[]
+  projects                 Project[]
+  opportunities            Opportunity[]        @relation("LeadOpportunities")
 
-  @@index([companyId], map: "Lead_companyId_fkey")
+  @@index([customerId], map: "Lead_customerId_fkey")
   @@index([contactId], map: "Lead_contactId_fkey")
+  @@index([assignedCompanyId])
+  @@index([ownerId])
+  @@index([assigneeId])
+  @@index([departmentId])
+  @@index([stage])
+  @@index([status])
+  @@index([leadNumber])
 }
 
 model Opportunity {
-  id            String                    @id @default(cuid())
-  companyId     String
-  name          String
-  stage         String                    @default("Qualification")
-  status        String                    @default("Active")
-  amount        Decimal?                  @db.Decimal(12, 2)
-  closeDate     DateTime?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
-  company       Company                   @relation(fields: [companyId], references: [id])
-  statusChanges OpportunityStatusChange[]
-  quotes        Quote[]
-  rfps          RFP[]
+  id                String                    @id @default(cuid())
+  leadId            String?
+  customerId        String
+  name              String
+  stage             OpportunityStage          @default(OPP_PROSPECTING)
+  status            OpportunityStatus          @default(ACTIVE)
+  amount            Decimal?                  @db.Decimal(12, 2)
+  probability       Int?                       // Percentage
+  expectedCloseDate DateTime?
+  actualCloseDate   DateTime?
+  description       String?                   @db.Text
+  assigneeId         String?
+  notes             String?                    @db.Text
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  customer          Customer                  @relation(fields: [customerId], references: [id])
+  lead              Lead?                     @relation("LeadOpportunities", fields: [leadId], references: [id])
+  assignee          User?                     @relation("OpportunityAssignee", fields: [assigneeId], references: [id])
+  statusChanges     OpportunityStatusChange[]
+  quotes            Quote[]
+  rfps              RFP[]
 
-  @@index([companyId], map: "Opportunity_companyId_fkey")
+  @@index([customerId], map: "Opportunity_customerId_fkey")
+  @@index([leadId])
+  @@index([assigneeId])
+  @@index([stage])
+  @@index([status])
 }
 
 /// ** Tickets **
@@ -319,6 +359,8 @@ model EmailThread {
   id            String            @id @default(cuid())
   subject       String?
   companyId     String?
+  customerId    String?
+  supplierId    String?
   contactId     String?
   projectId     String?
   leadId        String?
@@ -336,12 +378,16 @@ model EmailThread {
   attachments   EmailAttachment[]
   messages      EmailMessage[]
   company       Company?          @relation(fields: [companyId], references: [id])
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
   contact       Contact?          @relation(fields: [contactId], references: [id])
   lead          Lead?             @relation(fields: [leadId], references: [id])
   project       Project?          @relation(fields: [projectId], references: [id])
   support       Ticket?           @relation(fields: [supportId], references: [id])
 
   @@index([companyId], map: "EmailThread_companyId_fkey")
+  @@index([customerId])
+  @@index([supplierId])
   @@index([contactId], map: "EmailThread_contactId_fkey")
   @@index([leadId], map: "EmailThread_leadId_fkey")
   @@index([projectId], map: "EmailThread_projectId_fkey")
@@ -487,6 +533,7 @@ model Project {
   companyId       String?
   contactId       String?
   orderId         String?
+  leadId          String?
   name            String
   status          String              @default("Active")
   startAt         DateTime?
@@ -500,12 +547,14 @@ model Project {
   company         Company?            @relation(fields: [companyId], references: [id])
   contact         Contact?            @relation("ProjectContact", fields: [contactId], references: [id])
   order           Order?              @relation(fields: [orderId], references: [id])
+  lead            Lead?               @relation(fields: [leadId], references: [id])
   assignedUsers   ProjectAssignment[]
   tasks           Task[]
 
   @@index([companyId], map: "Project_companyId_fkey")
   @@index([contactId], map: "Project_contactId_fkey")
   @@index([orderId], map: "Project_orderId_fkey")
+  @@index([leadId], map: "Project_leadId_fkey")
 }
 
 model ProjectAssignment {
@@ -611,6 +660,7 @@ model Brand {
   markupRules  MarkupRule[]       @relation("BrandMarkupRules")
   products     Product[]
   services     Service[]          @relation("ServiceBrand")
+  suppliers    BrandSupplier[]
 }
 
 model BrandTranslation {
@@ -641,6 +691,36 @@ model Manufacturer {
   logo        FileRef?     @relation(fields: [logoId], references: [id])
   markupRules MarkupRule[] @relation("ManufacturerMarkupRules")
   products    Product[]
+}
+
+model MtrGroup {
+  id           String                @id @default(cuid())
+  mtrgroup     String                @unique
+  code         String?
+  name         String
+  sodtype      Int
+  isactive     Boolean               @default(false)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  translations MtrGroupTranslation[]
+  groupSpecs   ProductGroupSpec[]
+
+  @@index([sodtype])
+}
+
+model MtrGroupTranslation {
+  id           String            @id @default(cuid())
+  mtrgroupId   String
+  languageCode String
+  name         String?
+  description  String?           @db.LongText
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  mtrgroup     MtrGroup          @relation(fields: [mtrgroupId], references: [id], onDelete: Cascade)
+  language     SupportedLanguage @relation(fields: [languageCode], references: [code])
+
+  @@unique([mtrgroupId, languageCode])
+  @@index([languageCode], map: "MtrGroupTranslation_languageCode_fkey")
 }
 
 model Country {
@@ -791,6 +871,7 @@ model Product {
   mtrl                        String?                      @unique
   mtrmanfctr                  String?
   mtrmark                     String?
+  mtrgroup                    String?
   weight                      Decimal?                     @db.Decimal(10, 2)
   width                       Decimal?                     @db.Decimal(10, 2)
   productDataSheet            String?
@@ -846,17 +927,21 @@ model ProductImage {
 }
 
 model ProductSpec {
-  id           String                   @id @default(cuid())
-  productId    String
-  specKey      String
-  order        Int                      @default(0)
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
-  product      Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  translations ProductSpecTranslation[]
+  id              String                   @id @default(cuid())
+  productId       String
+  specKey         String
+  order           Int                      @default(0)
+  groupSpecId     String?                  // Link to ProductGroupSpec
+  aiProvider      String?                  // AI provider used (e.g., "openai", "deepseek")
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  product         Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  groupSpec       ProductGroupSpec?        @relation(fields: [groupSpecId], references: [id], onDelete: SetNull)
+  translations    ProductSpecTranslation[]
 
   @@unique([productId, specKey])
   @@index([productId])
+  @@index([groupSpecId], map: "ProductSpec_groupSpecId_fkey")
 }
 
 model ProductSpecTranslation {
@@ -873,6 +958,25 @@ model ProductSpecTranslation {
   @@unique([specId, languageCode])
   @@index([specId])
   @@index([languageCode], map: "ProductSpecTranslation_languageCode_fkey")
+}
+
+model ProductGroupSpec {
+  id           String            @id @default(cuid())
+  mtrgroupCode String
+  mtrgroupId   String?
+  specKey      String
+  specName     String            // English name
+  description  String?           @db.Text
+  isRequired   Boolean           @default(false)
+  order        Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  mtrgroup     MtrGroup?         @relation(fields: [mtrgroupId], references: [id], onDelete: Cascade)
+  productSpecs ProductSpec[]     // Product specs linked to this group spec
+  
+  @@unique([mtrgroupCode, specKey])
+  @@index([mtrgroupCode])
+  @@index([mtrgroupId], map: "ProductGroupSpec_mtrgroupId_fkey")
 }
 
 model ProductStock {
@@ -1058,6 +1162,7 @@ model QuoteItem {
 
 model SiteSurvey {
   id                          String                       @id @default(cuid())
+  leadId                      String?                      @unique
   createdAt                   DateTime                     @default(now())
   updatedAt                   DateTime                     @updatedAt
   address                     String?
@@ -1089,6 +1194,7 @@ model SiteSurvey {
   assignTo                    User?                        @relation("SurveyAssignTo", fields: [assignToId], references: [id])
   contact                     Contact?                     @relation("SurveyContact", fields: [contactId], references: [id])
   customer                    Customer                     @relation(fields: [customerId], references: [id])
+  lead                        Lead?                        @relation(fields: [leadId], references: [id])
   voipSurvey                  VoipSurvey?
   workRequests                WorkRequest[]
   // Proposed Infrastructure Relations
@@ -1102,6 +1208,7 @@ model SiteSurvey {
   @@index([assignToId])
   @@index([assignFromId])
   @@index([contactId])
+  @@index([leadId])
 }
 
 model VoipSurvey {
@@ -1583,6 +1690,7 @@ model SupportedLanguage {
   companyTranslations     DefaultCompanyDataTranslation[]
   districtTranslations    DistrictTranslation[]
   isoCertTranslations     ISOCertTranslation[]
+  mtrgroupTranslations    MtrGroupTranslation[]
   productSpecTranslations ProductSpecTranslation[]
   productTranslations     ProductTranslation[]
   serviceTranslations     ServiceTranslation[]
@@ -1699,16 +1807,19 @@ model MenuItem {
 }
 
 model MenuPermission {
-  id         String   @id @default(cuid())
-  menuItemId String
-  role       String
-  canView    Boolean  @default(true)
-  canEdit    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  menuItemId   String
+  role         String?
+  departmentId String?
+  canView      Boolean    @default(true)
+  canEdit      Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id])
 
-  @@unique([menuItemId, role])
+  @@unique([menuItemId, role, departmentId])
+  @@index([departmentId], map: "MenuPermission_departmentId_fkey")
 }
 
 /// ** Pricing & Markup Management **
@@ -1859,27 +1970,39 @@ model SLA {
 }
 
 model RFP {
-  id            String            @id @default(cuid())
-  rfpNo         String?           @unique
-  title         String
-  description   String?
-  status        String            @default("Draft")
-  dueDate       DateTime?
-  requirements  Json?
-  companyId     String
-  contactId     String?
-  opportunityId String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  quotes        Quote[]
-  company       Company           @relation(fields: [companyId], references: [id])
-  contact       Contact?          @relation(fields: [contactId], references: [id])
-  opportunity   Opportunity?      @relation(fields: [opportunityId], references: [id])
-  statusChanges RFPStatusChange[]
+  id                String            @id @default(cuid())
+  rfpNo             String?           @unique
+  leadId            String?
+  title              String
+  description        String?          @db.Text
+  stage              RFPStage         @default(RFP_RECEIVED)
+  status             RFPStatus        @default(DRAFT)
+  dueDate            DateTime?
+  receivedDate       DateTime?        // When RFP was received from customer
+  submittedDate      DateTime?        // When we submitted the proposal
+  requirements       Json?
+  customerId         String
+  contactId          String?
+  opportunityId      String?
+  assigneeId         String?
+  notes              String?         @db.Text
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  quotes             Quote[]
+  customer           Customer         @relation(fields: [customerId], references: [id])
+  contact            Contact?         @relation(fields: [contactId], references: [id])
+  opportunity        Opportunity?     @relation(fields: [opportunityId], references: [id])
+  lead               Lead?            @relation(fields: [leadId], references: [id])
+  assignee           User?           @relation("RFPAssignee", fields: [assigneeId], references: [id])
+  statusChanges      RFPStatusChange[]
 
-  @@index([companyId], map: "RFP_companyId_fkey")
+  @@index([customerId], map: "RFP_customerId_fkey")
   @@index([contactId], map: "RFP_contactId_fkey")
   @@index([opportunityId], map: "RFP_opportunityId_fkey")
+  @@index([leadId])
+  @@index([assigneeId])
+  @@index([stage])
+  @@index([status])
 }
 
 model SupportContract {
@@ -1931,6 +2054,10 @@ model Customer {
   contacts    ContactCustomer[]
   countryRel  Country?             @relation(fields: [country], references: [softoneCode])
   siteSurveys SiteSurvey[]
+  emailThreads EmailThread[]
+  leads       Lead[]
+  opportunities Opportunity[]
+  rfps        RFP[]
 
   @@index([country])
   @@index([afm])
@@ -1963,11 +2090,27 @@ model Supplier {
   createdAt  DateTime             @default(now())
   contacts   ContactSupplier[]
   countryRel Country?             @relation("SupplierCountry", fields: [country], references: [softoneCode])
+  brands     BrandSupplier[]
+  emailThreads EmailThread[]
 
   @@index([country])
   @@index([afm])
   @@index([trdr])
   @@index([update])
+}
+
+model BrandSupplier {
+  id         String   @id @default(cuid())
+  brandId    String
+  supplierId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, supplierId])
+  @@index([brandId])
+  @@index([supplierId])
 }
 
 /// ** Services (SoftOne Integration) **
@@ -2208,6 +2351,7 @@ enum FileEntityType {
   TASK
   USER
   SITESURVEY
+  LEAD
 }
 
 // ========================================
@@ -2393,4 +2537,87 @@ enum ProposedCableType {
 enum ProposedItemType {
   PRODUCT
   SERVICE
+}
+
+/// ** Lead Management Enums **
+enum DealStage {
+  LEAD_NEW
+  LEAD_WORKING
+  LEAD_NURTURING
+  LEAD_QUALIFIED
+  LEAD_DISQUALIFIED
+  OPP_PROSPECTING
+  OPP_DISCOVERY
+  OPP_QUALIFIED
+  OPP_PROPOSAL
+  OPP_NEGOTIATION
+  OPP_CLOSED_WON
+  OPP_CLOSED_LOST
+  RFP_RECEIVED
+  RFP_GO_NO_GO
+  RFP_DRAFTING
+  RFP_INTERNAL_REVIEW
+  RFP_SUBMITTED
+  RFP_CLARIFICATIONS
+  RFP_AWARDED
+  RFP_LOST
+  RFP_CANCELLED
+  QUOTE_DRAFT
+  QUOTE_INTERNAL_REVIEW
+  QUOTE_SENT
+  QUOTE_NEGOTIATION
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  QUOTE_EXPIRED
+}
+
+enum LeadStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+  FROZEN
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum OpportunityStage {
+  OPP_PROSPECTING
+  OPP_DISCOVERY
+  OPP_QUALIFIED
+  OPP_PROPOSAL
+  OPP_NEGOTIATION
+  OPP_CLOSED_WON
+  OPP_CLOSED_LOST
+}
+
+enum OpportunityStatus {
+  ACTIVE
+  CLOSED
+  ON_HOLD
+}
+
+enum RFPStage {
+  RFP_RECEIVED
+  RFP_GO_NO_GO
+  RFP_DRAFTING
+  RFP_INTERNAL_REVIEW
+  RFP_SUBMITTED
+  RFP_CLARIFICATIONS
+  RFP_AWARDED
+  RFP_LOST
+  RFP_CANCELLED
+}
+
+enum RFPStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  AWARDED
+  LOST
+  CANCELLED
 }

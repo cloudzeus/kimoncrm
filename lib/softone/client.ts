@@ -165,3 +165,76 @@ export async function updateMtrUnit(payload: {
   const txt = iconv.decode(Buffer.from(res.data), "win1253");
   return JSON.parse(txt);
 }
+
+export async function getMtrGroup(sodtype: number = 51): Promise<any> {
+  const ep = await prisma.softoneEndpoint.findUnique({ where: { method: "getMtrGroup" } });
+  const url = ep?.url || "https://aic.oncloud.gr/s1services/JS/webservice.utilities/getMtrgroup";
+
+  const res = await axios.post(
+    url,
+    {
+      username: process.env.SOFTONE_USERNAME ?? "Service",
+      password: process.env.SOFTONE_PASSWORD ?? "Service",
+      sodtype: sodtype,
+    },
+    { responseType: "arraybuffer", headers: { "Content-Type": "application/json" } }
+  );
+  const txt = iconv.decode(Buffer.from(res.data), "win1253");
+  return JSON.parse(txt);
+}
+
+export async function addMtrGroup(payload: {
+  mtrgroup: string;
+  name: string;
+  code: string;
+  isactive?: number;
+  sodtype?: number;
+  company?: number;
+  username?: string;
+  password?: string;
+}): Promise<any> {
+  const ep = await prisma.softoneEndpoint.findUnique({ where: { method: "addMtrGroup" } });
+  const url = ep?.url || "https://aic.oncloud.gr/s1services/JS/webservice.utilities/addMtrgroup";
+
+  const res = await axios.post(
+    url,
+    {
+      username: payload.username ?? process.env.SOFTONE_USERNAME ?? "Service",
+      password: payload.password ?? process.env.SOFTONE_PASSWORD ?? "Service",
+      sodtype: payload.sodtype ?? 51,
+      mtrgroup: payload.mtrgroup,
+      name: payload.name,
+      code: payload.code,
+      isactive: payload.isactive ?? 0,
+      company: payload.company ?? 1000,
+    },
+    { responseType: "arraybuffer", headers: { "Content-Type": "application/json" } }
+  );
+  const txt = iconv.decode(Buffer.from(res.data), "win1253");
+  return JSON.parse(txt);
+}
+
+export async function updateMtrGroup(payload: {
+  mtrgroup: string;
+  name: string;
+  sodtype?: number;
+  username?: string;
+  password?: string;
+}): Promise<any> {
+  const ep = await prisma.softoneEndpoint.findUnique({ where: { method: "updateMtrGroup" } });
+  const url = ep?.url || "https://aic.oncloud.gr/s1services/JS/webservice.utilities/putMtrgroup";
+
+  const res = await axios.post(
+    url,
+    {
+      username: payload.username ?? process.env.SOFTONE_USERNAME ?? "Service",
+      password: payload.password ?? process.env.SOFTONE_PASSWORD ?? "Service",
+      sodtype: payload.sodtype ?? 51,
+      mtrgroup: payload.mtrgroup,
+      name: payload.name,
+    },
+    { responseType: "arraybuffer", headers: { "Content-Type": "application/json" } }
+  );
+  const txt = iconv.decode(Buffer.from(res.data), "win1253");
+  return JSON.parse(txt);
+}

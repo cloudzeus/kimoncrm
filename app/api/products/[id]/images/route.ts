@@ -127,7 +127,12 @@ export async function POST(
     const uploadResult = await bunnyPut(bunnyPath, fileBuffer);
 
     // Get alt text from Greek translation short description
-    const altText = product.translations[0]?.shortDescription || product.name;
+    let altText = product.translations[0]?.shortDescription || product.name;
+    
+    // Truncate alt text to max 255 characters to fit database column
+    if (altText && altText.length > 255) {
+      altText = altText.substring(0, 252) + '...';
+    }
 
     // If this is set as default, unset all other defaults
     if (isDefault) {
@@ -147,7 +152,7 @@ export async function POST(
       data: {
         productId: id,
         url: uploadResult.url,
-        alt: altText,
+        alt: altText || null,
         isDefault,
         order,
       },

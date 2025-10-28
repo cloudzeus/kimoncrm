@@ -26,6 +26,13 @@ interface SoftOneServicesResponse {
   result: SoftOneService[];
 }
 
+interface SoftOneUpdateResponse {
+  success: boolean;
+  responsecode: number;
+  error: string;
+  message?: string;
+}
+
 const SOFTONE_BASE_URL = 'https://aic.oncloud.gr/s1services/JS/webservice.products';
 const SOFTONE_CREDENTIALS = {
   username: 'Service',
@@ -116,5 +123,68 @@ export function mapSoftOneServiceToModel(softoneService: SoftOneService) {
     name: softoneService.NAME,
     isActive: softoneService.ISACTIVE === '1',
   };
+}
+
+/**
+ * Update a service in SoftOne ERP
+ */
+export async function updateServiceInErp(
+  mtrl: string,
+  updates: Record<string, any>
+): Promise<SoftOneUpdateResponse> {
+  try {
+    console.log(`🔄 Syncing service MTRL ${mtrl} to ERP with updates:`, updates);
+    
+    const requestBody = {
+      username: SOFTONE_CREDENTIALS.username,
+      password: SOFTONE_CREDENTIALS.password,
+      company: SOFTONE_CREDENTIALS.company,
+      MTRL: mtrl,
+      ...updates,
+    };
+    
+    console.log('📤 ERP Update Request:', {
+      url: `${SOFTONE_BASE_URL}/updateItem`,
+      body: requestBody
+    });
+    
+    const response = await fetch(`${SOFTONE_BASE_URL}/updateItem`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log(`📡 ERP Response Status: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Get response as ArrayBuffer
+    const arrayBuffer = await response.arrayBuffer();
+    
+    // Convert from ANSI 1253 to UTF-8
+    const decodedText = convertAnsi1253ToUtf8(arrayBuffer);
+    
+    console.log('📥 ERP Raw Response:', decodedText);
+    
+    // Parse JSON
+    const data: SoftOneUpdateResponse = JSON.parse(decodedText);
+    
+    console.log('📊 ERP Parsed Response:', data);
+    
+    if (!data.success) {
+      console.error(`❌ ERP Update Failed: ${data.error || 'Unknown error'}`);
+      throw new Error(data.error || 'Failed to update service');
+    }
+
+    console.log(`✅ ERP Update Successful for MTRL ${mtrl}`);
+    return data;
+  } catch (error) {
+    console.error(`❌ Error updating service MTRL ${mtrl} in SoftOne:`, error);
+    throw error;
+  }
 }
 

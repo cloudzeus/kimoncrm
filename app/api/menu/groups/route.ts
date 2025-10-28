@@ -22,10 +22,12 @@ const updateMenuGroupSchema = createMenuGroupSchema
 // GET /api/menu/groups
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     
     const { searchParams } = new URL(request.url);
     const includeItems = searchParams.get('includeItems') === 'true';
+    const role = searchParams.get('role') || session.user.role;
+    const departmentId = searchParams.get('departmentId');
 
     const menuGroups = await prisma.menuGroup.findMany({
       where: { isActive: true },
@@ -44,6 +46,60 @@ export async function GET(request: NextRequest) {
       } : undefined,
       orderBy: { order: 'asc' },
     });
+
+    // Filter menu items based on permissions
+    if (includeItems && menuGroups) {
+      const filteredGroups = menuGroups.map((group: any) => ({
+        ...group,
+        items: group.items
+          .filter((item: any) => {
+            // ADMIN users can see everything
+            if (role === 'ADMIN') return true;
+            
+            // Check if user has permission to view this item
+            const permission = item.permissions.find((p: any) => {
+              // For this permission entry:
+              // - If p.role exists, it must match user's role
+              // - If p.departmentId exists, user must be in that department
+              // - If both null, this is a universal permission
+              
+              // Check role match
+              const roleMatch = !p.role || p.role === role;
+              
+              // Check department match
+              // If permission specifies a department, user must be in that department
+              // If no department in permission, it applies to all departments
+              const departmentMatch = !p.departmentId || p.departmentId === departmentId;
+              
+              return p.canView && roleMatch && departmentMatch;
+            });
+            
+            // If no specific permission set, default to allowed
+            if (item.permissions.length === 0) return true;
+            
+            // Must have a matching permission
+            return !!permission;
+          })
+          .map((item: any) => ({
+            ...item,
+            children: item.children
+              .filter((child: any) => {
+                // ADMIN users can see everything
+                if (role === 'ADMIN') return true;
+                
+                const childPermission = child.permissions.find((p: any) => {
+                  const roleMatch = !p.role || p.role === role;
+                  const departmentMatch = !p.departmentId || p.departmentId === departmentId;
+                  return p.canView && roleMatch && departmentMatch;
+                });
+                if (child.permissions.length === 0) return true;
+                return !!childPermission;
+              })
+          }))
+      })).filter((group: any) => group.items.length > 0); // Remove groups with no visible items
+
+      return NextResponse.json({ menuGroups: filteredGroups });
+    }
 
     return NextResponse.json({ menuGroups });
   } catch (error) {

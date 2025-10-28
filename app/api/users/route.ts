@@ -13,6 +13,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const roles = searchParams.getAll('roles');
     const departments = searchParams.getAll('departments');
+    
+    // Handle comma-separated values
+    const parsedDepartments: string[] = [];
+    departments.forEach(dept => {
+      if (dept.includes(',')) {
+        parsedDepartments.push(...dept.split(',').map(d => d.trim()));
+      } else {
+        parsedDepartments.push(dept);
+      }
+    });
 
     // Build where clause
     const where: any = {
@@ -23,10 +33,23 @@ export async function GET(request: NextRequest) {
       where.role = { in: roles };
     }
 
-    if (departments.length > 0) {
-      where.department = {
-        name: { in: departments },
-      };
+    if (parsedDepartments.length > 0) {
+      console.log("Fetching users from departments:", parsedDepartments);
+      // Include child departments (e.g., Presales is a child of Sales)
+      const departmentRecords = await prisma.department.findMany({
+        where: {
+          OR: [
+            { name: { in: parsedDepartments } },
+            { parent: { name: { in: parsedDepartments } } },
+          ],
+        },
+        select: { id: true },
+      });
+      
+      const departmentIds = departmentRecords.map(d => d.id);
+      console.log("Department IDs found:", departmentIds);
+      
+      where.departmentId = { in: departmentIds };
     }
 
     const users = await prisma.user.findMany({

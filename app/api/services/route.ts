@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const isActive = searchParams.get('isActive');
     const serviceCategoryCode = searchParams.get('serviceCategoryCode');
+    const sortBy = searchParams.get('sortBy') || 'name';
+    const sortOrder = searchParams.get('sortOrder') || 'asc';
     
     const skip = (page - 1) * limit;
 
@@ -52,13 +54,18 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.service.count({ where });
 
+    // Define allowed sort fields
+    const allowedSortFields = ['name', 'code', 'mtrl', 'createdAt', 'updatedAt'];
+    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'name';
+    const validSortOrder = sortOrder === 'desc' ? 'desc' : 'asc';
+
     // Get services
     const services = await prisma.service.findMany({
       where,
       skip,
       take: limit,
       orderBy: {
-        name: 'asc',
+        [validSortBy]: validSortOrder,
       },
       include: {
         brand: {

@@ -44,6 +44,10 @@ export function SignInForm() {
     await signIn(provider, { callbackUrl: "/dashboard" });
   };
 
+  const handleMicrosoftSignIn = async () => {
+    await signIn("c03bef53-43af-4d5e-be22-da859317086c", { callbackUrl: "/dashboard" });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -59,7 +63,7 @@ export function SignInForm() {
             type="button"
             variant="outline"
             className="w-full"
-            onClick={() => handleSocialSignIn("c03bef53-43af-4d5e-be22-da859317086c")}
+            onClick={handleMicrosoftSignIn}
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -75,6 +79,7 @@ export function SignInForm() {
             variant="outline"
             className="w-full"
             onClick={() => handleSocialSignIn("google")}
+            disabled={!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path

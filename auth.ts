@@ -5,10 +5,9 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id"
 import Google from "next-auth/providers/google"
 import bcrypt from "bcryptjs"
-import type { Adapter } from "next-auth/adapters"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma) as Adapter,
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -49,18 +48,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     }),
     MicrosoftEntraID({
-      id: "c03bef53-43af-4d5e-be22-da859317086c",
+      id: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
       issuer: `https://login.microsoftonline.com/${process.env.TENANT_ID}/v2.0`,
-      // Link OAuth account to existing user by email (controlled tenant)
-      allowDangerousEmailAccountLinking: true,
     }),
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // Link OAuth account to existing user by email
-      allowDangerousEmailAccountLinking: true,
     }),
   ],
   session: {
@@ -84,5 +79,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/sign-in",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  trustHost: true,
 })

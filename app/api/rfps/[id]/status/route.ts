@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
 
 const updateStatusSchema = z.object({
-  status: z.enum(['Draft', 'Submitted', 'Under Review', 'Awarded', 'Rejected']),
+  status: z.enum(['DRAFT', 'IN_PROGRESS', 'SUBMITTED', 'AWARDED', 'LOST', 'CANCELLED']),
   note: z.string().optional(),
 });
 
@@ -25,7 +25,7 @@ export async function PUT(
     const rfp = await prisma.rFP.findUnique({
       where: { id: id },
       include: {
-        company: true,
+        customer: true,
         contact: true,
         opportunity: true,
       },
@@ -47,9 +47,9 @@ export async function PUT(
       // Update RFP status
       const updatedRFP = await tx.rFP.update({
         where: { id: id },
-        data: { status },
+        data: { status: status as any },
         include: {
-          company: true,
+          customer: true,
           contact: true,
           opportunity: true,
         },

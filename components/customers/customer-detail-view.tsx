@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
 import { SiteSurveyFormDialog } from "@/components/site-surveys/site-survey-form-dialog";
+import { EntityEmailsTab } from "@/components/shared/entity-emails-tab";
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Upload as UploadIcon } from "lucide-react";
@@ -131,6 +132,8 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
       const data = await response.json();
 
       if (response.ok) {
+        console.log("Customer data:", data.customer);
+        console.log("Customer contacts:", data.customer?.contacts);
         setCustomer(data.customer);
       } else {
         toast.error("Customer not found");
@@ -150,8 +153,13 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
   }, [customerId]);
 
   useEffect(() => {
-    // Check URL params for tab and action
+    // Check URL params for tab and action, and hash for emails tab
     if (typeof window !== 'undefined') {
+      // Check for hash
+      if (window.location.hash === '#emails') {
+        setActiveTab('emails');
+      }
+      
       const urlParams = new URLSearchParams(window.location.search);
       const tab = urlParams.get('tab');
       const action = urlParams.get('action');
@@ -343,11 +351,11 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold uppercase tracking-tight">
+            <h1 className="text-lg font-bold uppercase tracking-tight">
               {customer.name}
             </h1>
             {customer.sotitle && (
-              <p className="text-muted-foreground mt-1">{customer.sotitle}</p>
+              <p className="text-sm text-muted-foreground mt-1">{customer.sotitle}</p>
             )}
           </div>
         </div>
@@ -418,6 +426,10 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
             <ClipboardList className="h-4 w-4 mr-2" />
             SITE SURVEYS {siteSurveys.length > 0 && `(${siteSurveys.length})`}
           </TabsTrigger>
+          <TabsTrigger value="emails" className="uppercase">
+            <Mail className="h-4 w-4 mr-2" />
+            EMAILS
+          </TabsTrigger>
           <TabsTrigger value="files" className="uppercase">
             <FileText className="h-4 w-4 mr-2" />
             FILES
@@ -429,7 +441,7 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
             {/* Company Information */}
             <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 uppercase">
+            <CardTitle className="text-base flex items-center gap-2 uppercase">
               <Building2 className="h-5 w-5" />
               Company Information
             </CardTitle>
@@ -476,7 +488,7 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
         {/* Contact Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 uppercase">
+            <CardTitle className="text-base flex items-center gap-2 uppercase">
               <Phone className="h-5 w-5" />
               Contact Information
             </CardTitle>
@@ -539,7 +551,7 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
         {/* Address Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 uppercase">
+            <CardTitle className="text-base flex items-center gap-2 uppercase">
               <MapPin className="h-5 w-5" />
               Address
             </CardTitle>
@@ -597,7 +609,7 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
         {/* Additional Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 uppercase">
+            <CardTitle className="text-base flex items-center gap-2 uppercase">
               <FileText className="h-5 w-5" />
               Additional Information
             </CardTitle>
@@ -864,6 +876,23 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="emails" className="mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold uppercase">ASSOCIATED EMAILS</h2>
+              <p className="text-muted-foreground">
+                Email threads from contacts associated with this customer
+              </p>
+            </div>
+          </div>
+          
+          <EntityEmailsTab
+            contacts={customer.contacts || []}
+            entityId={customer.id}
+            entityType="customer"
+          />
         </TabsContent>
 
         <TabsContent value="files" className="mt-6">

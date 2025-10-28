@@ -21,11 +21,14 @@ import {
   XCircle,
   ExternalLink,
   Plus,
+  Tag,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { safeJsonParse } from "@/lib/safe-json";
 import { SupplierFormDialog } from "./supplier-form-dialog";
 import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
+import { EntityEmailsTab } from "@/components/shared/entity-emails-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Upload as UploadIcon } from "lucide-react";
 import { FilesList } from "@/components/files/files-list";
@@ -37,6 +40,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { SupplierBrandDialog } from "./supplier-brand-dialog";
 
 interface Supplier {
   id: string;
@@ -74,6 +78,14 @@ interface Supplier {
       mobilePhone: string | null;
     };
   }>;
+  brands?: Array<{
+    id: string;
+    brand: {
+      id: string;
+      name: string;
+      code: string | null;
+    };
+  }>;
 }
 
 interface SupplierDetailViewProps {
@@ -89,6 +101,9 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
   const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
+  const [isAddBrandDialogOpen, setIsAddBrandDialogOpen] = useState(false);
+  const [deletingBrandId, setDeletingBrandId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("details");
 
   const fetchSupplier = async () => {
     try {
@@ -118,6 +133,8 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
         router.push("/suppliers");
         return;
       }
+      console.log("Fetched supplier data:", data.supplier);
+      console.log("Contacts:", data.supplier?.contacts);
       setSupplier(data.supplier);
     } catch (error) {
       console.error("Error fetching supplier:", error);
@@ -130,6 +147,13 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
 
   useEffect(() => {
     fetchSupplier();
+    
+    // Check URL hash for emails tab
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#emails') {
+        setActiveTab('emails');
+      }
+    }
   }, [supplierId]);
 
   const handleUpdateFromAFM = async () => {
@@ -193,6 +217,28 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
     }
   };
 
+  const handleDeleteBrand = async (associationId: string) => {
+    try {
+      setDeletingBrandId(associationId);
+      
+      const response = await fetch(`/api/brands/suppliers/${associationId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete brand association");
+      }
+
+      toast.success("Brand removed successfully");
+      await fetchSupplier();
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      toast.error("Failed to remove brand");
+    } finally {
+      setDeletingBrandId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -221,11 +267,11 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold uppercase tracking-tight">
+            <h1 className="text-lg font-bold uppercase tracking-tight">
               {supplier.name}
             </h1>
             {supplier.sotitle && (
-              <p className="text-muted-foreground mt-1">{supplier.sotitle}</p>
+              <p className="text-sm text-muted-foreground mt-1">{supplier.sotitle}</p>
             )}
           </div>
         </div>
@@ -282,15 +328,23 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="details" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="details" className="uppercase">
             <Building2 className="h-4 w-4 mr-2" />
             DETAILS
           </TabsTrigger>
+          <TabsTrigger value="brands" className="uppercase">
+            <Tag className="h-4 w-4 mr-2" />
+            BRANDS {supplier.brands && supplier.brands.length > 0 && `(${supplier.brands.length})`}
+          </TabsTrigger>
           <TabsTrigger value="contacts" className="uppercase">
             <User className="h-4 w-4 mr-2" />
             CONTACTS {supplier.contacts && supplier.contacts.length > 0 && `(${supplier.contacts.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="emails" className="uppercase">
+            <Mail className="h-4 w-4 mr-2" />
+            EMAILS
           </TabsTrigger>
           <TabsTrigger value="files" className="uppercase">
             <FileText className="h-4 w-4 mr-2" />
@@ -508,6 +562,81 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
           </div>
         </TabsContent>
 
+        <TabsContent value="brands" className="mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold uppercase">BRANDS</h2>
+              <p className="text-sm text-muted-foreground">
+                Manage brands associated with this supplier
+              </p>
+            </div>
+            <Button onClick={() => setIsAddBrandDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              ADD BRAND
+            </Button>
+          </div>
+
+          {supplier.brands && supplier.brands.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {supplier.brands.map((association) => (
+                <Card key={association.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-start justify-between">
+                      <div>
+                        {association.brand.code && (
+                          <div className="text-sm text-muted-foreground font-normal mb-1">
+                            {association.brand.code}
+                          </div>
+                        )}
+                        <div>{association.brand.name}</div>
+                      </div>
+                      <Tag className="h-5 w-5 text-muted-foreground" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteBrand(association.id)}
+                      disabled={deletingBrandId === association.id}
+                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {deletingBrandId === association.id ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Removing...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove Brand
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Tag className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">NO BRANDS YET</h3>
+                <p className="text-sm text-muted-foreground text-center mb-4">
+                  No brands have been linked to this supplier yet.
+                </p>
+                <Button
+                  onClick={() => setIsAddBrandDialogOpen(true)}
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  ADD FIRST BRAND
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="contacts" className="mt-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -594,6 +723,23 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
           )}
         </TabsContent>
 
+        <TabsContent value="emails" className="mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold uppercase">ASSOCIATED EMAILS</h2>
+              <p className="text-muted-foreground">
+                Email threads from contacts associated with this supplier
+              </p>
+            </div>
+          </div>
+          
+          <EntityEmailsTab
+            contacts={supplier.contacts || []}
+            entityId={supplier.id}
+            entityType="supplier"
+          />
+        </TabsContent>
+
         <TabsContent value="files" className="mt-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -670,6 +816,18 @@ export function SupplierDetailView({ supplierId }: SupplierDetailViewProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Add Brand Dialog */}
+      <SupplierBrandDialog
+        open={isAddBrandDialogOpen}
+        onOpenChange={setIsAddBrandDialogOpen}
+        supplierId={supplier.id}
+        existingBrandIds={supplier.brands?.map(b => b.brand.id) || []}
+        onSuccess={async () => {
+          await fetchSupplier();
+          setIsAddBrandDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -35,6 +35,7 @@ interface Product {
   mtrmark: string | null;
   mtrmanfctr: string | null;
   mtrcategory: string | null;
+  mtrgroup: string | null;
   isActive: boolean;
   brandId: string | null;
   manufacturerId: string | null;
@@ -69,6 +70,7 @@ export default function ProductFormDialog({
   const [brands, setBrands] = useState<Array<{ value: string; label: string }>>([]);
   const [manufacturers, setManufacturers] = useState<Array<{ value: string; label: string }>>([]);
   const [categories, setCategories] = useState<Array<{ value: string; label: string }>>([]);
+  const [mtrgroups, setMtrgroups] = useState<Array<{ value: string; label: string }>>([]);
   const [units, setUnits] = useState<Array<{ value: string; label: string }>>([]);
   const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
   const [currentDatasheet, setCurrentDatasheet] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export default function ProductFormDialog({
     brandId: '',
     manufacturerCode: '', // Using code instead of ID
     categoryId: '',
+    mtrgroupCode: '', // MtrGroup code
     unitId: '',
     width: '',
     length: '',
@@ -268,8 +271,12 @@ export default function ProductFormDialog({
   useEffect(() => {
     if (open) {
       loadMasterData();
+      // Reload master data when product changes to get updated manufacturers
+      if (product) {
+        loadMasterData();
+      }
     }
-  }, [open]);
+  }, [open, product]);
 
   // Populate form when editing
   useEffect(() => {
@@ -288,6 +295,7 @@ export default function ProductFormDialog({
         brandId: product.brandId || '',
         manufacturerCode: product.mtrmanfctr || '', // Use mtrmanfctr (manufacturer code)
         categoryId: product.categoryId || '',
+        mtrgroupCode: product.mtrgroup || '', // Use mtrgroup
         unitId: product.unitId || '',
         width: product.width?.toString() || '',
         length: product.length?.toString() || '',
@@ -307,6 +315,7 @@ export default function ProductFormDialog({
         brandId: '',
         manufacturerCode: '',
         categoryId: '',
+        mtrgroupCode: '',
         unitId: '',
         width: '',
         length: '',
@@ -335,12 +344,12 @@ export default function ProductFormDialog({
       const manufacturersRes = await fetch('/api/manufacturers?limit=1000');
       const manufacturersData = await manufacturersRes.json();
       if (manufacturersData.success) {
-        setManufacturers(
-          manufacturersData.data.map((m: any) => ({
-            value: m.code, // Use code as value
-            label: m.name, // Use name as label
-          }))
-        );
+        const manufacturerOptions = manufacturersData.data.map((m: any) => ({
+          value: m.code, // Use code as value
+          label: `${m.name} (${m.code})`, // Show name and code for clarity
+        }));
+        console.log('Loaded manufacturers:', manufacturerOptions.length);
+        setManufacturers(manufacturerOptions);
       }
 
       // Load categories
@@ -357,6 +366,18 @@ export default function ProductFormDialog({
         setCategories(categoryOptions);
       } else {
         console.error('Failed to load categories:', categoriesData);
+      }
+
+      // Load mtrgroups (products - sodtype 51)
+      const mtrgroupsRes = await fetch('/api/mtrgroups?sodtype=51');
+      const mtrgroupsData = await mtrgroupsRes.json();
+      if (mtrgroupsData.success) {
+        setMtrgroups(
+          mtrgroupsData.data.map((g: any) => ({
+            value: g.mtrgroup, // Use mtrgroup code as value
+            label: `${g.name} (${g.mtrgroup})`, // Show name and code
+          }))
+        );
       }
 
       // Load units
@@ -811,6 +832,27 @@ export default function ProductFormDialog({
                 <div className="text-xs text-muted-foreground">
                   Current value: {formData.categoryId || 'none'} | Options: {categories.length}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>MTRGROUP</Label>
+                <Select
+                  value={formData.mtrgroupCode}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, mtrgroupCode: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select mtrgroup..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mtrgroups.map((mtrgroup) => (
+                      <SelectItem key={mtrgroup.value} value={mtrgroup.value}>
+                        {mtrgroup.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

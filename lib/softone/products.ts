@@ -278,6 +278,7 @@ export function mapSoftOneProductToModel(softoneProduct: SoftOneProduct) {
     mtrmark: softoneProduct.MTRMARK || null,
     mtrmanfctr: softoneProduct.MTRMANFCTR || null,
     mtrcategory: softoneProduct.MTRCATEGORY || null,
+    mtrgroup: softoneProduct.MTRGROUP || null,
     isActive: softoneProduct.ISACTIVE === '1',
     width: softoneProduct.DIM1 ? parseFloat(softoneProduct.DIM1) : null,
     length: softoneProduct.DIM2 ? parseFloat(softoneProduct.DIM2) : null,

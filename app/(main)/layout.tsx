@@ -16,12 +16,22 @@ export default async function MainLayout({
     redirect("/sign-in");
   }
 
+  // Fetch full user data to get departmentId
+  const { prisma } = await import("@/lib/db/prisma");
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { departmentId: true },
+  });
+
   return (
     <TranslationProvider>
       <div className="min-h-screen bg-background">
         <Header />
         <div className="flex">
-          <ResponsiveSidebar userRole={session.user.role} />
+          <ResponsiveSidebar 
+            userRole={session.user.role} 
+            departmentId={user?.departmentId || null}
+          />
           <main className="flex-1 p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
               {children}

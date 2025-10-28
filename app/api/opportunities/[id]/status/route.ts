@@ -4,8 +4,8 @@ import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
 
 const updateStatusSchema = z.object({
-  status: z.enum(['Active', 'On Hold', 'Lost', 'Won']).optional(),
-  stage: z.enum(['Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost']).optional(),
+  status: z.enum(['ACTIVE', 'CLOSED', 'ON_HOLD']).optional(),
+  stage: z.enum(['OPP_PROSPECTING', 'OPP_DISCOVERY', 'OPP_QUALIFIED', 'OPP_PROPOSAL', 'OPP_NEGOTIATION', 'OPP_CLOSED_WON', 'OPP_CLOSED_LOST']).optional(),
   note: z.string().optional(),
 });
 
@@ -26,7 +26,7 @@ export async function PUT(
     const opportunity = await prisma.opportunity.findUnique({
       where: { id: id },
       include: {
-        company: true,
+        customer: true,
       },
     });
 
@@ -38,7 +38,7 @@ export async function PUT(
     const updateData = updateStatusSchema.parse(body);
 
     // Don't update if nothing has changed
-    const hasStatusChange = updateData.status && updateData.status !== opportunity.status;
+    const hasStatusChange = updateData.status && updateData.status.toUpperCase() !== opportunity.status;
     const hasStageChange = updateData.stage && updateData.stage !== opportunity.stage;
 
     if (!hasStatusChange && !hasStageChange) {
@@ -49,13 +49,13 @@ export async function PUT(
       // Update opportunity
       const updatedOpportunity = await tx.opportunity.update({
         where: { id: id },
-        data: {
-          ...(updateData.status && { status: updateData.status }),
-          ...(updateData.stage && { stage: updateData.stage }),
-        },
-        include: {
-          company: true,
-        },
+      data: {
+        ...(updateData.status && { status: updateData.status as any }),
+        ...(updateData.stage && { stage: updateData.stage as any }),
+      },
+      include: {
+        customer: true,
+      },
       });
 
       // Record status change

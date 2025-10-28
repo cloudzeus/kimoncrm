@@ -81,14 +81,15 @@ export async function researchProductInformation(input: ProductResearchInput): P
       messages: [
         {
           role: 'system',
-          content: `You are a product information specialist. Your task is to research comprehensive product information based on the provided input and return ONLY valid JSON data. Do not wrap the JSON in markdown code blocks. Return raw JSON only.`
+          content: `Product info specialist. Return ONLY valid JSON, no markdown.`
         },
         {
           role: 'user',
           content: researchPrompt
         }
       ],
-      temperature: 0.3,
+      temperature: 0.2,
+      max_tokens: 2000,
     });
 
     // Parse AI response, handling markdown code blocks
@@ -112,7 +113,7 @@ export async function researchProductInformation(input: ProductResearchInput): P
       messages: [
         {
           role: 'system',
-          content: `You are a professional translator specializing in technical product descriptions. Generate accurate, technical translations without marketing language. Return ONLY valid JSON data without markdown code blocks.`
+          content: `Professional translator. Return ONLY valid JSON, no markdown. Use Greek alphabet for 'el' translations.`
         },
         {
           role: 'user',
@@ -120,6 +121,7 @@ export async function researchProductInformation(input: ProductResearchInput): P
         }
       ],
       temperature: 0.2,
+      max_tokens: 1500,
     });
 
     // Parse translation response, handling markdown code blocks
@@ -184,76 +186,42 @@ export async function researchProductInformation(input: ProductResearchInput): P
  * Build prompt for product research
  */
 function buildProductResearchPrompt(context: any): string {
-  return `
-You are a product information specialist. Research comprehensive information for this product:
+  // Limit categories/manufacturers/brands to top 20 for faster processing
+  const topCategories = context.availableCategories.slice(0, 20);
+  const topManufacturers = context.availableManufacturers.slice(0, 20);
+  const topBrands = context.availableBrands.slice(0, 20);
 
-PRODUCT INPUT:
-- Name: ${context.productInput.name}
-- EAN Code: ${context.productInput.eanCode || 'Not provided'}
-- Brand: ${context.productInput.brand}
+  return `Research product info. Return JSON only.
 
-AVAILABLE CATEGORIES:
-${context.availableCategories.map((c: any) => `- ${c.name} (ID: ${c.id}, Code: ${c.softoneCode})`).join('\n')}
+PRODUCT: ${context.productInput.name} | EAN: ${context.productInput.eanCode || 'N/A'} | Brand: ${context.productInput.brand}
 
-AVAILABLE MANUFACTURERS:
-${context.availableManufacturers.map((m: any) => `- ${m.name} (ID: ${m.id}, Code: ${m.code})`).join('\n')}
+CATEGORIES (pick best match):
+${topCategories.map((c: any) => `${c.name} (ID:${c.id})`).join(', ')}
 
-AVAILABLE BRANDS:
-${context.availableBrands.map((b: any) => `- ${b.name} (ID: ${b.id}, Code: ${b.code})`).join('\n')}
+MANUFACTURERS (pick best match):
+${topManufacturers.map((m: any) => `${m.name} (ID:${m.id})`).join(', ')}
 
-RESEARCH TASK:
-1. Find the most accurate product name
-2. Research manufacturer code (part number)
-3. Verify or find the EAN code (13 digits)
-4. Extract dimensions (width, length, height in cm)
-5. Extract weight (in kg)
-6. Generate comprehensive technical specifications
-7. **IMPORTANT**: Identify and match the BRAND from the available brands list
-8. **IMPORTANT**: Identify and match the MANUFACTURER from the available manufacturers list
-9. **IMPORTANT**: Suggest the most appropriate CATEGORY from the available categories list
+BRANDS (pick best match):
+${topBrands.map((b: any) => `${b.name} (ID:${b.id})`).join(', ')}
 
-MATCHING RULES:
-- For BRAND: Match based on the product's brand name (e.g., "UniFi UAP-AC-LITE" → brand is "Ubiquiti")
-- For MANUFACTURER: Match who actually manufactures the product (often same as brand)
-- For CATEGORY: Match based on product type (e.g., network equipment, computers, cables, etc.)
-- If exact match not found, choose the closest match
-- Return the exact ID from the available lists
+TASKS:
+1. Product name
+2. Manufacturer code (part/model number)
+3. EAN (13 digits)
+4. Dimensions (cm): width, length, height
+5. Weight (kg)
+6. 5-10 tech specs (key technical specifications only)
+7. Match brand, manufacturer, category IDs from lists above
 
-SPECIFICATIONS GUIDELINES:
-- Generate 5-15 technical specifications
-- Use technical keys like: power_supply, cpu, ram, storage, connectivity, display, etc.
-- For each specification, provide:
-  - specKey: Technical key (e.g., "power_supply")
-  - specName: English name (e.g., "Power Supply")
-  - specValue: English value (e.g., "220V AC, 50W")
-  - order: Number for ordering
-- Provide technical values (not marketing descriptions)
-- Include measurements, technical specs, compatibility info
-
-Return JSON in this exact format:
+Return JSON:
 {
-  "name": "Exact Product Name",
-  "manufacturerCode": "Part Number/Model",
-  "eanCode": "13-digit EAN code",
-  "dimensions": {
-    "width": 25.5,
-    "length": 30.2,
-    "height": 5.1,
-    "weight": 1.2
-  },
-  "specifications": [
-    {
-      "specKey": "power_supply",
-      "specName": "Power Supply",
-      "specValue": "220V AC, 50W",
-      "order": 1
-    }
-  ],
-  "suggestedBrandId": "brand-id-from-list",
-  "suggestedCategoryId": "category-id-from-list",
-  "suggestedManufacturerId": "manufacturer-id-from-list"
-}
-`;
+  "name": "Product Name",
+  "manufacturerCode": "Model/Part#",
+  "eanCode": "13-digit",
+  "dimensions": {"width": 0, "length": 0, "height": 0, "weight": 0},
+  "specifications": [{"specKey": "key", "specName": "Name", "specValue": "Value", "order": 1}],
+  "suggestedBrandId": "id", "suggestedCategoryId": "id", "suggestedManufacturerId": "id"
+}`;
 }
 
 /**
@@ -261,85 +229,24 @@ Return JSON in this exact format:
  */
 function buildTranslationPrompt(researchData: any): string {
   const specsFormatted = researchData.specifications?.map((s: any) => 
-    `- ${s.specName}: ${s.specValue}`
-  ).join('\n') || 'None';
+    `${s.specName}: ${s.specValue}`
+  ).join(' | ') || 'None';
 
-  return `
-You are a professional translator. Create accurate translations for this product:
+  return `Translate product to EN and EL. Use Greek alphabet for EL. Keep model codes in English.
 
-PRODUCT INFORMATION:
-- Name: ${researchData.name}
-- Brand: ${researchData.brand || 'Unknown'}
-- Category: ${researchData.category || 'Unknown'}
+Product: ${researchData.name}
+Specs: ${specsFormatted}
 
-SPECIFICATIONS TO TRANSLATE:
-${specsFormatted}
-
-TRANSLATION REQUIREMENTS:
-1. Translate to Greek (el) and English (en)
-2. Use TECHNICAL language (not marketing)
-3. For Greek translations - CRITICAL RULES:
-   - MANDATORY: Use ONLY Greek alphabet characters: Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω
-   - FORBIDDEN: Latin transliteration (NEVER use: a, b, g, d, e, z, h, th, i, k, l, m, n, x, o, p, r, s, t, y, f, ch, ps, w)
-   - Names: UPPERCASE Greek (Α-Ω), no accents
-   - Descriptions: Normal Greek text (α-ω), no accents
-   - Remove ALL tones: ά→α, έ→ε, ή→η, ί→ι, ό→ο, ύ→υ, ώ→ω, ΐ→ι, ΰ→υ
-
-EXAMPLES OF CORRECT GREEK:
-✓ CORRECT: "Το προιον ειναι ενα τηλεφωνο" (uses Greek letters: τ, ο, π, ρ, ι, etc.)
-✗ WRONG: "To proion einai ena tilefono" (uses Latin letters: t, o, p, r, i, etc.)
-
-✓ CORRECT: "ΓΙΑΛΙΝΚ T48U ΤΗΛΕΦΩΝΟ IP" 
-✗ WRONG: "YEALINK T48U TILEFONO IP"
-
-✓ CORRECT: "Η συσκευη διαθετει οθονη αφης"
-✗ WRONG: "H syskevh diathetei othoni afis"
-
-4. Keep brand/model codes in English (e.g., "T48U", "SIP", "IP")
-5. Provide both short description (1-2 sentences) and full description
-
-Return JSON in this exact format (notice Greek characters in 'el' translation):
+Return JSON:
 {
   "translations": [
-    {
-      "languageCode": "en",
-      "name": "YEALINK T48U IP PHONE",
-      "shortDescription": "The Yealink T48U is an IP phone with touchscreen",
-      "description": "The Yealink T48U IP Phone features a color touchscreen display..."
-    },
-    {
-      "languageCode": "el",
-      "name": "ΓΙΑΛΙΝΚ T48U ΤΗΛΕΦΩΝΟ IP",
-      "shortDescription": "Το Γιαλινκ T48U ειναι ενα τηλεφωνο IP με οθονη αφης",
-      "description": "Το τηλεφωνο IP Γιαλινκ T48U διαθετει εγχρωμη οθονη αφης..."
-    }
+    {"languageCode": "en", "name": "...", "shortDescription": "...", "description": "..."},
+    {"languageCode": "el", "name": "...", "shortDescription": "...", "description": "..."}
   ],
   "specificationTranslations": [
-    {
-      "specKey": "audio",
-      "en": {
-        "specName": "Audio",
-        "specValue": "HD Voice (Opus, G.722, G.711), built-in speakerphone"
-      },
-      "el": {
-        "specName": "Ηχος",
-        "specValue": "Ηχος HD (Opus, G.722, G.711), ενσωματωμενο ηχειο"
-      }
-    },
-    {
-      "specKey": "display",
-      "en": {
-        "specName": "Display",
-        "specValue": "7-inch color touchscreen"
-      },
-      "el": {
-        "specName": "Οθονη",
-        "specValue": "Εγχρωμη οθονη αφης 7 ιντσων"
-      }
-    }
+    {"specKey": "key", "en": {"specName": "...", "specValue": "..."}, "el": {"specName": "...", "specValue": "..."}}
   ]
-}
-`;
+}`;
 }
 
 /**

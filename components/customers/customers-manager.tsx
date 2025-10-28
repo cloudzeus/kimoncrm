@@ -30,6 +30,7 @@ import {
   MoreVertical,
   Upload,
   ClipboardList,
+  Mail,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -280,6 +281,10 @@ export function CustomersManager() {
 
   const handleView = (customerId: string) => {
     router.push(`/customers/${customerId}`);
+  };
+
+  const handleViewEmails = (customerId: string) => {
+    router.push(`/customers/${customerId}#emails`);
   };
 
   const handleNewSiteSurvey = (customer: Customer) => {
@@ -1222,6 +1227,10 @@ export function CustomersManager() {
                           <DropdownMenuItem onClick={() => handleNewSiteSurvey(customer)}>
                             <ClipboardList className="h-4 w-4 mr-2" />
                             New Site Survey
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewEmails(customer.id)}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            View Associated Emails
                           </DropdownMenuItem>
                           {customer.afm && (
                             <>

@@ -52,7 +52,7 @@ export async function checkCodeExists(code: string): Promise<boolean> {
 /**
  * Generate next available product code
  * Format: CATEGORY.MANUFACTURER.XXXXX
- * Strategy: Use database to find next available code
+ * Strategy: Find highest number in database and add 1
  */
 export async function generateNextAvailableCode(
   categoryCode: string,
@@ -95,7 +95,7 @@ export async function generateNextAvailableCode(
   const paddedNumber = counter.toString().padStart(5, '0');
   const candidateCode = `${codePrefix}${paddedNumber}`;
   
-  console.log(`✅ Generated code: ${candidateCode} (based on database)`);
+  console.log(`✅ Generated code: ${candidateCode} (counter: ${counter})`);
   
   return candidateCode;
 }

@@ -50,6 +50,7 @@ import {
   Package,
   X,
   Eye,
+  SearchCheck,
 } from 'lucide-react';
 import ProductFormDialog from './product-form-dialog';
 import ProductTranslationsDialog from './product-translations-dialog';
@@ -92,6 +93,7 @@ interface Product {
   name: string;
   mtrmark: string | null;
   mtrmanfctr: string | null;
+  mtrgroup: string | null;
   isActive: boolean;
   brand: {
     id: string;
@@ -137,6 +139,7 @@ export default function ProductsManager() {
   const [isActiveFilter, setIsActiveFilter] = useState<string>('all');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedMtrgroups, setSelectedMtrgroups] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
@@ -154,6 +157,7 @@ export default function ProductsManager() {
   const [specificationsProduct, setSpecificationsProduct] = useState<Product | null>(null);
   const [availableBrands, setAvailableBrands] = useState<Array<{ id: string; name: string }>>([]);
   const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableMtrgroups, setAvailableMtrgroups] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkUpdateDialogOpen, setBulkUpdateDialogOpen] = useState(false);
   
@@ -171,6 +175,7 @@ export default function ProductsManager() {
     brand: 150,
     manufacturer: 150,
     category: 130,
+    group: 150,
     unit: 100,
     width: 100,
     length: 100,
@@ -195,6 +200,7 @@ export default function ProductsManager() {
     brand: true,
     manufacturer: true,
     category: true,
+    group: true,
     unit: false,
     width: false,
     length: false,
@@ -309,6 +315,17 @@ export default function ProductsManager() {
         console.log('Mapped categories:', mappedCategories);
         setAvailableCategories(mappedCategories);
       }
+
+      // Fetch mtrgroups (products - sodtype 51)
+      const mtrgroupsResponse = await fetch('/api/mtrgroups?sodtype=51');
+      const mtrgroupsData = await mtrgroupsResponse.json();
+      if (mtrgroupsData.success && mtrgroupsData.data) {
+        const mappedMtrgroups = mtrgroupsData.data.map((g: any) => ({ 
+          id: g.mtrgroup, 
+          name: `${g.name} (${g.mtrgroup})` 
+        }));
+        setAvailableMtrgroups(mappedMtrgroups);
+      }
     } catch (error) {
       console.error('Error fetching filters:', error);
     }
@@ -338,6 +355,12 @@ export default function ProductsManager() {
       if (selectedCategories.length > 0) {
         selectedCategories.forEach(categoryId => {
           params.append('categoryIds', categoryId);
+        });
+      }
+
+      if (selectedMtrgroups.length > 0) {
+        selectedMtrgroups.forEach(mtrgroupCode => {
+          params.append('mtrgroupCodes', mtrgroupCode);
         });
       }
 
@@ -543,6 +566,58 @@ export default function ProductsManager() {
       toast({
         title: 'Error',
         description: 'Failed to delete product',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleLookupCodes = async (product: Product) => {
+    try {
+      toast({
+        title: 'Looking up codes...',
+        description: `AI is analyzing ${product.name}...`,
+      });
+
+      const response = await fetch('/api/products/lookup-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productName: product.name,
+          brandName: product.brand?.name || null,
+          mtrgroupCode: product.mtrgroup || null,
+          productId: product.id,
+          updateDatabase: true, // Automatically update the database
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        const { eanCode, manufacturerCode, confidence, updated } = data.data;
+        
+        toast({
+          title: updated ? 'Codes updated successfully!' : 'Codes found',
+          description: `EAN: ${eanCode || 'N/A'}, MFR: ${manufacturerCode || 'N/A'} (${confidence || 'unknown'} confidence)`,
+        });
+
+        // Refresh the products list to show updated codes
+        if (updated) {
+          fetchProducts();
+        }
+      } else {
+        toast({
+          title: 'Failed to lookup codes',
+          description: data.error || 'Could not generate product codes',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error looking up codes:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to look up product codes',
         variant: 'destructive',
       });
     }
@@ -755,13 +830,22 @@ export default function ProductsManager() {
             placeholder="Filter by categories..."
           />
         </div>
-        {(selectedBrands.length > 0 || selectedCategories.length > 0) && (
+        <div className="w-[300px]">
+          <MultiSelect
+            options={availableMtrgroups}
+            selected={selectedMtrgroups}
+            onChange={setSelectedMtrgroups}
+            placeholder="Filter by groups..."
+          />
+        </div>
+        {(selectedBrands.length > 0 || selectedCategories.length > 0 || selectedMtrgroups.length > 0) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setSelectedBrands([]);
               setSelectedCategories([]);
+              setSelectedMtrgroups([]);
             }}
           >
             <X className="mr-2 h-4 w-4" />
@@ -898,6 +982,14 @@ export default function ProductsManager() {
                   onSort={handleSort}
                 >
                   CATEGORY
+                </ResizableTableHeader>
+              )}
+              {visibleColumns.group && (
+                <ResizableTableHeader
+                  width={columnWidths.group}
+                  onResize={(w) => handleColumnResize('group', w)}
+                >
+                  GROUP
                 </ResizableTableHeader>
               )}
               {visibleColumns.unit && (
@@ -1114,6 +1206,15 @@ export default function ProductsManager() {
                       {product.category?.name || '-'}
                     </TableCell>
                   )}
+                  {visibleColumns.group && (
+                    <TableCell style={{ width: `${columnWidths.group}px`, minWidth: `${columnWidths.group}px` }}>
+                      {(() => {
+                        if (!product.mtrgroup) return '-';
+                        const mtrgroup = availableMtrgroups.find(g => g.id === product.mtrgroup);
+                        return mtrgroup?.name || product.mtrgroup;
+                      })()}
+                    </TableCell>
+                  )}
                   {visibleColumns.unit && (
                     <TableCell style={{ width: `${columnWidths.unit}px`, minWidth: `${columnWidths.unit}px` }}>
                       {product.unit?.name || '-'}
@@ -1222,6 +1323,10 @@ export default function ProductsManager() {
                           }}>
                             <Languages className="h-4 w-4 mr-2" />
                             TRANSLATIONS
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleLookupCodes(product)}>
+                            <SearchCheck className="h-4 w-4 mr-2" />
+                            LOOKUP CODES
                           </DropdownMenuItem>
                           {!product.mtrl && (
                             <DropdownMenuItem 

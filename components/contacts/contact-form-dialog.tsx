@@ -68,6 +68,7 @@ interface ContactFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contact?: Contact | null;
+  customerId?: string; // Pre-select this customer when creating new contact
   onSuccess: () => void;
 }
 
@@ -75,6 +76,7 @@ export function ContactFormDialog({
   open,
   onOpenChange,
   contact,
+  customerId,
   onSuccess,
 }: ContactFormDialogProps) {
   const [loading, setLoading] = useState(false);
@@ -148,10 +150,11 @@ export function ContactFormDialog({
         email: "",
         notes: "",
       });
-      setSelectedCustomerIds([]);
+      // Pre-select customer if provided
+      setSelectedCustomerIds(customerId ? [customerId] : []);
       setSelectedSupplierIds([]);
     }
-  }, [open, contact]);
+  }, [open, contact, customerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

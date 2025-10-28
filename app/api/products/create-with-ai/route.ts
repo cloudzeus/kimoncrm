@@ -34,14 +34,32 @@ export async function POST(request: NextRequest) {
       }
 
       const existingProduct = await prisma.product.findFirst({
-        where: { OR: conditions }
+        where: { OR: conditions },
+        select: {
+          id: true,
+          name: true,
+          code1: true,
+          code2: true,
+        }
       });
 
       if (existingProduct) {
+        const duplicateFields = [];
+        if (productData.code1 && existingProduct.code1 === productData.code1) {
+          duplicateFields.push(`EAN Code: ${productData.code1}`);
+        }
+        if (productData.code2 && existingProduct.code2 === productData.code2) {
+          duplicateFields.push(`Manufacturer Code: ${productData.code2}`);
+        }
+        
         return NextResponse.json({
           success: false,
-          error: 'Product with this EAN or Manufacturer Code already exists',
-          isDuplicate: true
+          error: `Product already exists with: ${duplicateFields.join(', ')}`,
+          isDuplicate: true,
+          duplicateProduct: {
+            id: existingProduct.id,
+            name: existingProduct.name,
+          }
         }, { status: 400 });
       }
     }
@@ -73,24 +91,43 @@ export async function POST(request: NextRequest) {
         isActive: productData.isActive !== false,
         // Create specifications if provided
         specifications: aiData?.specifications ? {
-          create: aiData.specifications.map((spec: any) => ({
-            specKey: spec.specKey,
-            order: spec.order || 0,
-            translations: {
-              create: spec.translations || [
-                {
-                  languageCode: 'en',
-                  specName: spec.specName || spec.specKey,
-                  specValue: spec.specValue || '',
-                },
-                {
-                  languageCode: 'el',
-                  specName: spec.specName || spec.specKey,
-                  specValue: spec.specValue || '',
+          create: await Promise.all(
+            aiData.specifications.map(async (spec: any) => {
+              // Find matching group spec to link
+              let groupSpecId = null;
+              if (productData.mtrgroupCode) {
+                const groupSpec = await prisma.productGroupSpec.findUnique({
+                  where: {
+                    mtrgroupCode_specKey: {
+                      mtrgroupCode: productData.mtrgroupCode,
+                      specKey: spec.specKey
+                    }
+                  }
+                });
+                if (groupSpec) groupSpecId = groupSpec.id;
+              }
+
+              return {
+                specKey: spec.specKey,
+                order: spec.order || 0,
+                groupSpecId,
+                translations: {
+                  create: spec.translations || [
+                    {
+                      languageCode: 'en',
+                      specName: spec.specName || spec.specKey,
+                      specValue: spec.specValue || '',
+                    },
+                    {
+                      languageCode: 'el',
+                      specName: spec.specName || spec.specKey,
+                      specValue: spec.specValue || '',
+                    }
+                  ]
                 }
-              ]
-            }
-          }))
+              };
+            })
+          )
         } : undefined,
         // Create translations if provided
         translations: aiData?.translations ? {

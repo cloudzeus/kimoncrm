@@ -179,6 +179,13 @@ export async function PUT(
       }
     }
 
+    // Handle mtrgroup update (support both mtrgroup and mtrgroupCode for backward compatibility)
+    if (body.mtrgroup !== undefined) {
+      updateData.mtrgroup = body.mtrgroup || null;
+    } else if (body.mtrgroupCode !== undefined) {
+      updateData.mtrgroup = body.mtrgroupCode || null;
+    }
+
     // Handle other fields
     if (body.name !== undefined) updateData.name = body.name;
     if (body.code !== undefined) updateData.code = body.code;

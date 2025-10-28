@@ -91,6 +91,7 @@ export async function POST(
           manufacturerCode: product.code2,
           brand: product.brand?.name,
           category: product.category?.name,
+          mtrgroupCode: product.mtrgroup,
         },
         supportedLanguages
       );
@@ -103,11 +104,27 @@ export async function POST(
       // Create new specifications with translations
       let order = 0;
       for (const spec of generatedSpecs) {
+        // Find matching group spec to link
+        let groupSpecId = null;
+        if (product.mtrgroup) {
+          const groupSpec = await prisma.productGroupSpec.findUnique({
+            where: {
+              mtrgroupCode_specKey: {
+                mtrgroupCode: product.mtrgroup,
+                specKey: spec.specKey
+              }
+            }
+          });
+          if (groupSpec) groupSpecId = groupSpec.id;
+        }
+
         const createdSpec = await prisma.productSpec.create({
           data: {
             productId,
             specKey: spec.specKey,
             order: order++,
+            groupSpecId,
+            aiProvider: spec.aiProvider || null,
             translations: {
               create: Object.entries(spec.translations).map(([langCode, translation]) => ({
                 languageCode: langCode,
