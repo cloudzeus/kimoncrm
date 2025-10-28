@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               contacts: true,
-              leads: true,
               orders: true,
               quotes: true,
               supportContracts: true,
