@@ -187,6 +187,40 @@ export function initializeCronJobs() {
     }
   });
 
+  // Task reminders job - runs daily at 9 AM
+  cron.schedule("0 9 * * *", async () => {
+    console.log("🔔 Running task reminders cron job...");
+    
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000";
+      const cronSecret = process.env.CRON_SECRET;
+      
+      const response = await fetch(`${baseUrl}/api/cron/task-reminders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cronSecret && { Authorization: `Bearer ${cronSecret}` }),
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        if (result.count === 0) {
+          console.log("✅ Task reminders completed: No reminders to send");
+        } else {
+          console.log(
+            `✅ Task reminders completed: ${result.count} emails sent for ${result.tasksProcessed} tasks`
+          );
+        }
+      } else {
+        console.error("❌ Task reminders failed:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Error executing task reminders cron job:", error);
+    }
+  });
+
   isSchedulerInitialized = true;
   console.log("✅ Cron job scheduler initialized");
   console.log("   - Customer sync: Every 10 minutes");
@@ -194,6 +228,7 @@ export function initializeCronJobs() {
   console.log("   - Product sync: Every 15 minutes");
   console.log("   - Manufacturer sync: Every 6 hours");
   console.log("   - Stock sync: Every 4 hours");
+  console.log("   - Task reminders: Daily at 9 AM");
 }
 
 /**

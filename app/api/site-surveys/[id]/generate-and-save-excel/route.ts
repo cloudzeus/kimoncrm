@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guards";
 import { prisma as db } from "@/lib/db/prisma";
 import { generateBuildingExcelReport } from "@/lib/excel/building-report-excel";
-import { uploadToBunnyCDN } from "@/lib/bunny/upload";
+import { bunnyPut } from "@/lib/bunny/upload";
 
 export async function POST(
   request: NextRequest,
@@ -73,8 +73,9 @@ export async function POST(
         // Determine version number
         const existingFiles = await db.file.findMany({
           where: {
-            leadId: siteSurvey.leadId,
-            filename: {
+            entityId: siteSurvey.leadId || siteSurvey.id,
+            type: 'LEAD',
+            name: {
               startsWith: `SR-002-infrastructure-${building.name || 'building'}-v`,
             },
           },
@@ -85,18 +86,20 @@ export async function POST(
         const filename = `SR-002-infrastructure-${building.name || 'building'}-v${versionNumber}.xlsx`;
         
         // Upload to BunnyCDN
-        const uploadResult = await uploadToBunnyCDN(buffer, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        const timestamp = Date.now();
+        const sanitizedFileName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fullPath = `site-surveys/${timestamp}_${sanitizedFileName}`;
+        const uploadResult = await bunnyPut(fullPath, buffer);
         
         // Save file record to database
         const fileRecord = await db.file.create({
           data: {
-            filename,
-            originalName: filename,
-            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            name: filename,
+            filetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             size: buffer.length,
             url: uploadResult.url,
-            uploadedById: session.user.id,
-            leadId: siteSurvey.leadId,
+            entityId: siteSurvey.leadId || siteSurvey.id,
+            type: 'LEAD',
             description: `Infrastructure report for ${building.name || 'building'} - Step ${stepCompleted} completion`,
           },
         });
@@ -119,7 +122,7 @@ export async function POST(
       await db.lead.update({
         where: { id: siteSurvey.leadId },
         data: {
-          stage: "LEAD_TECHNICAL_REVIEW", // Move to technical review stage
+          stage: "RFP_INTERNAL_REVIEW", // Move to internal review stage
         },
       });
 
@@ -128,9 +131,9 @@ export async function POST(
         data: {
           leadId: siteSurvey.leadId,
           fromStatus: null,
-          toStatus: "LEAD_TECHNICAL_REVIEW",
+          toStatus: "RFP_INTERNAL_REVIEW",
           changedBy: session.user.id,
-          notes: `Infrastructure step completed - Excel reports generated`,
+          note: `Infrastructure step completed - Excel reports generated`,
         },
       });
 

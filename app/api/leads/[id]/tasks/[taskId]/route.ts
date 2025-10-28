@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/auth/guards";
 import { prisma as db } from "@/lib/db/prisma";
 import { sendEmailAsUser } from "@/lib/microsoft/app-auth";
 import { generateEmailSignature } from "@/lib/email/signature";
+import { updateLeadTaskCalendarEvent } from "@/lib/calendar/lead-task-calendar";
+import { updateTaskDescriptionWithAttribution } from "@/lib/tasks/user-attribution";
 
 // PATCH /api/leads/[id]/tasks/[taskId] - Update a task
 export async function PATCH(
@@ -46,6 +48,17 @@ export async function PATCH(
     const dueDateParsed = dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined;
     const reminderDateParsed = reminderDate !== undefined ? (reminderDate ? new Date(reminderDate) : null) : undefined;
 
+    // Handle description with user attribution if provided
+    let attributedDescription = undefined;
+    if (description !== undefined) {
+      attributedDescription = updateTaskDescriptionWithAttribution(
+        session.user.name || 'Unknown User',
+        description,
+        currentTask.description,
+        true // This is an update
+      );
+    }
+
     // Validate contactId if provided
     let validatedContactId = currentTask.contactId;
     if (contactId !== undefined) {
@@ -64,7 +77,7 @@ export async function PATCH(
       where: { id: taskId },
       data: {
         ...(title && { title }),
-        ...(description !== undefined && { description }),
+        ...(attributedDescription !== undefined && { description: attributedDescription }),
         ...(assignedToId !== undefined && { assignedToId }),
         ...(validatedContactId !== undefined && { contactId: validatedContactId }),
         ...(status && { status }),
@@ -125,6 +138,52 @@ export async function PATCH(
       if (lead) {
         await sendTaskNotificationEmails(updatedTask, lead, session.user.email, "status_changed", session.user.id);
       }
+    }
+
+    // Update calendar event if due date or assignee changed
+    const lead = await db.lead.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        leadNumber: true,
+      },
+    });
+
+    if (lead) {
+      // Transform the task data to match our function signature
+      const taskForCalendar = {
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        dueDate: updatedTask.dueDate,
+        assignedTo: updatedTask.assignedTo ? {
+          email: updatedTask.assignedTo.email,
+          name: updatedTask.assignedTo.name || 'Unknown User'
+        } : null,
+        createdBy: {
+          email: updatedTask.createdBy.email,
+          name: updatedTask.createdBy.name || 'Unknown User'
+        }
+      };
+
+      const previousTaskForCalendar = currentTask.assignedTo ? {
+        dueDate: currentTask.dueDate,
+        assignedTo: {
+          email: currentTask.assignedTo.email,
+          name: currentTask.assignedTo.name || 'Unknown User'
+        }
+      } : {
+        dueDate: currentTask.dueDate,
+        assignedTo: null
+      };
+
+      await updateLeadTaskCalendarEvent(
+        taskForCalendar,
+        lead,
+        session.user.email,
+        previousTaskForCalendar
+      );
     }
 
     return NextResponse.json({ task: updatedTask });

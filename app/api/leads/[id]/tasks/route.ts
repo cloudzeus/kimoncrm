@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/auth/guards";
 import { prisma as db } from "@/lib/db/prisma";
 import { sendEmailAsUser } from "@/lib/microsoft/app-auth";
 import { generateEmailSignature } from "@/lib/email/signature";
+import { createLeadTaskCalendarEvent } from "@/lib/calendar/lead-task-calendar";
+import { updateTaskDescriptionWithAttribution } from "@/lib/tasks/user-attribution";
 
 // GET /api/leads/[id]/tasks - Get all tasks for a lead
 export async function GET(
@@ -126,6 +128,11 @@ export async function POST(
     const dueDateParsed = dueDate ? new Date(dueDate) : null;
     const reminderDateParsed = reminderDate ? new Date(reminderDate) : null;
 
+    // Add user attribution to description if provided
+    const attributedDescription = description 
+      ? updateTaskDescriptionWithAttribution(session.user.name || 'Unknown User', description)
+      : null;
+
     // Validate contactId if provided
     let validatedContactId = null;
     if (contactId && contactId.trim() !== '') {
@@ -142,7 +149,7 @@ export async function POST(
       data: {
         leadId: id,
         title,
-        description,
+        description: attributedDescription,
         assignedToId: assignedToId || null,
         contactId: validatedContactId,
         dueDate: dueDateParsed,
@@ -178,6 +185,25 @@ export async function POST(
 
       // Send notification emails
       await sendTaskNotificationEmails(task, lead, session.user.email, "created", session.user.id);
+
+      // Create calendar event if task has due date and assignee
+      // Transform the task data to match our function signature
+      const taskForCalendar = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        dueDate: task.dueDate,
+        assignedTo: task.assignedTo ? {
+          email: task.assignedTo.email,
+          name: task.assignedTo.name || 'Unknown User'
+        } : null,
+        createdBy: {
+          email: task.createdBy.email,
+          name: task.createdBy.name || 'Unknown User'
+        }
+      };
+
+      await createLeadTaskCalendarEvent(taskForCalendar, lead, session.user.email);
 
     return NextResponse.json({ task });
   } catch (error) {
