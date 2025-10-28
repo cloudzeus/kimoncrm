@@ -1220,7 +1220,7 @@ export default function ProposalDocumentStep({
             Λήψη Εγγράφων
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 bg-white dark:bg-gray-900">
+        <CardContent className="space-y-4 bg-white">
           <p className="text-sm text-muted-foreground">
             Κατεβάστε όλα τα απαραίτητα έγγραφα για την τεχνική προσφορά
           </p>
@@ -1284,7 +1284,7 @@ export default function ProposalDocumentStep({
       </Card>
 
       {/* Conclusion Section */}
-      <Card className="bg-white dark:bg-gray-900">
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5" />
@@ -1440,7 +1440,7 @@ export default function ProposalDocumentStep({
 
       {/* Document Preview Info */}
       <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
-        <CardContent className="pt-6 bg-white dark:bg-gray-900">
+        <CardContent className="pt-6 bg-white">
           <div className="flex items-start gap-3">
             <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
             <div className="space-y-2">

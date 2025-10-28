@@ -13,6 +13,7 @@ interface SiteSurvey {
   title: string;
   type: string;
   status: string;
+  leadId: string | null;
   customer: {
     id: string;
     name: string;
@@ -92,14 +93,25 @@ export default function SiteSurveyWizardPage() {
     <div className="container mx-auto py-6 max-w-7xl">
       {/* Header */}
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/site-surveys/${id}/details`)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Site Survey Details
-        </Button>
+        <div className="flex gap-2 mb-4">
+          {siteSurvey.leadId && (
+            <Button
+              variant="ghost"
+              onClick={() => router.push(`/leads/${siteSurvey.leadId}`)}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Lead
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            onClick={() => router.push(`/site-surveys/${id}/details`)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Site Survey Details
+          </Button>
+        </div>
         
         <div className="space-y-2">
           <div>

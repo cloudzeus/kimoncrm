@@ -493,6 +493,31 @@ export function ComprehensiveInfrastructureWizard({
         }),
       });
 
+      // Auto-generate Excel and update lead status when step 1 is completed
+      if (markStepComplete === 1 && wizardData.buildings.length > 0) {
+        try {
+          const excelResponse = await fetch(`/api/site-surveys/${siteSurveyId}/generate-and-save-excel`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              buildings: wizardData.buildings,
+              stepCompleted: markStepComplete,
+            }),
+          });
+
+          if (excelResponse.ok) {
+            const result = await excelResponse.json();
+            toast.success(`Infrastructure Excel generated! ${result.filesGenerated} files saved to lead.`);
+          } else {
+            console.error('Failed to generate Excel files');
+          }
+        } catch (error) {
+          console.error('Error generating Excel files:', error);
+        }
+      }
+
       if (markStepComplete) {
         toast.success(`Step ${markStepComplete} completed and saved`);
       } else {

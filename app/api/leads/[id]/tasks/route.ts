@@ -80,9 +80,24 @@ export async function POST(
     // Get the lead to check permissions and get related users
     const lead = await db.lead.findUnique({
       where: { id },
-      include: {
-        owner: true,
-        assignee: true,
+      select: {
+        id: true,
+        title: true,
+        leadNumber: true,
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
       },
     });
 

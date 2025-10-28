@@ -1207,7 +1207,7 @@ export function CentralRackStep({
                 </DropdownMenu>
               </CardTitle>
             </CardHeader>
-            <CardContent className="bg-white dark:bg-gray-900">
+            <CardContent className="bg-white">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -1437,7 +1437,7 @@ export function CentralRackStep({
               <span className="text-sm">Υπηρεσίες</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="bg-white dark:bg-gray-900">
+          <CardContent className="bg-white">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -1542,7 +1542,7 @@ export function CentralRackStep({
 
       {/* Grand Total */}
       <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
-        <CardContent className="pt-6 bg-white dark:bg-gray-900">
+        <CardContent className="pt-6 bg-white">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-semibold text-green-900 dark:text-green-100">
               Συνολικό Σύνολο

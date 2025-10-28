@@ -898,6 +898,7 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                 leadId={lead.id}
                 leadContacts={leadContacts}
                 users={users}
+                onTasksChange={fetchTaskStats}
               />
             </TabsContent>
 
