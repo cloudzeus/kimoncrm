@@ -68,12 +68,12 @@ export function SingleSelectCustomerSearch({
     }
 
     const filteredCustomers = customers.filter((c) => {
-      const search = searchTerm.toLowerCase().trim();
+      const search = searchTerm.trim();
       return (
-        c.name.toLowerCase().includes(search) ||
-        c.afm?.toUpperCase().includes(search.toUpperCase()) ||
-        c.email?.toLowerCase().includes(search) ||
-        c.code?.toLowerCase().includes(search)
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.afm?.trim().toUpperCase().includes(search.toUpperCase()) ||
+        c.email?.toLowerCase().includes(search.toLowerCase()) ||
+        c.code?.toLowerCase().includes(search.toLowerCase())
       );
     });
 
@@ -101,14 +101,20 @@ export function SingleSelectCustomerSearch({
   };
 
   const filteredCustomers = customers.filter((c) => {
-    const search = searchTerm.toLowerCase().trim();
+    const search = searchTerm.trim();
+    if (!search) return true; // Show all if no search term
     return (
-      c.name.toLowerCase().includes(search) ||
-      c.afm?.toUpperCase().includes(search.toUpperCase()) ||
-      c.email?.toLowerCase().includes(search) ||
-      c.code?.toLowerCase().includes(search)
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.afm?.trim().toUpperCase().includes(search.toUpperCase()) ||
+      c.email?.toLowerCase().includes(search.toLowerCase()) ||
+      c.code?.toLowerCase().includes(search.toLowerCase())
     );
   });
+  
+  // Log filtered results for debugging
+  if (searchTerm && filteredCustomers.length === 0) {
+    console.log(`[Customer Search] No matches for "${searchTerm}" from ${customers.length} customers`);
+  }
 
   return (
     <div className="relative" ref={containerRef}>

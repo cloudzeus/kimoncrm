@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If limit is 10000 or higher, return ALL customers without pagination
+    // Return ALL customers if limit is 10000 or higher (for dropdowns)
     const shouldFetchAll = limit >= 10000;
     
     const [customers, total] = await Promise.all([
@@ -48,6 +48,11 @@ export async function GET(req: NextRequest) {
       }),
       prisma.customer.count({ where }),
     ]);
+    
+    // Log for debugging
+    if (shouldFetchAll) {
+      console.log(`[Customers API] Returning ALL ${customers.length} customers (no pagination)`);
+    }
 
     return NextResponse.json({
       customers,
