@@ -91,28 +91,37 @@ export async function POST(req: NextRequest) {
       syncToERP,
     } = body;
 
-    // Check if AFM already exists
+    // Check if AFM already exists (case-insensitive and trimmed)
     if (afm) {
-      const existingCustomer = await prisma.customer.findUnique({
-        where: { afm },
+      const trimmedAfm = afm.trim().toUpperCase();
+      
+      // Find all customers and check if any have the same AFM (case insensitive)
+      const allCustomers = await prisma.customer.findMany({
+        where: { afm: { not: null } },
+        select: { id: true, name: true, afm: true },
       });
+
+      const existingCustomer = allCustomers.find(
+        (c) => c.afm && c.afm.trim().toUpperCase() === trimmedAfm
+      );
 
       if (existingCustomer) {
         return NextResponse.json(
           { 
             error: "Customer with this AFM already exists",
-            details: `A customer named "${existingCustomer.name}" with AFM ${afm} already exists in the system.`
+            details: `A customer named "${existingCustomer.name}" with AFM ${existingCustomer.afm} already exists in the system.`
           },
           { status: 409 }
         );
       }
     }
 
-    // Create customer in database
+    // Create customer in database with trimmed and uppercase AFM
+    const trimmedAfm = afm?.trim().toUpperCase();
     const customer = await prisma.customer.create({
       data: {
         code,
-        afm,
+        afm: trimmedAfm,
         name,
         sotitle,
         jobtypetrd,
@@ -153,7 +162,7 @@ export async function POST(req: NextRequest) {
               sotitle: sotitle || "",
               jobtypetrd: jobtypetrd || "",
               name: name,
-              afm: afm || "",
+              afm: trimmedAfm || "",
               isactive: isactive === "1" || isactive === true ? 1 : 0,
               country: country ? parseInt(country) : 1000,
               district: district || "",
