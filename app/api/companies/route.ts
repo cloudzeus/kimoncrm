@@ -92,7 +92,6 @@ export async function POST(request: NextRequest) {
         _count: {
           select: {
             contacts: true,
-            assignedLeads: true,
             orders: true,
             quotes: true,
             supportContracts: true,
