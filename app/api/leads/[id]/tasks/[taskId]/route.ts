@@ -46,6 +46,19 @@ export async function PATCH(
     const dueDateParsed = dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined;
     const reminderDateParsed = reminderDate !== undefined ? (reminderDate ? new Date(reminderDate) : null) : undefined;
 
+    // Validate contactId if provided
+    let validatedContactId = currentTask.contactId;
+    if (contactId !== undefined) {
+      if (contactId && contactId.trim() !== '') {
+        const contactExists = await db.contact.findUnique({
+          where: { id: contactId },
+        });
+        validatedContactId = contactExists ? contactId : null;
+      } else {
+        validatedContactId = null;
+      }
+    }
+
     // Update the task
     const updatedTask = await db.leadTask.update({
       where: { id: taskId },
@@ -53,7 +66,7 @@ export async function PATCH(
         ...(title && { title }),
         ...(description !== undefined && { description }),
         ...(assignedToId !== undefined && { assignedToId }),
-        ...(contactId !== undefined && { contactId }),
+        ...(validatedContactId !== undefined && { contactId: validatedContactId }),
         ...(status && { status }),
         ...(order !== undefined && { order }),
         ...(dueDateParsed !== undefined && { dueDate: dueDateParsed }),

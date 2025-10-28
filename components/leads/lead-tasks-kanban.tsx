@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Clock, User, Edit, Trash2 } from "lucide-react";
+import { Plus, Calendar, Clock, User, Edit, Trash2, Upload, File as FileIcon, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { MultiUserSelect } from "@/components/ui/multi-user-select";
+import { MultiSelectContacts } from "./multi-select-contacts";
 
 const STATUSES = [
   { id: "NOT_STARTED", label: "Not Started", color: "bg-gray-100 text-gray-800" },

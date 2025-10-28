@@ -111,14 +111,25 @@ export async function POST(
     const dueDateParsed = dueDate ? new Date(dueDate) : null;
     const reminderDateParsed = reminderDate ? new Date(reminderDate) : null;
 
+    // Validate contactId if provided
+    let validatedContactId = null;
+    if (contactId && contactId.trim() !== '') {
+      const contactExists = await db.contact.findUnique({
+        where: { id: contactId },
+      });
+      if (contactExists) {
+        validatedContactId = contactId;
+      }
+    }
+
     // Create the task
     const task = await db.leadTask.create({
       data: {
         leadId: id,
         title,
         description,
-        assignedToId,
-        contactId,
+        assignedToId: assignedToId || null,
+        contactId: validatedContactId,
         dueDate: dueDateParsed,
         reminderDate: reminderDateParsed,
         createdById: session.user.id,

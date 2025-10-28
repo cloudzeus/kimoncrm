@@ -42,8 +42,11 @@ import {
   UserCheck,
   Plus,
   MoreVertical,
-  ClipboardList
+  ClipboardList,
+  PlusCircle,
+  CheckSquare
 } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,10 +116,30 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const [siteSurveyTitle, setSiteSurveyTitle] = useState("");
   const [siteSurveyDescription, setSiteSurveyDescription] = useState("");
 
+  // Task statistics state
+  const [taskStats, setTaskStats] = useState({ notStarted: 0, inProgress: 0, completed: 0 });
+
   useEffect(() => {
     fetchFiles();
     fetchLeadContacts();
+    fetchTaskStats();
   }, [lead.id]);
+
+  const fetchTaskStats = async () => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/tasks`);
+      const data = await res.json();
+      const tasks = data.tasks || [];
+      const stats = {
+        notStarted: tasks.filter((t: any) => t.status === 'NOT_STARTED').length,
+        inProgress: tasks.filter((t: any) => t.status === 'IN_PROGRESS').length,
+        completed: tasks.filter((t: any) => t.status === 'COMPLETED').length,
+      };
+      setTaskStats(stats);
+    } catch (error) {
+      console.error("Error fetching task stats:", error);
+    }
+  };
 
   const fetchFiles = async () => {
     try {
@@ -406,6 +429,23 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add Contact
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                // Find the tasks tab and set it as active
+                const tasksTab = document.querySelector('[value="tasks"]') as HTMLElement;
+                if (tasksTab) {
+                  tasksTab.click();
+                }
+                // Trigger task creation from the tasks kanban
+                setTimeout(() => {
+                  const addTaskButton = document.querySelector('[data-add-task]') as HTMLElement;
+                  if (addTaskButton) {
+                    addTaskButton.click();
+                  }
+                }, 100);
+              }}>
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Add Task
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowSiteSurveyDialog(true)}>
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Request Site Survey
@@ -431,7 +471,7 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
       </div>
 
       {/* Main Content */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         {/* Lead Information */}
         <Card>
           <CardHeader>
@@ -440,11 +480,43 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground">Customer</label>
-              <div className="font-medium">{lead.customer?.name || "-"}</div>
+              <div className="font-medium text-sm">{lead.customer?.name || "-"}</div>
+              {lead.customer && (
+                <div className="mt-2 space-y-1">
+                  {lead.customer.email && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 text-blue-600" />
+                      <span>{lead.customer.email}</span>
+                    </div>
+                  )}
+                  {lead.customer.phone01 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 text-green-600" />
+                      <span>{lead.customer.phone01}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Contact</label>
-              <div className="font-medium">{lead.contact?.name || "-"}</div>
+              <div className="font-medium text-sm">{lead.contact?.name || "-"}</div>
+              {lead.contact && (
+                <div className="mt-2 space-y-1">
+                  {lead.contact.email && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 text-blue-600" />
+                      <span>{lead.contact.email}</span>
+                    </div>
+                  )}
+                  {lead.contact.phone01 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 text-green-600" />
+                      <span>{lead.contact.phone01}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             {lead.description && (
               <div>
@@ -452,27 +524,29 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                 <div className="text-sm">{lead.description}</div>
               </div>
             )}
-            {lead.estimatedValue && (
-              <div>
-                <label className="text-sm text-muted-foreground">Estimated Value</label>
-                <div className="font-medium">
-                  €{lead.estimatedValue.toLocaleString()}
-                  {lead.probability && ` (${lead.probability}% probability)`}
+            <div className="grid grid-cols-2 gap-4">
+              {lead.estimatedValue && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Estimated Value</label>
+                  <div className="font-medium text-sm">
+                    €{lead.estimatedValue.toLocaleString()}
+                    {lead.probability && ` (${lead.probability}% probability)`}
+                  </div>
                 </div>
-              </div>
-            )}
-            {lead.expectedCloseDate && (
-              <div>
-                <label className="text-sm text-muted-foreground">Expected Close Date</label>
-                <div className="font-medium">
-                  {new Date(lead.expectedCloseDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  })}
+              )}
+              {lead.expectedCloseDate && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Expected Close Date</label>
+                  <div className="font-medium text-sm">
+                    {new Date(lead.expectedCloseDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -484,22 +558,66 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground">Owner (Sales Manager)</label>
-              <div className="font-medium">{lead.owner?.name || "-"}</div>
+              <div className="font-medium text-sm">{lead.owner?.name || "-"}</div>
               {lead.owner?.email && (
-                <div className="text-sm text-muted-foreground">{lead.owner.email}</div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Mail className="h-3 w-3 text-blue-600" />
+                  <span>{lead.owner.email}</span>
+                </div>
               )}
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Assignee</label>
-              <div className="font-medium">{lead.assignee?.name || "-"}</div>
+              <div className="font-medium text-sm">{lead.assignee?.name || "-"}</div>
               {lead.assignee?.email && (
-                <div className="text-sm text-muted-foreground">{lead.assignee.email}</div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Mail className="h-3 w-3 text-blue-600" />
+                  <span>{lead.assignee.email}</span>
+                </div>
               )}
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Department</label>
-              <div className="font-medium">{lead.department?.name || "-"}</div>
+              <div className="font-medium text-sm">{lead.department?.name || "-"}</div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Task Completion Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Task Completion</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {taskStats.notStarted + taskStats.inProgress + taskStats.completed > 0 ? (
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Not Started", value: taskStats.notStarted, fill: "#9CA3AF" },
+                      { name: "In Progress", value: taskStats.inProgress, fill: "#3B82F6" },
+                      { name: "Completed", value: taskStats.completed, fill: "#10B981" },
+                    ]}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    label={false}
+                  >
+                    <Cell fill="#9CA3AF" />
+                    <Cell fill="#3B82F6" />
+                    <Cell fill="#10B981" />
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[180px] text-sm text-muted-foreground">
+                No tasks yet
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
