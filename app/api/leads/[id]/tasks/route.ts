@@ -43,6 +43,17 @@ export async function GET(
             email: true,
           },
         },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
         { status: "asc" },
@@ -70,7 +81,7 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
-    const { title, description, assignedToId, contactId, dueDate, reminderDate } = body;
+    const { title, description, assignedToId, contactId, dueDate, reminderDate, assigneeIds } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -180,30 +191,111 @@ export async function POST(
             email: true,
           },
         },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
+    // Handle multiple assignees if provided
+    if (assigneeIds && assigneeIds.length > 0) {
+      await db.leadTaskAssignee.createMany({
+        data: assigneeIds.map((userId: string) => ({
+          taskId: task.id,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Refetch the task with assignees for email notification
+      const taskWithAssignees = await db.leadTask.findUnique({
+        where: { id: task.id },
+        include: {
+          assignedTo: {
+            select: { id: true, name: true, email: true },
+          },
+          createdBy: {
+            select: { id: true, name: true, email: true },
+          },
+          contact: {
+            select: { id: true, name: true, email: true },
+          },
+          assignees: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+        },
+      });
+
+      // Send notification emails with updated task
+      await sendTaskNotificationEmails(taskWithAssignees || task, lead, session.user.email, "created", session.user.id);
+    } else {
       // Send notification emails
       await sendTaskNotificationEmails(task, lead, session.user.email, "created", session.user.id);
+    }
 
-      // Create calendar event if task has due date and assignee
-      // Transform the task data to match our function signature
-      const taskForCalendar = {
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        dueDate: task.dueDate,
-        assignedTo: task.assignedTo ? {
-          email: task.assignedTo.email,
-          name: task.assignedTo.name || 'Unknown User'
-        } : null,
-        createdBy: {
-          email: task.createdBy.email,
-          name: task.createdBy.name || 'Unknown User'
+      // Create calendar events for all assignees if task has due date
+      if (task.dueDate) {
+        const taskForCalendar = {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          dueDate: task.dueDate,
+          createdBy: {
+            email: task.createdBy.email,
+            name: task.createdBy.name || 'Unknown User'
+          }
+        };
+
+        // Create calendar event for multiple assignees (new field)
+        if (assigneeIds && assigneeIds.length > 0) {
+          // Get user emails for assignees
+          const assigneeUsers = await db.user.findMany({
+            where: { id: { in: assigneeIds } },
+            select: { id: true, email: true, name: true }
+          });
+
+          // Create calendar event for each assignee
+          for (const user of assigneeUsers) {
+            await createLeadTaskCalendarEvent(
+              {
+                ...taskForCalendar,
+                assignedTo: {
+                  email: user.email,
+                  name: user.name || 'Unknown User'
+                }
+              },
+              lead,
+              session.user.email
+            );
+          }
+        } 
+        // Fallback to old single assignee if present
+        else if (task.assignedTo) {
+          await createLeadTaskCalendarEvent(
+            {
+              ...taskForCalendar,
+              assignedTo: {
+                email: task.assignedTo.email,
+                name: task.assignedTo.name || 'Unknown User'
+              }
+            },
+            lead,
+            session.user.email
+          );
         }
-      };
-
-      await createLeadTaskCalendarEvent(taskForCalendar, lead, session.user.email);
+      }
 
     return NextResponse.json({ task });
   } catch (error) {
@@ -237,9 +329,18 @@ async function sendTaskNotificationEmails(
       recipients.add(lead.assignee.email);
     }
 
-    // Add task assignee
+    // Add task assignee (old single assignee field)
     if (task.assignedTo?.email) {
       recipients.add(task.assignedTo.email);
+    }
+
+    // Add multiple task assignees (new field)
+    if (task.assignees && Array.isArray(task.assignees)) {
+      task.assignees.forEach((assignee: any) => {
+        if (assignee.user?.email) {
+          recipients.add(assignee.user.email);
+        }
+      });
     }
 
     // Remove sender from recipients
@@ -299,7 +400,12 @@ async function sendTaskNotificationEmails(
                     <span style="display: inline-block; background-color: ${statusColor}; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase;">${statusText}</span>
                   </td>
                 </tr>
-                ${task.assignedTo ? `
+                ${task.assignees && task.assignees.length > 0 ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Assigned To:</td>
+                  <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.assignees.map((a: any) => a.user.name).join(', ')}</td>
+                </tr>
+                ` : task.assignedTo ? `
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-size: 14px; font-weight: 600;">Assigned To:</td>
                   <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${task.assignedTo.name}</td>

@@ -64,32 +64,79 @@ export function EmailClient({ provider, accessToken, onProviderChange }: EmailCl
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
+  const [mailboxes, setMailboxes] = useState<Array<{id: string, email: string, displayName: string, type: string}>>([])
+  const [selectedMailbox, setSelectedMailbox] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // Fetch folders on mount
+  // Fetch mailboxes and folders on mount
   useEffect(() => {
-    fetchFolders()
+    fetchMailboxes()
   }, [provider, accessToken])
+
+  // Fetch folders when mailbox changes
+  useEffect(() => {
+    if (selectedMailbox) {
+      fetchFolders()
+    }
+  }, [selectedMailbox, provider, accessToken])
 
   // Fetch emails when folder changes
   useEffect(() => {
-    if (folders.length > 0) {
+    if (folders.length > 0 && selectedMailbox) {
       fetchEmails()
     }
-  }, [selectedFolder, folders])
+  }, [selectedFolder, folders, selectedMailbox])
+
+  const fetchMailboxes = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      console.log("Fetching mailboxes for provider:", provider)
+      
+      const response = await fetch(`/api/emails/mailboxes?provider=${provider}&accessToken=${accessToken}`)
+      const data = await response.json()
+      
+      if (data.success && data.mailboxes) {
+        console.log("Found mailboxes:", data.mailboxes)
+        setMailboxes(data.mailboxes)
+        
+        // Auto-select first mailbox
+        if (data.mailboxes.length > 0 && !selectedMailbox) {
+          setSelectedMailbox(data.mailboxes[0].id)
+        }
+      } else {
+        const errorMsg = data.error || 'Failed to fetch mailboxes'
+        console.error(errorMsg)
+        setError(errorMsg)
+      }
+    } catch (error: any) {
+      console.error('Error fetching mailboxes:', error)
+      setError(error.message || 'Failed to fetch mailboxes')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchFolders = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log("Fetching folders for mailbox:", selectedMailbox)
+      
       const response = await fetch(`/api/emails/folders?provider=${provider}&accessToken=${accessToken}`)
       const data = await response.json()
       
       if (data.success) {
+        console.log("Found folders:", data.data)
         setFolders(data.data)
       } else {
-        console.error('Failed to fetch folders:', data.error)
+        const errorMsg = data.error || 'Failed to fetch folders'
+        console.error(errorMsg)
+        setError(errorMsg)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching folders:', error)
+      setError(error.message || 'Failed to fetch folders')
     } finally {
       setLoading(false)
     }
@@ -98,6 +145,9 @@ export function EmailClient({ provider, accessToken, onProviderChange }: EmailCl
   const fetchEmails = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log("Fetching emails for folder:", selectedFolder, "mailbox:", selectedMailbox)
+      
       const folderId = provider === 'google' ? selectedFolder.toUpperCase() : selectedFolder
       const url = `/api/emails?provider=${provider}&accessToken=${accessToken}&folderId=${folderId}`
       
@@ -105,12 +155,21 @@ export function EmailClient({ provider, accessToken, onProviderChange }: EmailCl
       const data = await response.json()
       
       if (data.success) {
-        setEmails(data.data.messages || [])
+        const messages = data.data.messages || []
+        console.log(`Found ${messages.length} emails`)
+        setEmails(messages)
+        
+        if (messages.length === 0) {
+          console.log("No emails found in this folder")
+        }
       } else {
-        console.error('Failed to fetch emails:', data.error)
+        const errorMsg = data.error || 'Failed to fetch emails'
+        console.error(errorMsg)
+        setError(errorMsg)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching emails:', error)
+      setError(error.message || 'Failed to fetch emails')
     } finally {
       setLoading(false)
     }
@@ -263,13 +322,26 @@ export function EmailClient({ provider, accessToken, onProviderChange }: EmailCl
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold uppercase tracking-wider">EMAIL CLIENT</h1>
           <div className="flex items-center gap-2">
+            {mailboxes.length > 1 && (
+              <select
+                value={selectedMailbox || ''}
+                onChange={(e) => setSelectedMailbox(e.target.value)}
+                className="px-3 py-1.5 border rounded text-sm"
+              >
+                {mailboxes.map((mb) => (
+                  <option key={mb.id} value={mb.id}>
+                    {mb.displayName} ({mb.type})
+                  </option>
+                ))}
+              </select>
+            )}
             <Tabs value={provider} onValueChange={onProviderChange}>
               <TabsList>
                 <TabsTrigger value="microsoft">Microsoft</TabsTrigger>
                 <TabsTrigger value="google">Google</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button variant="outline" size="sm" onClick={fetchEmails}>
+            <Button variant="outline" size="sm" onClick={() => { fetchMailboxes(); fetchFolders(); fetchEmails(); }}>
               <RefreshCw className="h-4 w-4" />
             </Button>
             <Button size="sm">
@@ -278,6 +350,13 @@ export function EmailClient({ provider, accessToken, onProviderChange }: EmailCl
             </Button>
           </div>
         </div>
+        
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            {error}
+          </div>
+        )}
         
         {/* Search */}
         <div className="relative">

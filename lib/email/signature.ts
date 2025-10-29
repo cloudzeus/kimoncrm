@@ -14,8 +14,9 @@ export async function generateEmailSignature(
         workPosition: true,
         contact: {
           select: {
-            phone: true,
-            mobile: true,
+            workPhone: true,
+            mobilePhone: true,
+            homePhone: true,
             email: true,
           },
         },
@@ -42,8 +43,8 @@ export async function generateEmailSignature(
     };
 
     // Get user contact details
-    const userPhone = user.workPhone || user.phone || user.contact?.phone || '';
-    const userMobile = user.mobile || user.contact?.mobile || '+30 694 096 0701';
+    const userPhone = user.workPhone || user.phone || user.contact?.workPhone || user.contact?.homePhone || '';
+    const userMobile = user.mobile || user.contact?.mobilePhone || '+30 694 096 0701';
     const userEmail = user.email;
     const userName = user.name || 'User';
     const positionTitle = user.workPosition?.title || '';

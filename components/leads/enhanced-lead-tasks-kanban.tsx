@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -111,7 +111,6 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    assignedToId: "",
     contactId: "",
     dueDate: "",
     dueTime: "",
@@ -122,6 +121,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [assigneesOpen, setAssigneesOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
 
   useEffect(() => {
     fetchTasks();
@@ -269,17 +269,37 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
 
   const handleUpdateTask = async (taskId: string, updates: any) => {
     try {
+      // Prepare updates with proper date/time formatting
+      const preparedUpdates = { ...updates };
+      
+      // Combine date and time for due date and reminder date if provided
+      if (preparedUpdates.dueDate !== undefined) {
+        const dueDateTime = preparedUpdates.dueDate && preparedUpdates.dueTime 
+          ? `${preparedUpdates.dueDate}T${preparedUpdates.dueTime}:00`
+          : preparedUpdates.dueDate ? `${preparedUpdates.dueDate}T09:00:00` : null;
+        preparedUpdates.dueDate = dueDateTime;
+        delete preparedUpdates.dueTime;
+      }
+
+      if (preparedUpdates.reminderDate !== undefined) {
+        const reminderDateTime = preparedUpdates.reminderDate && preparedUpdates.reminderTime
+          ? `${preparedUpdates.reminderDate}T${preparedUpdates.reminderTime}:00`
+          : preparedUpdates.reminderDate ? `${preparedUpdates.reminderDate}T09:00:00` : null;
+        preparedUpdates.reminderDate = reminderDateTime;
+        delete preparedUpdates.reminderTime;
+      }
+      
       // Add user attribution to description updates
-      if (updates.description !== undefined && currentUser?.name) {
+      if (preparedUpdates.description !== undefined && currentUser?.name) {
         const currentTask = tasks.find(t => t.id === taskId);
-        if (currentTask && updates.description !== currentTask.description) {
-          const newContent = updates.description.trim();
+        if (currentTask && preparedUpdates.description !== currentTask.description) {
+          const newContent = preparedUpdates.description.trim();
           if (newContent) {
             // Check if description already has user attribution
             const userPrefix = `${currentUser.name}:`;
             if (!newContent.startsWith(userPrefix)) {
               const existingDescription = currentTask.description || '';
-              updates.description = existingDescription 
+              preparedUpdates.description = existingDescription 
                 ? `${existingDescription}\n${currentUser.name}: ${newContent}`
                 : `${currentUser.name}: ${newContent}`;
             }
@@ -290,7 +310,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
       const res = await fetch(`/api/leads/${leadId}/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(preparedUpdates),
       });
 
       if (res.ok) {
@@ -362,17 +382,16 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
   };
 
   const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      assignedToId: "",
-      contactId: "",
-      dueDate: "",
-      dueTime: "",
-      reminderDate: "",
-      reminderTime: "",
-      assigneeIds: [],
-    });
+      setFormData({
+        title: "",
+        description: "",
+        contactId: "",
+        dueDate: "",
+        dueTime: "",
+        reminderDate: "",
+        reminderTime: "",
+        assigneeIds: [],
+      });
     setEditingTask(null);
     setSelectedFiles([]);
   };
@@ -404,7 +423,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold uppercase">TASKS</h2>
+          <h2 className="text-2xl font-bold uppercase">TASKS ({tasks.length})</h2>
           <p className="text-muted-foreground">Manage and track lead tasks</p>
         </div>
         <Button onClick={() => setShowDialog(true)} className="uppercase">
@@ -416,7 +435,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
       {/* Progress Overview */}
       <Card>
         <CardHeader>
-          <CardTitle className="uppercase">Progress Overview</CardTitle>
+          <CardTitle className="text-md uppercase">Progress Overview</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4 mb-4">
@@ -427,7 +446,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
                 <div key={status.id} className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <status.icon className="h-4 w-4" />
-                    <span className="font-medium uppercase">{status.label}</span>
+                    <span className="text-sm font-medium uppercase">{status.label}</span>
                   </div>
                   <div className="text-2xl font-bold">{statusTasks.length}</div>
                   <Progress value={percentage} className="mt-2" />
@@ -447,7 +466,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
               <div key={status.id} className="min-w-0 flex-1">
                 <Card className="h-full">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 uppercase">
+                    <CardTitle className="text-sm flex items-center gap-2 uppercase">
                       <div className={`w-3 h-3 rounded-full ${status.color}`} />
                       {status.label}
                       <Badge variant="secondary" className="ml-auto">
@@ -624,40 +643,55 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Search users..." />
-                      <CommandEmpty>No users found.</CommandEmpty>
-                      <CommandGroup>
-                        {users.map((user) => (
-                          <CommandItem
-                            key={user.id}
-                            onSelect={() => {
-                              const isSelected = formData.assigneeIds.includes(user.id);
-                              if (isSelected) {
-                                setFormData({
-                                  ...formData,
-                                  assigneeIds: formData.assigneeIds.filter(id => id !== user.id)
-                                });
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  assigneeIds: [...formData.assigneeIds, user.id]
-                                });
-                              }
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.assigneeIds.includes(user.id) ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {user.name} ({user.email})
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Search users..."
+                        value={assigneeSearch}
+                        onChange={(e) => setAssigneeSearch(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <ScrollArea className="h-64">
+                      <div className="p-2">
+                        {users.filter(u => 
+                          u.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+                          u.email.toLowerCase().includes(assigneeSearch.toLowerCase())
+                        ).map((user) => {
+                          const isSelected = formData.assigneeIds.includes(user.id);
+                          return (
+                            <div
+                              key={user.id}
+                              className="flex items-center space-x-2 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-accent"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setFormData({
+                                    ...formData,
+                                    assigneeIds: formData.assigneeIds.filter(id => id !== user.id)
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    assigneeIds: [...formData.assigneeIds, user.id]
+                                  });
+                                }
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "h-4 w-4",
+                                  isSelected ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-sm">{user.name}</span>
+                                <span className="text-xs text-muted-foreground">{user.email}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
                   </PopoverContent>
                 </Popover>
                 {formData.assigneeIds.length > 0 && (
@@ -699,48 +733,54 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="w-[400px] p-0" align="start">
                       <Command>
                         <CommandInput placeholder="Search contacts..." />
-                        <CommandEmpty>No contacts found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            onSelect={() => {
-                              setFormData({ ...formData, contactId: "" });
-                              setContactsOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                !formData.contactId ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            No contact
-                          </CommandItem>
-                          {leadContacts.map((contact) => (
+                        <CommandList>
+                          <CommandEmpty>No contacts found.</CommandEmpty>
+                          <CommandGroup>
                             <CommandItem
-                              key={contact.id}
+                              value="no-contact"
                               onSelect={() => {
-                                setFormData({ ...formData, contactId: contact.id });
+                                setFormData({ ...formData, contactId: "" });
                                 setContactsOpen(false);
                               }}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  formData.contactId === contact.id ? "opacity-100" : "opacity-0"
+                                  !formData.contactId ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {contact.name}
-                              {contact.email && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  {contact.email}
-                                </span>
-                              )}
+                              No contact
                             </CommandItem>
-                          ))}
-                        </CommandGroup>
+                            {leadContacts.map((contact) => (
+                              <CommandItem
+                                key={contact.id}
+                                value={contact.id}
+                                onSelect={() => {
+                                  setFormData({ ...formData, contactId: contact.id });
+                                  setContactsOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.contactId === contact.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{contact.name}</span>
+                                  {contact.email && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {contact.email}
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
                       </Command>
                     </PopoverContent>
                   </Popover>
@@ -988,7 +1028,6 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
                 setFormData({
                   title: selectedTask.title,
                   description: selectedTask.description || "",
-                  assignedToId: selectedTask.assignedTo?.id || "",
                   contactId: selectedTask.contact?.id || "",
                   dueDate: dueDateTime ? dueDateTime.toISOString().split('T')[0] : "",
                   dueTime: dueDateTime ? dueDateTime.toTimeString().slice(0, 5) : "",

@@ -39,7 +39,7 @@ export async function PATCH(
       );
     }
 
-    const { title, description, assignedToId, contactId, status, order, dueDate, reminderDate } = body;
+    const { title, description, assignedToId, contactId, status, order, dueDate, reminderDate, assigneeIds } = body;
 
     // If status is being changed, record it
     const statusChanged = status && status !== currentTask.status;
@@ -72,13 +72,32 @@ export async function PATCH(
       }
     }
 
+    // Handle multiple assignees if provided
+    if (assigneeIds !== undefined) {
+      // Delete existing assignees
+      await db.leadTaskAssignee.deleteMany({
+        where: { taskId },
+      });
+      
+      // Create new assignees
+      if (assigneeIds.length > 0) {
+        await db.leadTaskAssignee.createMany({
+          data: assigneeIds.map((userId: string) => ({
+            taskId,
+            userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     // Update the task
     const updatedTask = await db.leadTask.update({
       where: { id: taskId },
       data: {
         ...(title && { title }),
         ...(attributedDescription !== undefined && { description: attributedDescription }),
-        ...(assignedToId !== undefined && { assignedToId }),
+        ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
         ...(validatedContactId !== undefined && { contactId: validatedContactId }),
         ...(status && { status }),
         ...(order !== undefined && { order }),
@@ -111,6 +130,17 @@ export async function PATCH(
             email: true,
           },
         },
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -136,7 +166,17 @@ export async function PATCH(
 
       // Send notification emails
       if (lead) {
-        await sendTaskNotificationEmails(updatedTask, lead, session.user.email, "status_changed", session.user.id);
+        try {
+          console.log("=== Task Status Changed - Sending Notifications ===");
+          console.log("Task ID:", taskId);
+          console.log("Status Changed:", currentTask.status, "→", status);
+          console.log("Sender Email:", session.user.email);
+          await sendTaskNotificationEmails(updatedTask, lead, session.user.email, "status_changed", session.user.id);
+          console.log("Notification emails sent successfully");
+        } catch (emailError) {
+          console.error("Failed to send notification emails:", emailError);
+          // Don't fail the request if email fails
+        }
       }
     }
 
@@ -248,28 +288,41 @@ async function sendTaskNotificationEmails(
   senderUserId?: string
 ) {
   try {
+    console.log("\n--- sendTaskNotificationEmails ---");
+    console.log("Action:", action);
+    console.log("Sender:", senderEmail);
+    console.log("Sender User ID:", senderUserId);
+    
     // Collect unique email addresses
     const recipients = new Set<string>();
 
     // Add lead manager (owner)
     if (lead.owner?.email) {
+      console.log("Adding lead owner:", lead.owner.email);
       recipients.add(lead.owner.email);
     }
 
     // Add lead assignee
     if (lead.assignee?.email) {
+      console.log("Adding lead assignee:", lead.assignee.email);
       recipients.add(lead.assignee.email);
     }
 
     // Add task assignee
     if (task.assignedTo?.email) {
+      console.log("Adding task assignee:", task.assignedTo.email);
       recipients.add(task.assignedTo.email);
     }
 
     // Remove sender from recipients
     recipients.delete(senderEmail);
+    
+    console.log("Final recipients:", Array.from(recipients));
 
-    if (recipients.size === 0) return;
+    if (recipients.size === 0) {
+      console.log("⚠ No recipients to send to (all were sender)");
+      return;
+    }
 
     // Generate email signature
     const signature = senderUserId ? await generateEmailSignature(senderUserId, db) : '';
@@ -364,13 +417,22 @@ async function sendTaskNotificationEmails(
     `;
 
     // Send email to each recipient
-    const emailPromises = Array.from(recipients).map(email =>
-      sendEmailAsUser(senderEmail, subject, body, [email]).catch(error => {
-        console.error(`Failed to send email to ${email}:`, error);
-      })
-    );
+    console.log("\n--- Sending emails ---");
+    console.log("Email subject:", subject);
+    const emailPromises = Array.from(recipients).map(email => {
+      console.log(`Sending to: ${email}`);
+      return sendEmailAsUser(senderEmail, subject, body, [email])
+        .then(() => {
+          console.log(`✓ Email sent successfully to ${email}`);
+        })
+        .catch(error => {
+          console.error(`✗ Failed to send email to ${email}:`, error.message);
+          console.error("Full error:", error);
+        });
+    });
 
     await Promise.allSettled(emailPromises);
+    console.log("--- Email sending complete ---\n");
   } catch (error) {
     console.error("Error sending task notification emails:", error);
     // Don't throw - email failures shouldn't prevent task updates

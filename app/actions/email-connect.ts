@@ -7,7 +7,12 @@ export async function getEmailConnectionStatus() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { error: "Unauthorized", hasToken: false };
+      return { 
+        error: "Unauthorized", 
+        hasToken: false,
+        provider: null,
+        expiresAt: null,
+      };
     }
 
     // Check if user has a Microsoft account with access token
@@ -32,7 +37,12 @@ export async function getEmailConnectionStatus() {
     };
   } catch (error) {
     console.error("Error checking email connection:", error);
-    return { error: "Failed to check connection", hasToken: false };
+    return { 
+      error: "Failed to check connection", 
+      hasToken: false,
+      provider: null,
+      expiresAt: null,
+    };
   }
 }
 

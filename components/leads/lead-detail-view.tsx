@@ -70,8 +70,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { LeadEmailsTab } from "./lead-emails-tab";
-import { LeadTasksKanban } from "./lead-tasks-kanban";
+import { EnhancedLeadEmailsTab } from "./enhanced-lead-emails-tab";
+import { EnhancedLeadTasksKanban } from "./enhanced-lead-tasks-kanban";
 
 interface LeadDetailViewProps {
   lead: any;
@@ -894,16 +894,17 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
             </TabsContent>
 
             <TabsContent value="tasks" className="space-y-4">
-              <LeadTasksKanban
+              <EnhancedLeadTasksKanban
                 leadId={lead.id}
                 leadContacts={leadContacts}
                 users={users}
                 onTasksChange={fetchTaskStats}
+                currentUser={users.find(u => u.id === currentUserId)}
               />
             </TabsContent>
 
             <TabsContent value="emails" className="space-y-4">
-              <LeadEmailsTab
+              <EnhancedLeadEmailsTab
                 leadId={lead.id}
                 leadNumber={lead.leadNumber || ""}
                 leadContacts={leadContacts}
