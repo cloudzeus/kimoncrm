@@ -86,6 +86,66 @@ async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
         orderBy: { lastMessageAt: "desc" },
         take: 10,
       },
+      leadNotes: {
+        where: { parentId: null },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              avatar: true,
+            },
+          },
+          attachments: {
+            include: {
+              file: true,
+            },
+          },
+          replies: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                  avatar: true,
+                },
+              },
+              attachments: {
+                include: {
+                  file: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      participants: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              avatar: true,
+              role: true,
+            },
+          },
+          addedBy: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { addedAt: "desc" },
+      },
     },
   });
 

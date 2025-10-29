@@ -16,7 +16,8 @@ export async function GET(
 
     const { id: leadId } = await params;
 
-    const files = await prisma.file.findMany({
+    // Get files directly uploaded to lead
+    const leadFiles = await prisma.file.findMany({
       where: {
         entityId: leadId,
         type: "LEAD",
@@ -26,7 +27,81 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ files });
+    // Get files from lead notes
+    const noteAttachments = await prisma.leadNoteAttachment.findMany({
+      where: {
+        note: {
+          leadId: leadId,
+        },
+      },
+      include: {
+        file: true,
+        note: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Get files from lead tasks
+    const taskAttachments = await prisma.leadTaskAttachment.findMany({
+      where: {
+        task: {
+          leadId: leadId,
+        },
+      },
+      include: {
+        file: true,
+        task: {
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    // Combine all files with source information
+    const allFiles = [
+      ...leadFiles.map(file => ({
+        ...file,
+        source: 'Lead Files' as const,
+        sourceDetails: null,
+      })),
+      ...noteAttachments.map(att => ({
+        ...att.file,
+        source: 'Note' as const,
+        sourceDetails: {
+          noteId: att.note.id,
+          notePreview: att.note.content.substring(0, 50) + (att.note.content.length > 50 ? '...' : ''),
+          createdBy: att.note.user.name,
+          createdAt: att.note.createdAt,
+        },
+      })),
+      ...taskAttachments.map(att => ({
+        ...att.file,
+        source: 'Task' as const,
+        sourceDetails: {
+          taskId: att.task.id,
+          taskTitle: att.task.title,
+          createdAt: att.task.createdAt,
+        },
+      })),
+    ];
+
+    // Sort by creation date
+    allFiles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return NextResponse.json({ files: allFiles });
   } catch (error: any) {
     console.error("Error fetching lead files:", error);
     return NextResponse.json(

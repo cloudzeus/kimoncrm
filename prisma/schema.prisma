@@ -97,6 +97,9 @@ model User {
   createdLeadTasks         LeadTask[]                @relation("TaskCreatedBy")
   leadTaskStatusChanges    LeadTaskStatusChange[]
   leadTaskAssignments      LeadTaskAssignee[]        @relation("LeadTaskAssignee")
+  leadNotes                LeadNote[]                @relation("LeadNoteAuthor")
+  leadParticipations       LeadParticipant[]         @relation("LeadParticipant")
+  addedParticipants        LeadParticipant[]         @relation("ParticipantAdder")
   branch                   Branch?                   @relation("BranchUsers", fields: [branchId], references: [id])
   contact                  Contact?                  @relation(fields: [contactId], references: [id])
   department               Department?               @relation(fields: [departmentId], references: [id])
@@ -282,6 +285,8 @@ model Lead {
   opportunities        Opportunity[]      @relation("LeadOpportunities")
   leadContacts         LeadContact[]
   leadTasks            LeadTask[]
+  leadNotes            LeadNote[]
+  participants         LeadParticipant[]
 
   @@index([customerId], map: "Lead_customerId_fkey")
   @@index([contactId], map: "Lead_contactId_fkey")
@@ -392,6 +397,69 @@ model LeadTaskAssignee {
   @@unique([taskId, userId])
   @@index([taskId])
   @@index([userId])
+}
+
+/// ** Lead Notes/Messaging System **
+model LeadNote {
+  id           String   @id @default(cuid())
+  leadId       String
+  parentId     String? // For threaded replies
+  userId       String // Author of the note
+  content      String   @db.Text
+  isSystemNote Boolean  @default(false) // System-generated notes (status changes, etc.)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  lead        Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user        User                @relation("LeadNoteAuthor", fields: [userId], references: [id])
+  parent      LeadNote?           @relation("NoteReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     LeadNote[]          @relation("NoteReplies")
+  attachments LeadNoteAttachment[]
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model LeadNoteAttachment {
+  id        String   @id @default(cuid())
+  noteId    String
+  fileId    String
+  createdAt DateTime @default(now())
+
+  note LeadNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  file File     @relation("LeadNoteFiles", fields: [fileId], references: [id])
+
+  @@unique([noteId, fileId])
+  @@index([noteId])
+  @@index([fileId])
+}
+
+model LeadParticipant {
+  id           String             @id @default(cuid())
+  leadId       String
+  userId       String
+  role         LeadParticipantRole @default(VIEWER) // Role in the lead
+  addedAt      DateTime           @default(now())
+  addedById    String? // Who added this participant
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user      User  @relation("LeadParticipant", fields: [userId], references: [id])
+  addedBy   User? @relation("ParticipantAdder", fields: [addedById], references: [id])
+
+  @@unique([leadId, userId])
+  @@index([leadId])
+  @@index([userId])
+  @@index([addedById])
+}
+
+enum LeadParticipantRole {
+  OWNER      // Lead owner
+  ASSIGNEE   // Lead assignee
+  TASK_ASSIGNEE // Assigned to tasks
+  COLLABORATOR // Additional participant
+  VIEWER     // Can only view
 }
 
 model Opportunity {
@@ -2280,6 +2348,7 @@ model File {
   updatedAt           DateTime             @updatedAt
   title               String?
   leadTaskAttachments LeadTaskAttachment[]
+  leadNoteAttachments LeadNoteAttachment[] @relation("LeadNoteFiles")
 
   @@index([entityId, type])
   @@index([type])
@@ -2700,6 +2769,8 @@ enum DealStage {
 
 enum LeadStatus {
   ACTIVE
+  WON
+  LOST
   CLOSED
   ARCHIVED
   FROZEN

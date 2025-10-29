@@ -60,6 +60,13 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -72,6 +79,8 @@ import {
 import { toast } from "sonner";
 import { EnhancedLeadEmailsTab } from "./enhanced-lead-emails-tab";
 import { EnhancedLeadTasksKanban } from "./enhanced-lead-tasks-kanban";
+import { LeadNotesTimeline } from "./lead-notes-timeline";
+import { LeadParticipantsManager } from "./lead-participants-manager";
 
 interface LeadDetailViewProps {
   lead: any;
@@ -100,6 +109,8 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const [fileDescription, setFileDescription] = useState("");
   const [editingFile, setEditingFile] = useState<any>(null);
   const [editFileDescription, setEditFileDescription] = useState("");
+  const [currentStatus, setCurrentStatus] = useState(lead.status);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   // Lead contacts state
   const [leadContacts, setLeadContacts] = useState<any[]>([]);
@@ -118,6 +129,10 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
 
   // Task statistics state
   const [taskStats, setTaskStats] = useState({ notStarted: 0, inProgress: 0, completed: 0 });
+
+  // Notes and participants state
+  const [notes, setNotes] = useState<any[]>(Array.isArray(lead.leadNotes) ? lead.leadNotes : []);
+  const [participants, setParticipants] = useState<any[]>(Array.isArray(lead.participants) ? lead.participants : []);
 
   useEffect(() => {
     fetchFiles();
@@ -159,6 +174,63 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
     } catch (error) {
       console.error("Error fetching lead contacts:", error);
     }
+  };
+
+  const fetchNotes = async () => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/notes`);
+      const data = await res.json();
+      setNotes(data.notes || []);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    }
+  };
+
+  const fetchParticipants = async () => {
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/participants`);
+      const data = await res.json();
+      setParticipants(data.participants || []);
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === currentStatus) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        setCurrentStatus(newStatus);
+        toast.success("Status updated successfully");
+        router.refresh();
+      } else {
+        toast.error("Failed to update status");
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("An error occurred");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const switchToTab = (tabValue: string) => {
+    // Find all tab triggers
+    const tabTriggers = document.querySelectorAll('[role="tab"]');
+    tabTriggers.forEach((trigger) => {
+      const element = trigger as HTMLElement;
+      if (element.getAttribute('value') === tabValue) {
+        element.click();
+      }
+    });
   };
 
   const handleContactSave = async () => {
@@ -401,14 +473,27 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
             </Button>
           </div>
           <h1 className="text-lg font-bold">{lead.title}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge>{lead.leadNumber}</Badge>
             <Badge className={STAGE_COLORS[lead.stage] || "bg-gray-100 text-gray-800"}>
               {lead.stage.replace(/_/g, " ")}
             </Badge>
-            <Badge variant={lead.status === "ACTIVE" ? "default" : "secondary"}>
-              {lead.status}
-            </Badge>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">STATUS:</span>
+              <Select value={currentStatus} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
+                <SelectTrigger className="h-7 w-[120px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                  <SelectItem value="WON">WON</SelectItem>
+                  <SelectItem value="LOST">LOST</SelectItem>
+                  <SelectItem value="FROZEN">FROZEN</SelectItem>
+                  <SelectItem value="CLOSED">CLOSED</SelectItem>
+                  <SelectItem value="ARCHIVED">ARCHIVED</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Badge className={getPriorityColor(lead.priority)}>
               {lead.priority}
             </Badge>
@@ -430,21 +515,29 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                 Add Contact
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                // Find the tasks tab and set it as active
-                const tasksTab = document.querySelector('[value="tasks"]') as HTMLElement;
-                if (tasksTab) {
-                  tasksTab.click();
-                }
-                // Trigger task creation from the tasks kanban
+                switchToTab("tasks");
                 setTimeout(() => {
                   const addTaskButton = document.querySelector('[data-add-task]') as HTMLElement;
                   if (addTaskButton) {
                     addTaskButton.click();
                   }
-                }, 100);
+                }, 150);
               }}>
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Add Task
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                switchToTab("notes");
+                setTimeout(() => {
+                  const noteTextarea = document.querySelector('textarea[placeholder*="Write a note"]') as HTMLElement;
+                  if (noteTextarea) {
+                    noteTextarea.focus();
+                    noteTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }, 150);
+              }}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Add Note
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowSiteSurveyDialog(true)}>
                 <ClipboardList className="h-4 w-4 mr-2" />
@@ -633,6 +726,8 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="contacts">Contacts ({leadContacts.length})</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
+              <TabsTrigger value="participants">Participants ({participants.length})</TabsTrigger>
               <TabsTrigger value="emails">Emails</TabsTrigger>
               <TabsTrigger value="files">Files ({files.length})</TabsTrigger>
               <TabsTrigger value="quotes">Quotes ({lead.quotes.length})</TabsTrigger>
@@ -744,16 +839,31 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
               ) : (
                 <div className="grid gap-2">
                   {files.map((file: any) => (
-                    <Card key={file.id}>
+                    <Card key={file.id} className={file.source !== 'Lead Files' ? 'border-l-4 border-l-blue-500' : ''}>
                       <CardContent className="flex items-center justify-between py-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1">
                           <File className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium">{file.name}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="font-medium">{file.name}</div>
+                              <Badge variant={file.source === 'Lead Files' ? 'default' : 'secondary'} className="text-xs">
+                                {file.source}
+                              </Badge>
+                            </div>
                             {file.description && (
-                              <div className="text-sm text-muted-foreground">{file.description}</div>
+                              <div className="text-sm text-muted-foreground mt-1">{file.description}</div>
                             )}
-                            <div className="text-xs text-muted-foreground">
+                            {file.sourceDetails && (
+                              <div className="text-sm text-muted-foreground mt-1 italic">
+                                {file.source === 'Note' && (
+                                  <span>From note by {file.sourceDetails.createdBy}: "{file.sourceDetails.notePreview}"</span>
+                                )}
+                                {file.source === 'Task' && (
+                                  <span>From task: {file.sourceDetails.taskTitle}</span>
+                                )}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground mt-1">
                               Uploaded: {new Date(file.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" })}
                               {file.size && ` • ${(file.size / 1024).toFixed(1)} KB`}
                             </div>
@@ -1010,6 +1120,23 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                   </CardContent>
                 </Card>
               ))}
+            </TabsContent>
+
+            <TabsContent value="notes" className="space-y-4">
+              <LeadNotesTimeline
+                leadId={lead.id}
+                notes={notes}
+                onNoteAdded={fetchNotes}
+                participants={participants}
+              />
+            </TabsContent>
+
+            <TabsContent value="participants" className="space-y-4">
+              <LeadParticipantsManager
+                leadId={lead.id}
+                participants={participants}
+                onParticipantsChanged={fetchParticipants}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

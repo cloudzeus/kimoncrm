@@ -162,6 +162,8 @@ const STAGE_COLORS: Record<DealStage, string> = {
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
   ACTIVE: "bg-green-500 text-white",
+  WON: "bg-emerald-600 text-white",
+  LOST: "bg-red-600 text-white",
   CLOSED: "bg-gray-500 text-white",
   ARCHIVED: "bg-slate-600 text-white",
   FROZEN: "bg-cyan-500 text-white",

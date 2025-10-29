@@ -426,7 +426,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
           <h2 className="text-2xl font-bold uppercase">TASKS ({tasks.length})</h2>
           <p className="text-muted-foreground">Manage and track lead tasks</p>
         </div>
-        <Button onClick={() => setShowDialog(true)} className="uppercase">
+        <Button onClick={() => setShowDialog(true)} className="uppercase" data-add-task>
           <Plus className="h-4 w-4 mr-2" />
           Add Task
         </Button>
@@ -757,7 +757,7 @@ export function EnhancedLeadTasksKanban({ leadId, leadContacts, users, onTasksCh
                             {leadContacts.map((contact) => (
                               <CommandItem
                                 key={contact.id}
-                                value={contact.id}
+                                value={`${contact.name}-${contact.id}`}
                                 onSelect={() => {
                                   setFormData({ ...formData, contactId: contact.id });
                                   setContactsOpen(false);

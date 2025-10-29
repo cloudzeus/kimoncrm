@@ -268,7 +268,7 @@ export async function POST(
 
           // Create calendar event for each assignee
           for (const user of assigneeUsers) {
-            await createLeadTaskCalendarEvent(
+            const calendarResponse = await createLeadTaskCalendarEvent(
               {
                 ...taskForCalendar,
                 assignedTo: {
@@ -279,11 +279,12 @@ export async function POST(
               lead,
               session.user.email
             );
+            console.log('Calendar event created for assignee:', user.email, 'Response:', calendarResponse);
           }
         } 
         // Fallback to old single assignee if present
         else if (task.assignedTo) {
-          await createLeadTaskCalendarEvent(
+          const calendarResponse = await createLeadTaskCalendarEvent(
             {
               ...taskForCalendar,
               assignedTo: {
@@ -294,6 +295,7 @@ export async function POST(
             lead,
             session.user.email
           );
+          console.log('Calendar event created for assignee:', task.assignedTo.email, 'Response:', calendarResponse);
         }
       }
 
