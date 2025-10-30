@@ -71,7 +71,7 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
       setProposal(data.proposal);
       
       toast.success('ΕΠΙΤΥΧΙΑ', {
-        description: 'Οι αλλαγές αποθηκεύτηκαν',
+        description: 'Οι αλλαγές αποθηκεύτηκαν. Πατήστε "ΔΗΜΙΟΥΡΓΙΑ WORD" για να ενημερώσετε το έγγραφο.',
       });
     } catch (error: any) {
       console.error('Error saving proposal:', error);
@@ -101,7 +101,7 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
       setProposal(data.proposal);
       
       toast.success('ΕΠΙΤΥΧΙΑ', {
-        description: 'Το έγγραφο δημιουργήθηκε και ανέβηκε',
+        description: 'Το έγγραφο Word δημιουργήθηκε με τις τελευταίες αλλαγές σας και κατεβαίνει τώρα!',
       });
 
       // Download the file
