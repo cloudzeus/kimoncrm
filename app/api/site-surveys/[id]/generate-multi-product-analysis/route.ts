@@ -118,7 +118,12 @@ export async function POST(
         alt: img.alt || undefined,
         isDefault: img.isDefault,
       })),
-      translations: product.translations,
+      translations: product.translations.map(t => ({
+        languageCode: t.languageCode,
+        name: t.name ?? undefined,
+        description: t.description ?? undefined,
+        shortDescription: t.shortDescription ?? undefined,
+      })),
       specifications: product.specifications,
       width: product.width ?? undefined,
       height: product.height ?? undefined,
