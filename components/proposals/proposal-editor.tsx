@@ -241,7 +241,7 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
             <div>
               <CardTitle className="text-2xl">{proposal.projectTitle}</CardTitle>
               <CardDescription className="mt-2">
-                {proposal.customer.name} | {proposal.lead?.leadNumber || 'No Lead Number'}
+                {proposal.customer?.name || 'No Customer'} | {proposal.lead?.leadNumber || 'No Lead Number'}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
