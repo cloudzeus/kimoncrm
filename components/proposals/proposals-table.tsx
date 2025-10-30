@@ -82,9 +82,11 @@ interface ProposalsTableProps {
 export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [pricingDialogOpen, setPricingDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Proposal[]>([]);
   const [deleting, setDeleting] = useState(false);
 
   const getStatusBadge = (status: string) => {
@@ -134,6 +136,42 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
     } catch (error) {
       console.error('Error deleting proposal:', error);
       toast.error('Σφάλμα κατά τη διαγραφή της πρότασης');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+
+    setDeleting(true);
+    try {
+      // Delete all selected proposals in parallel
+      const deletePromises = selectedRows.map(proposal =>
+        fetch(`/api/proposals/${proposal.id}`, {
+          method: 'DELETE',
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failCount = results.filter(r => r.status === 'rejected').length;
+
+      if (successCount > 0) {
+        toast.success(`${successCount} πρότασ${successCount === 1 ? 'η' : 'εις'} διαγράφηκ${successCount === 1 ? 'ε' : 'αν'} επιτυχώς`);
+      }
+      
+      if (failCount > 0) {
+        toast.error(`Αποτυχία διαγραφής ${failCount} πρότασ${failCount === 1 ? 'ης' : 'εων'}`);
+      }
+
+      setBulkDeleteDialogOpen(false);
+      setSelectedRows([]);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Error bulk deleting proposals:', error);
+      toast.error('Σφάλμα κατά τη μαζική διαγραφή');
     } finally {
       setDeleting(false);
     }
@@ -491,6 +529,33 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
 
   return (
     <>
+      {/* Bulk Actions Bar */}
+      {selectedRows.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg mb-4 border">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">
+              {selectedRows.length} επιλεγμέν{selectedRows.length === 1 ? 'η' : 'ες'}
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Διαγραφή ({selectedRows.length})
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedRows([])}
+          >
+            Καθαρισμός επιλογής
+          </Button>
+        </div>
+      )}
+
       <DataTable
         data={proposals}
         columns={columns}
@@ -501,6 +566,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
         selectable={true}
         resizable={true}
         onRowClick={(row) => router.push(`/proposals/${row.id}/edit`)}
+        onSelectionChange={(rows) => setSelectedRows(rows as Proposal[])}
         onExport={(data, columns) => {
           toast.success(`Εξαγωγή ${data.length} προτάσεων σε Excel`);
         }}
@@ -526,6 +592,31 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
               className="bg-destructive hover:bg-destructive/90"
             >
               {deleting ? 'Διαγραφή...' : 'Διαγραφή'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ΜΑΖΙΚΗ ΔΙΑΓΡΑΦΗ ΠΡΟΤΑΣΕΩΝ</AlertDialogTitle>
+            <AlertDialogDescription>
+              Είστε σίγουροι ότι θέλετε να διαγράψετε {selectedRows.length} πρότασ{selectedRows.length === 1 ? 'η' : 'εις'};
+              Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              Ακύρωση
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleting ? 'Διαγραφή...' : `Διαγραφή ${selectedRows.length}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
