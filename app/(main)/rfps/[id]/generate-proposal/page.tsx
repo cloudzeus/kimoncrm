@@ -8,9 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, FileText, Package, Briefcase } from 'lucide-react';
 
 interface GenerateProposalPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function GenerateProposalPage({ params }: GenerateProposalPageProps) {
@@ -20,9 +20,12 @@ export default async function GenerateProposalPage({ params }: GenerateProposalP
     redirect('/sign-in');
   }
 
+  // Await params in Next.js 15+
+  const { id } = await params;
+
   // Fetch RFP with all relations
   const rfp = await prisma.rFP.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       customer: true,
       contact: true,
