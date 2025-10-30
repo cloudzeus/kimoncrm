@@ -56,6 +56,10 @@ export default async function ProposalsPage() {
       id: proposal.lead.id,
       leadNumber: proposal.lead.leadNumber || '',
     } : null,
+    rfp: proposal.rfp ? {
+      id: proposal.rfp.id,
+      rfpNo: proposal.rfp.rfpNo,
+    } : null,
   }));
 
   return <ProposalsPageClient proposals={serializedProposals} />;

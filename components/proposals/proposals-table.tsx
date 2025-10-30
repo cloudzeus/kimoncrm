@@ -65,7 +65,7 @@ interface Proposal {
   } | null;
   rfp: {
     id: string;
-    rfpNo: string;
+    rfpNo: string | null;
     requirements?: string | null;
   } | null;
   generatedByUser: {
