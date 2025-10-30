@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type EntityType = "CUSTOMER" | "SUPPLIER" | "PROJECT" | "TASK" | "USER" | "SITESURVEY";
 
@@ -47,6 +48,8 @@ export function FilesList({
   const [loading, setLoading] = useState(true);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
   const { toast } = useToast();
 
   const fetchFiles = async () => {
@@ -112,6 +115,67 @@ export function FilesList({
     } finally {
       setDeleting(false);
       setDeleteFileId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedFiles.size === 0) return;
+    
+    setDeleting(true);
+    try {
+      const fileIds = Array.from(selectedFiles);
+      const deletePromises = fileIds.map(fileId =>
+        fetch(`/api/files/${entityType}/${entityId}?fileId=${fileId}`, {
+          method: "DELETE",
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failedDeletes = results.filter(r => !r.ok);
+
+      if (failedDeletes.length > 0) {
+        throw new Error(`Failed to delete ${failedDeletes.length} file(s)`);
+      }
+
+      toast({
+        title: "FILES DELETED",
+        description: `Successfully deleted ${fileIds.length} file(s).`,
+      });
+
+      // Remove from local state
+      setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
+      setSelectedFiles(new Set());
+      onFileDeleted?.();
+    } catch (error: any) {
+      console.error("Error deleting files:", error);
+      toast({
+        title: "DELETE FAILED",
+        description: error.message || "Failed to delete some files.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setShowBulkDelete(false);
+    }
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
     }
   };
 
@@ -190,10 +254,43 @@ export function FilesList({
 
   return (
     <>
+      {/* Bulk Actions Bar */}
+      {files.length > 0 && (
+        <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={selectedFiles.size === files.length}
+              onCheckedChange={toggleSelectAll}
+              id="select-all"
+            />
+            <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+              Select All ({selectedFiles.size} of {files.length} selected)
+            </label>
+          </div>
+          {selectedFiles.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowBulkDelete(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected ({selectedFiles.size})
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {files.map((file) => (
           <Card key={file.id} className="p-4 hover:shadow-lg transition-shadow">
             <div className="flex items-start gap-3">
+              <div className="flex items-center">
+                <Checkbox
+                  checked={selectedFiles.has(file.id)}
+                  onCheckedChange={() => toggleFileSelection(file.id)}
+                  className="mr-3"
+                />
+              </div>
               <div className="text-2xl flex-shrink-0 mt-1">
                 {getFileIcon(file.filetype)}
               </div>
@@ -250,7 +347,7 @@ export function FilesList({
         ))}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Delete single file confirmation dialog */}
       <AlertDialog
         open={deleteFileId !== null}
         onOpenChange={(open) => !open && setDeleteFileId(null)}
@@ -271,6 +368,32 @@ export function FilesList({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? "DELETING..." : "DELETE"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog
+        open={showBulkDelete}
+        onOpenChange={(open) => !open && setShowBulkDelete(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>DELETE MULTIPLE FILES</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedFiles.size} selected file(s)? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>CANCEL</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "DELETING..." : `DELETE ${selectedFiles.size} FILE(S)`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

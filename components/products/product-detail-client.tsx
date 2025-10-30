@@ -36,7 +36,8 @@ import {
   RefreshCw,
   Edit,
   Trash2,
-  Upload
+  Upload,
+  FileDown
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -132,6 +133,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [specForm, setSpecForm] = useState<{ [key: string]: { specName: string; specValue: string } }>({});
   const [addingToERP, setAddingToERP] = useState(false);
   const [imageUploadOpen, setImageUploadOpen] = useState(false);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
 
   const defaultImage = product.images.find(img => img.isDefault) || product.images[0];
   const otherImages = product.images.filter(img => !img.isDefault || product.images.length === 1);
@@ -193,6 +195,57 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       });
     } finally {
       setExtractingDimensions(false);
+    }
+  };
+
+  const handleGenerateAnalysis = async () => {
+    setGeneratingAnalysis(true);
+    try {
+      const response = await fetch(`/api/products/${product.id}/generate-analysis`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Get the blob from response
+        const blob = await response.blob();
+        
+        // Create a download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Extract filename from Content-Disposition header or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const fileNameMatch = contentDisposition?.match(/filename="?(.+)"?/i);
+        const fileName = fileNameMatch ? fileNameMatch[1] : `${product.name}_Αναλυση.docx`;
+        
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: 'Analysis Generated',
+          description: 'Product analysis document has been downloaded successfully.',
+        });
+      } else {
+        const data = await response.json();
+        toast({
+          title: 'Generation Failed',
+          description: data.error || 'Failed to generate product analysis document',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating analysis:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate product analysis document',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingAnalysis(false);
     }
   };
 
@@ -421,6 +474,19 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               EXTRACT DIMENSIONS
             </Button>
           )}
+          <Button
+            onClick={handleGenerateAnalysis}
+            disabled={generatingAnalysis}
+            size="sm"
+            variant="default"
+          >
+            {generatingAnalysis ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4 mr-2" />
+            )}
+            {generatingAnalysis ? 'GENERATING...' : 'GENERATE ANALYSIS'}
+          </Button>
         </div>
       </div>
 

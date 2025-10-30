@@ -24,7 +24,9 @@ import {
   TrendingUp, 
   Calculator,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  FileDown,
+  Loader2
 } from "lucide-react";
 import { EquipmentItem, getElementDisplayName } from "@/types/equipment-selection";
 import { toast } from "sonner";
@@ -33,6 +35,7 @@ interface PricingStepProps {
   equipment: EquipmentItem[];
   buildings: any[];
   siteSurveyData?: any;
+  siteSurveyId: string;
   onSubmit: (finalEquipment: EquipmentItem[]) => void;
   onBack: () => void;
   loading: boolean;
@@ -42,12 +45,14 @@ export function PricingStep({
   equipment,
   buildings,
   siteSurveyData,
+  siteSurveyId,
   onSubmit,
   onBack,
   loading,
 }: PricingStepProps) {
   const [localEquipment, setLocalEquipment] = useState<EquipmentItem[]>(equipment);
   const [generalNotes, setGeneralNotes] = useState("");
+  const [generatingRFP, setGeneratingRFP] = useState(false);
 
   // Sync equipment prop with local state and deduplicate by ID
   useEffect(() => {
@@ -130,32 +135,93 @@ export function PricingStep({
     onSubmit(localEquipment);
   };
 
+  // Generate RFP with Pricing Excel
+  const handleGenerateRFP = async () => {
+    if (localEquipment.length === 0) {
+      toast.error("Please add at least one equipment item before generating RFP");
+      return;
+    }
+
+    // Validate all items have valid quantities and prices
+    const invalidItems = localEquipment.filter(item => item.quantity <= 0 || item.price < 0);
+    if (invalidItems.length > 0) {
+      toast.error("All items must have valid quantities and prices");
+      return;
+    }
+
+    setGeneratingRFP(true);
+    try {
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-rfp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          equipment: localEquipment,
+          generalNotes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate RFP');
+      }
+
+      if (data.success) {
+        toast.success(
+          'Successfully generated RFP with pricing document',
+          {
+            description: `RFP ${data.rfp.rfpNo} - ${data.file.filename} (v${data.file.version}) - Total: €${data.totals.grandTotal.toFixed(2)}`,
+            duration: 6000,
+          }
+        );
+      } else {
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating RFP:', error);
+      toast.error(
+        'Failed to generate RFP',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingRFP(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Pricing & Final Review</h3>
+          <h3 className="text-lg font-semibold">PRICING & FINAL REVIEW</h3>
           <p className="text-sm text-muted-foreground">
             Review and adjust prices, quantities, and margins for all items
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack} disabled={loading}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? (
+          <Button 
+            onClick={handleGenerateRFP}
+            disabled={localEquipment.length === 0 || generatingRFP}
+            variant="default"
+          >
+            {generatingRFP ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Generating...
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating RFP...
               </>
             ) : (
               <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Generate BOM & Document
+                <FileDown className="h-4 w-4 mr-2" />
+                Generate RFP & Pricing
               </>
             )}
+          </Button>
+          <Button variant="outline" onClick={onBack} disabled={loading || generatingRFP}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
           </Button>
         </div>
       </div>

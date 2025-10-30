@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth/guards";
 import { prisma as db } from "@/lib/db/prisma";
 import { generateBuildingExcelReport } from "@/lib/excel/building-report-excel";
 import { bunnyPut } from "@/lib/bunny/upload";
+import { sanitizeFilename } from "@/lib/utils/greeklish";
 
 export async function POST(
   request: NextRequest,
@@ -14,13 +15,14 @@ export async function POST(
     const body = await request.json();
     const { buildings, stepCompleted } = body;
 
-    // Get site survey with lead info
+    // Get site survey with lead/customer info
     const siteSurvey = await db.siteSurvey.findUnique({
       where: { id: siteSurveyId },
       select: {
         id: true,
         title: true,
         leadId: true,
+        customerId: true,
         lead: {
           select: {
             id: true,
@@ -42,6 +44,12 @@ export async function POST(
             },
           },
         },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -52,12 +60,21 @@ export async function POST(
       );
     }
 
-    if (!siteSurvey.leadId) {
+    // Determine if we're linking to a lead or customer
+    const isLinkedToLead = !!siteSurvey.leadId;
+    const isLinkedToCustomer = !!siteSurvey.customerId;
+
+    if (!isLinkedToLead && !isLinkedToCustomer) {
       return NextResponse.json(
-        { error: "Site survey is not linked to a lead" },
+        { error: "Site survey is not linked to a lead or customer" },
         { status: 400 }
       );
     }
+
+    // Use lead info if available, otherwise use customer info
+    const entityId = siteSurvey.leadId || siteSurvey.customerId;
+    const entityType = isLinkedToLead ? 'LEAD' : 'CUSTOMER';
+    const referenceNumber = siteSurvey.lead?.leadNumber || siteSurvey.customer?.name || "REF";
 
     // Generate Excel for each building
     const generatedFiles = [];
@@ -70,25 +87,29 @@ export async function POST(
         const workbook = await generateBuildingExcelReport(building);
         const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
         
-        // Determine version number
+        // Determine version number with safe filename
+        const safeBuildingName = sanitizeFilename(building.name || 'building', { preserveExtension: false });
+        const safeReference = sanitizeFilename(referenceNumber, { preserveExtension: false });
+        const baseFileName = `${safeReference} - Infrastructure - ${safeBuildingName} - v`;
+        
         const existingFiles = await db.file.findMany({
           where: {
-            entityId: siteSurvey.leadId || siteSurvey.id,
-            type: 'LEAD',
+            entityId: entityId!,
+            type: entityType,
             name: {
-              startsWith: `SR-002-infrastructure-${building.name || 'building'}-v`,
+              startsWith: baseFileName,
             },
           },
           orderBy: { createdAt: 'desc' },
         });
 
         const versionNumber = existingFiles.length + 1;
-        const filename = `SR-002-infrastructure-${building.name || 'building'}-v${versionNumber}.xlsx`;
+        const filename = `${baseFileName}${versionNumber}.xlsx`;
         
         // Upload to BunnyCDN
         const timestamp = Date.now();
-        const sanitizedFileName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const fullPath = `site-surveys/${timestamp}_${sanitizedFileName}`;
+        const entityFolder = entityType === 'LEAD' ? 'leads' : 'customers';
+        const fullPath = `${entityFolder}/${entityId}/infrastructure/${timestamp}_${filename}`;
         const uploadResult = await bunnyPut(fullPath, buffer);
         
         // Save file record to database
@@ -98,8 +119,8 @@ export async function POST(
             filetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             size: buffer.length,
             url: uploadResult.url,
-            entityId: siteSurvey.leadId || siteSurvey.id,
-            type: 'LEAD',
+            entityId: entityId!,
+            type: entityType,
             description: `Infrastructure report for ${building.name || 'building'} - Step ${stepCompleted} completion`,
           },
         });

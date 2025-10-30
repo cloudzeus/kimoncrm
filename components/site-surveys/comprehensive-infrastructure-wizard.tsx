@@ -20,7 +20,9 @@ import {
   CheckCircle,
   Package,
   Calculator,
-  FileText
+  FileText,
+  FileDown,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuildingsStep } from "./wizard-steps/buildings-step";
@@ -28,6 +30,7 @@ import { EquipmentAssignmentStep } from "./wizard-steps/equipment-assignment-ste
 import { CentralRackStep } from "./wizard-steps/central-rack-step";
 import ProposalDocumentStep from "./wizard-steps/proposal-document-step";
 import { BuildingData, SiteConnectionData } from "@/types/building-data";
+import { ProposalGenerationModal } from "../proposals/proposal-generation-modal";
 
 export interface InfrastructureData {
   buildings: BuildingData[];
@@ -404,6 +407,7 @@ interface ComprehensiveInfrastructureWizardProps {
   siteSurveyId: string;
   siteSurveyData?: any;
   onComplete?: () => void;
+  onRFPGenerated?: (rfpData: any) => void;
 }
 
 const STEPS = [
@@ -437,6 +441,7 @@ export function ComprehensiveInfrastructureWizard({
   siteSurveyId,
   siteSurveyData,
   onComplete,
+  onRFPGenerated,
 }: ComprehensiveInfrastructureWizardProps) {
   
   const [wizardData, setWizardData] = useState<InfrastructureData>({
@@ -447,6 +452,11 @@ export function ComprehensiveInfrastructureWizard({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [generatingFile, setGeneratingFile] = useState(false);
+  const [generatingBOM, setGeneratingBOM] = useState(false);
+  const [generatingRFP, setGeneratingRFP] = useState(false);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
 
   // Load existing data on mount
   useEffect(() => {
@@ -480,15 +490,49 @@ export function ComprehensiveInfrastructureWizard({
     try {
       setSaving(true);
       
+      // Helper function to remove circular references and clean data
+      const cleanData = (obj: any, seen = new WeakSet()): any => {
+        if (obj === null || typeof obj !== 'object') {
+          return obj;
+        }
+        
+        // Check for circular reference
+        if (seen.has(obj)) {
+          return undefined; // Return undefined for circular refs
+        }
+        
+        seen.add(obj);
+        
+        if (Array.isArray(obj)) {
+          return obj.map(item => cleanData(item, seen));
+        }
+        
+        const cleaned: any = {};
+        for (const key in obj) {
+          if (obj.hasOwnProperty(key)) {
+            const value = cleanData(obj[key], seen);
+            if (value !== undefined) {
+              cleaned[key] = value;
+            }
+          }
+        }
+        
+        return cleaned;
+      };
+      
+      // Clean the data before serialization
+      const cleanedBuildings = cleanData(wizardData.buildings);
+      const cleanedConnections = cleanData(wizardData.siteConnections);
+      
       // Save comprehensive infrastructure data
       await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           infrastructureData: {
-            buildings: wizardData.buildings,
+            buildings: cleanedBuildings,
           },
-          siteConnections: wizardData.siteConnections,
+          siteConnections: cleanedConnections,
           completedStep: markStepComplete,
         }),
       });
@@ -502,7 +546,7 @@ export function ComprehensiveInfrastructureWizard({
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              buildings: wizardData.buildings,
+              buildings: cleanedBuildings,
               stepCompleted: markStepComplete,
             }),
           });
@@ -598,17 +642,1031 @@ export function ComprehensiveInfrastructureWizard({
   };
 
   const handleBuildingsUpdate = (buildings: BuildingData[]) => {
+    // Helper function to remove circular references
+    const cleanData = (obj: any, seen = new WeakSet()): any => {
+      if (obj === null || typeof obj !== 'object') {
+        return obj;
+      }
+      
+      // Check for circular reference
+      if (seen.has(obj)) {
+        return undefined; // Return undefined for circular refs
+      }
+      
+      seen.add(obj);
+      
+      if (Array.isArray(obj)) {
+        return obj.map(item => cleanData(item, seen));
+      }
+      
+      const cleaned: any = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          const value = cleanData(obj[key], seen);
+          if (value !== undefined) {
+            cleaned[key] = value;
+          }
+        }
+      }
+      
+      return cleaned;
+    };
+    
+    // Clean buildings before setting state to avoid circular references
+    const cleanedBuildings = cleanData(buildings);
+    
     setWizardData(prev => ({
       ...prev,
-      buildings,
+      buildings: cleanedBuildings,
     }));
   };
 
   const handleSiteConnectionsUpdate = (siteConnections: SiteConnectionData[]) => {
+    // Helper function to remove circular references
+    const cleanData = (obj: any, seen = new WeakSet()): any => {
+      if (obj === null || typeof obj !== 'object') {
+        return obj;
+      }
+      
+      // Check for circular reference
+      if (seen.has(obj)) {
+        return undefined; // Return undefined for circular refs
+      }
+      
+      seen.add(obj);
+      
+      if (Array.isArray(obj)) {
+        return obj.map(item => cleanData(item, seen));
+      }
+      
+      const cleaned: any = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          const value = cleanData(obj[key], seen);
+          if (value !== undefined) {
+            cleaned[key] = value;
+          }
+        }
+      }
+      
+      return cleaned;
+    };
+    
+    // Clean site connections before setting state to avoid circular references
+    const cleanedConnections = cleanData(siteConnections);
+    
     setWizardData(prev => ({
       ...prev,
-      siteConnections,
+      siteConnections: cleanedConnections,
     }));
+  };
+
+  // Helper function to clean circular references
+  const cleanData = (obj: any, seen = new WeakSet()): any => {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+    if (seen.has(obj)) {
+      return undefined;
+    }
+    seen.add(obj);
+    if (Array.isArray(obj)) {
+      return obj.map(item => cleanData(item, seen));
+    }
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = cleanData(obj[key], seen);
+        if (value !== undefined) {
+          cleaned[key] = value;
+        }
+      }
+    }
+    return cleaned;
+  };
+
+  // Helper function to trigger file download
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      console.log('Downloading file:', { url, filename });
+      
+      // Use proxy endpoint to avoid CORS issues
+      const proxyUrl = `/api/files/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+      
+      // Fetch the file through our proxy
+      const response = await fetch(proxyUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('File blob size:', blob.size);
+      
+      // Create download link
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      console.log('Download triggered successfully');
+      
+      toast.success('File downloaded successfully!', {
+        description: filename,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  };
+
+  // Generate Infrastructure File
+  const handleGenerateInfrastructureFile = async () => {
+    if (wizardData.buildings.length === 0) {
+      toast.error("Please add at least one building before generating the infrastructure file");
+      return;
+    }
+
+    setGeneratingFile(true);
+    try {
+      const cleanedBuildings = cleanData(wizardData.buildings);
+
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-infrastructure-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          buildings: cleanedBuildings,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate file');
+      }
+
+      if (data.success) {
+        toast.success(
+          data.message || `Successfully generated ${data.files.length} infrastructure file(s)`,
+          {
+            description: data.files.map((f: any) => `${f.filename} (v${f.version})`).join(', '),
+            duration: 5000,
+          }
+        );
+        
+        // Auto-download the generated files
+        if (data.files && data.files.length > 0) {
+          for (const file of data.files) {
+            if (file.url) {
+              downloadFile(file.url, file.filename);
+            }
+          }
+        }
+        
+        if (data.errors && data.errors.length > 0) {
+          toast.warning(
+            `Some files had errors`,
+            {
+              description: data.errors.map((e: any) => `${e.buildingName}: ${e.error}`).join(', '),
+              duration: 5000,
+            }
+          );
+        }
+      } else {
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating infrastructure file:', error);
+      toast.error(
+        'Failed to generate infrastructure file',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingFile(false);
+    }
+  };
+
+  // Generate BOM File
+  const handleGenerateBOM = async () => {
+    // Collect all equipment from all buildings
+    const allEquipment: any[] = [];
+    wizardData.buildings.forEach(building => {
+      // From central rack
+      if (building.centralRack) {
+        if (building.centralRack.equipment) {
+          allEquipment.push(...building.centralRack.equipment);
+        }
+        if (building.centralRack.switches) {
+          allEquipment.push(...building.centralRack.switches);
+        }
+        if (building.centralRack.routers) {
+          allEquipment.push(...building.centralRack.routers);
+        }
+        if (building.centralRack.servers) {
+          allEquipment.push(...building.centralRack.servers);
+        }
+      }
+      
+      // From floors
+      building.floors?.forEach(floor => {
+        floor.racks?.forEach(rack => {
+          if (rack.equipment) {
+            allEquipment.push(...rack.equipment);
+          }
+          if (rack.switches) {
+            allEquipment.push(...rack.switches);
+          }
+          if (rack.routers) {
+            allEquipment.push(...rack.routers);
+          }
+          if (rack.servers) {
+            allEquipment.push(...rack.servers);
+          }
+        });
+        floor.rooms?.forEach(room => {
+          if (room.equipment) {
+            allEquipment.push(...room.equipment);
+          }
+          if (room.devices) {
+            allEquipment.push(...room.devices);
+          }
+        });
+      });
+    });
+
+    if (allEquipment.length === 0) {
+      toast.error("Please add equipment before generating the BOM file");
+      return;
+    }
+
+    setGeneratingBOM(true);
+    try {
+      // Clean equipment data to remove circular references
+      const cleanedEquipment = allEquipment.map(item => cleanData(item));
+      
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-bom-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          equipment: cleanedEquipment,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to generate BOM file');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('BOM generated successfully:', data);
+        
+        toast.success(
+          'Successfully generated BOM file',
+          {
+            description: `${data.file.filename} (v${data.file.version})`,
+            duration: 5000,
+          }
+        );
+        
+        // Auto-download the file
+        if (data.file?.url) {
+          console.log('Downloading BOM from:', data.file.url);
+          downloadFile(data.file.url, data.file.filename);
+        } else {
+          console.error('No URL in response:', data);
+          toast.warning('BOM generated but download URL missing');
+        }
+      } else {
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating BOM file:', error);
+      toast.error(
+        'Failed to generate BOM file',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingBOM(false);
+    }
+  };
+
+  // Generate RFP
+  const handleGenerateRFP = async () => {
+    setGeneratingRFP(true);
+    try {
+      // Step 1: Fetch all products and services
+      const [productsRes, servicesRes] = await Promise.all([
+        fetch('/api/products?limit=10000'), // Get all products
+        fetch('/api/services?limit=10000'), // Get all services
+      ]);
+
+      if (!productsRes.ok || !servicesRes.ok) {
+        throw new Error('Failed to fetch products or services');
+      }
+
+      const productsData = await productsRes.json();
+      const servicesData = await servicesRes.json();
+      
+      // Extract the data arrays from the API response
+      const allProducts = Array.isArray(productsData) ? productsData : (productsData.data || []);
+      const allServices = Array.isArray(servicesData) ? servicesData : (servicesData.data || []);
+
+      // Step 1.5: Load custom pricing from localStorage
+      let productPricingMap = new Map();
+      let servicePricingMap = new Map();
+      
+      try {
+        const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
+        const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
+        
+        if (savedProductPricing) {
+          const pricingData = JSON.parse(savedProductPricing);
+          productPricingMap = new Map(pricingData);
+          console.log('Loaded product pricing from localStorage:', productPricingMap.size, 'items');
+        }
+        
+        if (savedServicePricing) {
+          const pricingData = JSON.parse(savedServicePricing);
+          servicePricingMap = new Map(pricingData);
+          console.log('Loaded service pricing from localStorage:', servicePricingMap.size, 'items');
+        }
+      } catch (error) {
+        console.error('Failed to load pricing from localStorage:', error);
+      }
+
+      // Step 2: Collect all equipment with full details from all buildings
+      const productsMap = new Map();
+      const servicesMap = new Map();
+
+      wizardData.buildings.forEach(building => {
+        // From central rack
+        if (building.centralRack) {
+          // Cable terminations
+          building.centralRack.cableTerminations?.forEach(term => {
+            if (term.productId && term.isFutureProposal) {
+              const product = allProducts.find(p => p.id === term.productId);
+              if (product) {
+                const key = term.productId;
+                if (!productsMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = productPricingMap.get(key);
+                  const price = customPricing?.unitPrice || product.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  productsMap.set(key, {
+                    id: product.id,
+                    productId: product.id,
+                    name: product.name || term.cableType,
+                    brand: product.brand || 'N/A',
+                    category: product.category || 'Cable Termination',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'product',
+                  });
+                }
+                productsMap.get(key).quantity += term.quantity || 1;
+              }
+            }
+
+            // Services for terminations
+            term.services?.forEach(svc => {
+              const service = allServices.find(s => s.id === svc.serviceId);
+              if (service) {
+                const key = svc.serviceId;
+                if (!servicesMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = servicePricingMap.get(key);
+                  const price = customPricing?.unitPrice || service.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  servicesMap.set(key, {
+                    id: service.id,
+                    serviceId: service.id,
+                    name: service.name,
+                    category: service.category || 'Installation',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'service',
+                  });
+                }
+                servicesMap.get(key).quantity += svc.quantity || 1;
+              }
+            });
+          });
+
+          // Switches
+          building.centralRack.switches?.forEach(sw => {
+            if (sw.productId && sw.isFutureProposal) {
+              const product = allProducts.find(p => p.id === sw.productId);
+              if (product) {
+                const key = sw.productId;
+                if (!productsMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = productPricingMap.get(key);
+                  const price = customPricing?.unitPrice || product.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  productsMap.set(key, {
+                    id: product.id,
+                    productId: product.id,
+                    name: product.name,
+                    brand: product.brand || 'N/A',
+                    category: product.category || 'Network Switch',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'product',
+                  });
+                }
+                productsMap.get(key).quantity += sw.quantity || 1;
+              }
+            }
+
+            // Services for switches
+            sw.services?.forEach(svc => {
+              const service = allServices.find(s => s.id === svc.serviceId);
+              if (service) {
+                const key = svc.serviceId;
+                if (!servicesMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = servicePricingMap.get(key);
+                  const price = customPricing?.unitPrice || service.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  servicesMap.set(key, {
+                    id: service.id,
+                    serviceId: service.id,
+                    name: service.name,
+                    category: service.category || 'Installation',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'service',
+                  });
+                }
+                servicesMap.get(key).quantity += svc.quantity || 1;
+              }
+            });
+          });
+
+          // Routers
+          building.centralRack.routers?.forEach(router => {
+            if (router.productId && router.isFutureProposal) {
+              const product = allProducts.find(p => p.id === router.productId);
+              if (product) {
+                const key = router.productId;
+                if (!productsMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = productPricingMap.get(key);
+                  const price = customPricing?.unitPrice || product.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  productsMap.set(key, {
+                    id: product.id,
+                    productId: product.id,
+                    name: product.name,
+                    brand: product.brand || 'N/A',
+                    category: product.category || 'Router',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'product',
+                  });
+                }
+                productsMap.get(key).quantity += router.quantity || 1;
+              }
+            }
+
+            // Services for routers
+            router.services?.forEach(svc => {
+              const service = allServices.find(s => s.id === svc.serviceId);
+              if (service) {
+                const key = svc.serviceId;
+                if (!servicesMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = servicePricingMap.get(key);
+                  const price = customPricing?.unitPrice || service.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  servicesMap.set(key, {
+                    id: service.id,
+                    serviceId: service.id,
+                    name: service.name,
+                    category: service.category || 'Installation',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'service',
+                  });
+                }
+                servicesMap.get(key).quantity += svc.quantity || 1;
+              }
+            });
+          });
+
+          // Servers
+          building.centralRack.servers?.forEach(server => {
+            if (server.productId && server.isFutureProposal) {
+              const product = allProducts.find(p => p.id === server.productId);
+              if (product) {
+                const key = server.productId;
+                if (!productsMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = productPricingMap.get(key);
+                  const price = customPricing?.unitPrice || product.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  productsMap.set(key, {
+                    id: product.id,
+                    productId: product.id,
+                    name: product.name,
+                    brand: product.brand || 'N/A',
+                    category: product.category || 'Server',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'product',
+                  });
+                }
+                productsMap.get(key).quantity += server.quantity || 1;
+              }
+            }
+
+            // Services for servers
+            server.services?.forEach(svc => {
+              const service = allServices.find(s => s.id === svc.serviceId);
+              if (service) {
+                const key = svc.serviceId;
+                if (!servicesMap.has(key)) {
+                  // Get custom pricing from localStorage if available
+                  const customPricing = servicePricingMap.get(key);
+                  const price = customPricing?.unitPrice || service.price || 0;
+                  const margin = customPricing?.margin || 0;
+                  
+                  servicesMap.set(key, {
+                    id: service.id,
+                    serviceId: service.id,
+                    name: service.name,
+                    category: service.category || 'Installation',
+                    quantity: 0,
+                    price: price,
+                    margin: margin,
+                    type: 'service',
+                  });
+                }
+                servicesMap.get(key).quantity += svc.quantity || 1;
+              }
+            });
+          });
+        }
+        
+        // From floors
+        building.floors?.forEach(floor => {
+          floor.racks?.forEach(rack => {
+            // Rack switches
+            rack.switches?.forEach(sw => {
+              if (sw.productId && sw.isFutureProposal) {
+                const product = allProducts.find(p => p.id === sw.productId);
+                if (product) {
+                  const key = sw.productId;
+                  if (!productsMap.has(key)) {
+                    // Get custom pricing from localStorage if available
+                    const customPricing = productPricingMap.get(key);
+                    const price = customPricing?.unitPrice || product.price || 0;
+                    const margin = customPricing?.margin || 0;
+                    
+                    productsMap.set(key, {
+                      id: product.id,
+                      productId: product.id,
+                      name: product.name,
+                      brand: product.brand || 'N/A',
+                      category: product.category || 'Network Switch',
+                      quantity: 0,
+                      price: price,
+                      margin: margin,
+                      type: 'product',
+                    });
+                  }
+                  productsMap.get(key).quantity += sw.quantity || 1;
+                }
+              }
+
+              sw.services?.forEach(svc => {
+                const service = allServices.find(s => s.id === svc.serviceId);
+                if (service) {
+                  const key = svc.serviceId;
+                  if (!servicesMap.has(key)) {
+                    servicesMap.set(key, {
+                      id: service.id,
+                      serviceId: service.id,
+                      name: service.name,
+                      category: service.category || 'Installation',
+                      quantity: 0,
+                      price: service.price || 0,
+                      margin: 0,
+                      type: 'service',
+                    });
+                  }
+                  servicesMap.get(key).quantity += svc.quantity || 1;
+                }
+              });
+            });
+
+            // Rack routers
+            rack.routers?.forEach(router => {
+              if (router.productId && router.isFutureProposal) {
+                const product = allProducts.find(p => p.id === router.productId);
+                if (product) {
+                  const key = router.productId;
+                  if (!productsMap.has(key)) {
+                    // Get custom pricing from localStorage if available
+                    const customPricing = productPricingMap.get(key);
+                    const price = customPricing?.unitPrice || product.price || 0;
+                    const margin = customPricing?.margin || 0;
+                    
+                    productsMap.set(key, {
+                      id: product.id,
+                      productId: product.id,
+                      name: product.name,
+                      brand: product.brand || 'N/A',
+                      category: product.category || 'Router',
+                      quantity: 0,
+                      price: price,
+                      margin: margin,
+                      type: 'product',
+                    });
+                  }
+                  productsMap.get(key).quantity += router.quantity || 1;
+                }
+              }
+
+              router.services?.forEach(svc => {
+                const service = allServices.find(s => s.id === svc.serviceId);
+                if (service) {
+                  const key = svc.serviceId;
+                  if (!servicesMap.has(key)) {
+                    servicesMap.set(key, {
+                      id: service.id,
+                      serviceId: service.id,
+                      name: service.name,
+                      category: service.category || 'Installation',
+                      quantity: 0,
+                      price: service.price || 0,
+                      margin: 0,
+                      type: 'service',
+                    });
+                  }
+                  servicesMap.get(key).quantity += svc.quantity || 1;
+                }
+              });
+            });
+
+            // Rack servers
+            rack.servers?.forEach(server => {
+              if (server.productId && server.isFutureProposal) {
+                const product = allProducts.find(p => p.id === server.productId);
+                if (product) {
+                  const key = server.productId;
+                  if (!productsMap.has(key)) {
+                    productsMap.set(key, {
+                      id: product.id,
+                      productId: product.id,
+                      name: product.name,
+                      brand: product.brand || 'N/A',
+                      category: product.category || 'Server',
+                      quantity: 0,
+                      price: product.price || 0,
+                      margin: 0,
+                      type: 'product',
+                    });
+                  }
+                  productsMap.get(key).quantity += server.quantity || 1;
+                }
+              }
+
+              server.services?.forEach(svc => {
+                const service = allServices.find(s => s.id === svc.serviceId);
+                if (service) {
+                  const key = svc.serviceId;
+                  if (!servicesMap.has(key)) {
+                    servicesMap.set(key, {
+                      id: service.id,
+                      serviceId: service.id,
+                      name: service.name,
+                      category: service.category || 'Installation',
+                      quantity: 0,
+                      price: service.price || 0,
+                      margin: 0,
+                      type: 'service',
+                    });
+                  }
+                  servicesMap.get(key).quantity += svc.quantity || 1;
+                }
+              });
+            });
+          });
+
+          // Room devices
+          floor.rooms?.forEach(room => {
+            room.devices?.forEach(device => {
+              if (device.productId && device.isFutureProposal) {
+                const product = allProducts.find(p => p.id === device.productId);
+                if (product) {
+                  const key = device.productId;
+                  if (!productsMap.has(key)) {
+                    // Get custom pricing from localStorage if available
+                    const customPricing = productPricingMap.get(key);
+                    const price = customPricing?.unitPrice || product.price || 0;
+                    const margin = customPricing?.margin || 0;
+                    
+                    productsMap.set(key, {
+                      id: product.id,
+                      productId: product.id,
+                      name: product.name,
+                      brand: product.brand || 'N/A',
+                      category: product.category || 'Device',
+                      quantity: 0,
+                      price: price,
+                      margin: margin,
+                      type: 'product',
+                    });
+                  }
+                  productsMap.get(key).quantity += device.quantity || 1;
+                }
+              }
+
+              device.services?.forEach(svc => {
+                const service = allServices.find(s => s.id === svc.serviceId);
+                if (service) {
+                  const key = svc.serviceId;
+                  if (!servicesMap.has(key)) {
+                    servicesMap.set(key, {
+                      id: service.id,
+                      serviceId: service.id,
+                      name: service.name,
+                      category: service.category || 'Installation',
+                      quantity: 0,
+                      price: service.price || 0,
+                      margin: 0,
+                      type: 'service',
+                    });
+                  }
+                  servicesMap.get(key).quantity += svc.quantity || 1;
+                }
+              });
+            });
+          });
+        });
+      });
+
+      // Convert maps to arrays
+      const allEquipment = [
+        ...Array.from(productsMap.values()),
+        ...Array.from(servicesMap.values()),
+      ];
+
+      if (allEquipment.length === 0) {
+        toast.error("No new products or services found", {
+          description: "Please mark items as 'new' or 'future proposal' in step 2"
+        });
+        return;
+      }
+
+      // Clean equipment data to remove circular references
+      const cleanedEquipment = allEquipment.map(item => cleanData(item));
+      
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-rfp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          equipment: cleanedEquipment,
+          buildings: cleanData(wizardData.buildings),
+          generalNotes: siteSurveyData?.notes || '',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('RFP generation failed:', errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to generate RFP');
+        } catch {
+          throw new Error(`Failed to generate RFP: ${response.status} ${response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      console.log('RFP response data:', data);
+
+      if (data.success) {
+        console.log('RFP generated successfully!');
+        console.log('- RFP Number:', data.rfp?.rfpNo);
+        console.log('- File info:', data.file);
+        
+        toast.success(
+          'Successfully generated RFP',
+          {
+            description: `${data.rfp.rfpNo} - ${data.file.filename} (v${data.file.version})`,
+            duration: 5000,
+          }
+        );
+        
+        // Update parent component with new RFP data (no page refresh needed)
+        if (onRFPGenerated && data.rfp) {
+          onRFPGenerated(data.rfp);
+        }
+        
+        // Auto-download the file
+        if (data.file?.url && data.file?.filename) {
+          console.log('Starting RFP file download...');
+          console.log('- URL:', data.file.url);
+          console.log('- Filename:', data.file.filename);
+          
+          toast.info('Downloading RFP file...', {
+            duration: 2000,
+          });
+          
+          // Trigger download
+          await downloadFile(data.file.url, data.file.filename);
+        } else {
+          console.error('Missing file URL or filename in response:', {
+            hasFile: !!data.file,
+            hasUrl: !!data.file?.url,
+            hasFilename: !!data.file?.filename,
+            fullData: data,
+          });
+          toast.warning('RFP generated but download URL missing');
+        }
+      } else {
+        console.error('Success flag is false:', data);
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating RFP:', error);
+      toast.error(
+        'Failed to generate RFP',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingRFP(false);
+    }
+  };
+
+  // Generate Product Analysis (Word Document)
+  const handleGenerateProductAnalysis = async () => {
+    // Collect all equipment from all buildings
+    const allEquipment: any[] = [];
+    wizardData.buildings.forEach(building => {
+      // From central rack
+      if (building.centralRack) {
+        // Central rack equipment
+        if (building.centralRack.equipment) {
+          allEquipment.push(...building.centralRack.equipment);
+        }
+        // Switches in central rack
+        if (building.centralRack.switches) {
+          allEquipment.push(...building.centralRack.switches);
+        }
+        // Routers in central rack
+        if (building.centralRack.routers) {
+          allEquipment.push(...building.centralRack.routers);
+        }
+        // Servers in central rack
+        if (building.centralRack.servers) {
+          allEquipment.push(...building.centralRack.servers);
+        }
+      }
+      
+      // From floors
+      building.floors?.forEach(floor => {
+        // From racks
+        floor.racks?.forEach(rack => {
+          if (rack.equipment) {
+            allEquipment.push(...rack.equipment);
+          }
+          if (rack.switches) {
+            allEquipment.push(...rack.switches);
+          }
+          if (rack.routers) {
+            allEquipment.push(...rack.routers);
+          }
+          if (rack.servers) {
+            allEquipment.push(...rack.servers);
+          }
+        });
+        
+        // From rooms
+        floor.rooms?.forEach(room => {
+          if (room.equipment) {
+            allEquipment.push(...room.equipment);
+          }
+          if (room.devices) {
+            allEquipment.push(...room.devices);
+          }
+        });
+      });
+    });
+
+    // Filter for products marked as "new" (isFutureProposal = true) only (excluding services)
+    const newProducts = allEquipment.filter((item: any) => 
+      (item.isFutureProposal === true || item.isNew === true || item.status === 'new' || item.condition === 'new') &&
+      item.type !== 'SERVICE' && 
+      item.itemType !== 'SERVICE' &&
+      item.category !== 'SERVICE'
+    );
+
+    if (newProducts.length === 0) {
+      toast.error("No new products found. Please add products marked as 'new' in step 2 before generating the analysis document");
+      return;
+    }
+
+    setGeneratingAnalysis(true);
+    try {
+      // Generate analysis for each unique new product
+      // Try multiple ID fields to find the product ID
+      const uniqueProductIds = [...new Set(
+        newProducts.map((p: any) => p.productId || p.id || p.equipmentId || p.itemId).filter(Boolean)
+      )];
+      
+      if (uniqueProductIds.length === 0) {
+        toast.error("No valid product IDs found for new products");
+        return;
+      }
+
+      toast.info(`Generating single analysis document for ${uniqueProductIds.length} new product(s)...`);
+
+      // Call the multi-product analysis endpoint
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-multi-product-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productIds: uniqueProductIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate analysis document');
+      }
+
+      // Download the single document
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Product_Analysis_${uniqueProductIds.length}_Products.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(
+        `Successfully generated product analysis document`,
+        {
+          description: `Analysis completed for ${uniqueProductIds.length} new product(s)`,
+          duration: 5000,
+        }
+      );
+    } catch (error) {
+      console.error('Error generating product analysis:', error);
+      toast.error(
+        'Failed to generate product analysis',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingAnalysis(false);
+    }
   };
 
   const progress = (currentStep / STEPS.length) * 100;
@@ -647,10 +1705,124 @@ export function ComprehensiveInfrastructureWizard({
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? "Saving..." : "Save Progress"}
               </Button>
+              
+              {/* Document Generation Button Group */}
+              <div className="flex items-center rounded-lg overflow-hidden shadow-sm">
+                <Button
+                  className="rounded-none bg-blue-600 hover:bg-blue-700 text-white border-r border-blue-500"
+                  size="sm"
+                  onClick={handleGenerateInfrastructureFile}
+                  disabled={wizardData.buildings.length === 0 || generatingFile}
+                >
+                  {generatingFile ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="h-4 w-4 mr-1" />
+                      Infrastructure
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="rounded-none bg-green-600 hover:bg-green-700 text-white border-r border-green-500"
+                  size="sm"
+                  onClick={handleGenerateBOM}
+                  disabled={generatingBOM}
+                >
+                  {generatingBOM ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="h-4 w-4 mr-1" />
+                      BOM
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="rounded-none bg-purple-600 hover:bg-purple-700 text-white border-r border-purple-500"
+                  size="sm"
+                  onClick={handleGenerateRFP}
+                  disabled={generatingRFP}
+                >
+                  {generatingRFP ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="h-4 w-4 mr-1" />
+                      RFP
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="rounded-none bg-orange-600 hover:bg-orange-700 text-white border-r border-orange-500"
+                  size="sm"
+                  onClick={handleGenerateProductAnalysis}
+                  disabled={generatingAnalysis}
+                >
+                  {generatingAnalysis ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="h-4 w-4 mr-1" />
+                      Analysis
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="rounded-none bg-pink-600 hover:bg-pink-700 text-white"
+                  size="sm"
+                  onClick={async () => {
+                    // Check if RFP exists
+                    if (!siteSurveyData?.lead?.rfps || siteSurveyData?.lead?.rfps?.length === 0) {
+                      toast.error("RFP Required", {
+                        description: "Please generate an RFP first by clicking the 'RFP' button above. The RFP is required to create a comprehensive proposal.",
+                      });
+                      return;
+                    }
+                    setShowProposalDialog(true);
+                  }}
+                  disabled={generatingRFP}
+                >
+                  {generatingRFP ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4 mr-1" />
+                      Proposal
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Proposal Generation Modal */}
+      <ProposalGenerationModal
+        open={showProposalDialog}
+        onOpenChange={setShowProposalDialog}
+        rfpId={siteSurveyData?.lead?.rfps?.[0]?.id}
+        leadId={siteSurveyData?.leadId}
+        siteSurveyId={siteSurveyId}
+        customerName={siteSurveyData?.customer?.name || 'Unknown Customer'}
+        leadNumber={siteSurveyData?.lead?.leadNumber}
+      />
 
       {/* Progress Bar */}
       <div className="bg-white border-b">

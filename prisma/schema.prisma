@@ -100,6 +100,7 @@ model User {
   leadNotes                LeadNote[]                @relation("LeadNoteAuthor")
   leadParticipations       LeadParticipant[]         @relation("LeadParticipant")
   addedParticipants        LeadParticipant[]         @relation("ParticipantAdder")
+  createdProposals         Proposal[]                @relation("ProposalCreator")
   branch                   Branch?                   @relation("BranchUsers", fields: [branchId], references: [id])
   contact                  Contact?                  @relation(fields: [contactId], references: [id])
   department               Department?               @relation(fields: [departmentId], references: [id])
@@ -198,6 +199,7 @@ model Contact {
   projects        Project[]         @relation("ProjectContact")
   quotes          Quote[]
   rfps            RFP[]
+  proposals       Proposal[]
   siteSurveys     SiteSurvey[]      @relation("SurveyContact")
   tickets         Ticket[]
   users           User[]
@@ -281,6 +283,7 @@ model Lead {
   statusChanges        LeadStatusChange[]
   quotes               Quote[]
   rfps                 RFP[]
+  proposals            Proposal[]
   projects             Project[]
   opportunities        Opportunity[]      @relation("LeadOpportunities")
   leadContacts         LeadContact[]
@@ -1374,6 +1377,7 @@ model SiteSurvey {
   cablingSurvey               CablingSurvey?
   images                      ImageAsset[]
   pathways                    Pathway[]
+  rfps                        RFP[]
   assignFrom                  User?                        @relation("SurveyAssignFrom", fields: [assignFromId], references: [id])
   assignTo                    User?                        @relation("SurveyAssignTo", fields: [assignToId], references: [id])
   contact                     Contact?                     @relation("SurveyContact", fields: [contactId], references: [id])
@@ -1387,6 +1391,7 @@ model SiteSurvey {
   proposedRooms               ProposedRoom[]
   proposedConnections         ProposedConnection[]
   proposedProductAssociations ProposedProductAssociation[]
+  proposals                   Proposal[]
 
   @@index([customerId])
   @@index([assignToId])
@@ -2157,6 +2162,7 @@ model RFP {
   id            String            @id @default(cuid())
   rfpNo         String?           @unique
   leadId        String?
+  siteSurveyId  String?
   title         String
   description   String?           @db.Text
   stage         RFPStage          @default(RFP_RECEIVED)
@@ -2165,6 +2171,7 @@ model RFP {
   receivedDate  DateTime? // When RFP was received from customer
   submittedDate DateTime? // When we submitted the proposal
   requirements  Json?
+  totalAmount   Decimal?          @db.Decimal(12, 2) // Calculated total from pricing
   customerId    String
   contactId     String?
   opportunityId String?
@@ -2173,6 +2180,8 @@ model RFP {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   quotes        Quote[]
+  proposals     Proposal[]
+  siteSurvey    SiteSurvey?       @relation(fields: [siteSurveyId], references: [id])
   customer      Customer          @relation(fields: [customerId], references: [id])
   contact       Contact?          @relation(fields: [contactId], references: [id])
   opportunity   Opportunity?      @relation(fields: [opportunityId], references: [id])
@@ -2183,10 +2192,109 @@ model RFP {
   @@index([customerId], map: "RFP_customerId_fkey")
   @@index([contactId], map: "RFP_contactId_fkey")
   @@index([opportunityId], map: "RFP_opportunityId_fkey")
+  @@index([siteSurveyId], map: "RFP_siteSurveyId_fkey")
   @@index([leadId])
   @@index([assigneeId])
   @@index([stage])
   @@index([status])
+}
+
+/// ** Proposal - Full Technical Proposal Generation **
+model Proposal {
+  id                    String          @id @default(cuid())
+  proposalNo            String?         @unique
+  rfpId                 String
+  leadId                String?
+  siteSurveyId          String?
+  customerId            String
+  contactId             String?
+  
+  // Basic Project Information (User Input)
+  projectTitle          String
+  projectDescription    String?         @db.Text
+  projectScope          String?         @db.Text
+  projectDuration       String?         // e.g., "3 months", "6 weeks"
+  projectStartDate      DateTime?
+  projectEndDate        DateTime?
+  
+  // AI-Generated Technical Content
+  infrastructureDesc    String?         @db.LongText  // AI description of infrastructure
+  technicalDesc         String?         @db.LongText  // AI technical description in Greek
+  productsDesc          String?         @db.LongText  // AI description of products by category/brand
+  servicesDesc          String?         @db.LongText  // AI description of services
+  scopeOfWork           String?         @db.LongText  // AI-generated scope of work
+  
+  // Proposal Status & ERP Integration
+  status                ProposalStatus  @default(DRAFT)
+  stage                 ProposalStage   @default(CONTENT_GENERATION)
+  erpQuoteNumber        String?         // From SoftOne (FINCODE)
+  erpSeries             Int?            // From SoftOne (SERIES)
+  erpSeriesNum          Int?            // From SoftOne (SERIESNUM)
+  erpFindoc             Int?            // From SoftOne (FINDOC)
+  erpSaldocnum          Int?            // From SoftOne (SALDOCNUM)
+  erpTurnover           Decimal?        @db.Decimal(12, 2)
+  erpVatAmount          Decimal?        @db.Decimal(12, 2)
+  
+  // Document Files
+  wordDocumentUrl       String?         // Generated Word document URL
+  pdfDocumentUrl        String?         // PDF version URL
+  
+  // Email Tracking
+  sentToEmails          String?         @db.Text  // JSON array of email addresses sent to
+  lastSentDate          DateTime?       // When last sent to customer
+  sentCount             Int             @default(0) // How many times sent
+  
+  // Metadata
+  generatedBy           String          // User who generated the proposal
+  submittedDate         DateTime?       // When submitted to customer
+  approvedDate          DateTime?       // When approved by customer
+  rejectedDate          DateTime?       // When rejected by customer
+  wonDate               DateTime?       // When deal was won
+  notes                 String?         @db.Text
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Relations
+  rfp                   RFP             @relation(fields: [rfpId], references: [id])
+  lead                  Lead?           @relation(fields: [leadId], references: [id])
+  siteSurvey            SiteSurvey?     @relation(fields: [siteSurveyId], references: [id])
+  customer              Customer        @relation(fields: [customerId], references: [id])
+  contact               Contact?        @relation(fields: [contactId], references: [id])
+  generatedByUser       User            @relation("ProposalCreator", fields: [generatedBy], references: [id])
+  
+  @@index([rfpId])
+  @@index([leadId])
+  @@index([siteSurveyId])
+  @@index([customerId])
+  @@index([contactId])
+  @@index([generatedBy])
+  @@index([status])
+  @@index([stage])
+}
+
+enum ProposalStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  SENT
+  ACCEPTED
+  REVISED
+  REJECTED
+  WON
+  LOST
+  EXPIRED
+}
+
+enum ProposalStage {
+  CONTENT_GENERATION
+  TECHNICAL_REVIEW
+  PRICING_REVIEW
+  ERP_INTEGRATION
+  DOCUMENT_GENERATION
+  READY_TO_SEND
+  SUBMITTED
+  NEGOTIATION
+  CLOSED
 }
 
 model SupportContract {
@@ -2244,6 +2352,7 @@ model Customer {
   leadContacts  LeadContact[]
   opportunities Opportunity[]
   rfps          RFP[]
+  proposals     Proposal[]
 
   @@index([country])
   @@index([afm])

@@ -18,6 +18,11 @@ interface SiteSurvey {
     id: string;
     name: string;
   };
+  lead?: {
+    id: string;
+    leadNumber: string;
+    rfps?: any[];
+  };
 }
 
 export default function SiteSurveyWizardPage() {
@@ -55,6 +60,22 @@ export default function SiteSurveyWizardPage() {
   const handleWizardComplete = () => {
     toast.success('Site survey completed successfully!');
     router.push(`/site-surveys/${id}/details`);
+  };
+
+  const handleRFPGenerated = (rfpData: any) => {
+    // Update the site survey state with the new RFP without page refresh
+    setSiteSurvey(prev => {
+      if (!prev || !prev.lead) return prev;
+      
+      return {
+        ...prev,
+        lead: {
+          id: prev.lead.id,
+          leadNumber: prev.lead.leadNumber,
+          rfps: prev.lead.rfps ? [...prev.lead.rfps, rfpData] : [rfpData],
+        },
+      };
+    });
   };
 
   if (loading) {
@@ -132,6 +153,7 @@ export default function SiteSurveyWizardPage() {
         siteSurveyId={id}
         siteSurveyData={siteSurvey}
         onComplete={handleWizardComplete}
+        onRFPGenerated={handleRFPGenerated}
       />
     </div>
   );

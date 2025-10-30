@@ -81,6 +81,7 @@ import { EnhancedLeadEmailsTab } from "./enhanced-lead-emails-tab";
 import { EnhancedLeadTasksKanban } from "./enhanced-lead-tasks-kanban";
 import { LeadNotesTimeline } from "./lead-notes-timeline";
 import { LeadParticipantsManager } from "./lead-participants-manager";
+import { ProposalGenerationModal } from "../proposals/proposal-generation-modal";
 
 interface LeadDetailViewProps {
   lead: any;
@@ -126,6 +127,9 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const [showSiteSurveyDialog, setShowSiteSurveyDialog] = useState(false);
   const [siteSurveyTitle, setSiteSurveyTitle] = useState("");
   const [siteSurveyDescription, setSiteSurveyDescription] = useState("");
+
+  // Proposal generation dialog state
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
 
   // Task statistics state
   const [taskStats, setTaskStats] = useState({ notStarted: 0, inProgress: 0, completed: 0 });
@@ -542,6 +546,13 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
               <DropdownMenuItem onClick={() => setShowSiteSurveyDialog(true)}>
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Request Site Survey
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setShowProposalDialog(true)}
+                disabled={!lead.rfps || lead.rfps.length === 0}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Proposal
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowUploadDialog(true)}>
                 <Upload className="h-4 w-4 mr-2" />
@@ -1260,6 +1271,17 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Proposal Generation Modal */}
+      <ProposalGenerationModal
+        open={showProposalDialog}
+        onOpenChange={setShowProposalDialog}
+        rfpId={lead.rfps && lead.rfps.length > 0 ? lead.rfps[0].id : undefined}
+        leadId={lead.id}
+        siteSurveyId={lead.siteSurvey?.id}
+        customerName={lead.customer?.name || 'Unknown Customer'}
+        leadNumber={lead.leadNumber}
+      />
 
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

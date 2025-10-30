@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, Trash2, Edit } from "lucide-react";
+import { Package, Plus, Trash2, Edit, FileDown, Loader2 } from "lucide-react";
 import { EquipmentItem, SelectedElement, getElementDisplayName } from "@/types/equipment-selection";
 import { EquipmentSelection } from "../equipment-selection";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export function EquipmentStep({
   const [localEquipment, setLocalEquipment] = useState<EquipmentItem[]>(equipment);
   const [equipmentSelectionOpen, setEquipmentSelectionOpen] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [generatingBOM, setGeneratingBOM] = useState(false);
 
   // Sync equipment prop with local state and deduplicate by ID
   useEffect(() => {
@@ -89,19 +90,87 @@ export function EquipmentStep({
   const totalValue = localEquipment.reduce((sum, item) => sum + item.totalPrice, 0);
   const totalQuantity = localEquipment.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Generate BOM File
+  const handleGenerateBOMFile = async () => {
+    if (localEquipment.length === 0) {
+      toast.error("Please add at least one product or service before generating the BOM file");
+      return;
+    }
+
+    setGeneratingBOM(true);
+    try {
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-bom-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          equipment: localEquipment,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate BOM file');
+      }
+
+      if (data.success) {
+        toast.success(
+          data.message || 'Successfully generated BOM file',
+          {
+            description: `${data.file.filename} (v${data.file.version}) - ${data.file.productsCount} products, ${data.file.servicesCount} services`,
+            duration: 5000,
+          }
+        );
+      } else {
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating BOM file:', error);
+      toast.error(
+        'Failed to generate BOM file',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingBOM(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Equipment Selection</h3>
+          <h3 className="text-lg font-semibold">EQUIPMENT SELECTION</h3>
           <p className="text-sm text-muted-foreground">
             Select products and services required for this site survey
           </p>
         </div>
-        <Button onClick={handleAddEquipment}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Equipment
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleGenerateBOMFile}
+            disabled={localEquipment.length === 0 || generatingBOM}
+            variant="default"
+          >
+            {generatingBOM ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4 mr-2" />
+                Generate BOM File
+              </>
+            )}
+          </Button>
+          <Button onClick={handleAddEquipment}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Equipment
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

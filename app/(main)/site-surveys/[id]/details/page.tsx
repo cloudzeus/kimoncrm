@@ -20,6 +20,7 @@ import {
   Smartphone,
   Router,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FilesList } from "@/components/files/files-list";
@@ -409,15 +410,26 @@ export default function SiteSurveyDetailsPage() {
                   <Building2 className="h-3 w-3" />
                   <span className="text-[10px]">CUSTOMER INFORMATION</span>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-5 px-1 text-[8px]"
-                  onClick={() => setShowEditCustomerModal(true)}
-                >
-                  <Edit className="h-2 w-2 mr-1" />
-                  Edit
-                </Button>
+                <div className="flex gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-5 px-1 text-[8px]"
+                    onClick={() => router.push(`/customers/${survey.customer.id}`)}
+                    title="View Customer Details"
+                  >
+                    <ExternalLink className="h-2 w-2" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-5 px-1 text-[8px]"
+                    onClick={() => setShowEditCustomerModal(true)}
+                  >
+                    <Edit className="h-2 w-2 mr-1" />
+                    Edit
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0 pb-1">

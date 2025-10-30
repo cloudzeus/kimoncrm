@@ -467,6 +467,9 @@ export function EquipmentAssignmentStep({
         if (elementType === 'router') {
           return { ...building, centralRack: { ...building.centralRack, routers: building.centralRack.routers.filter(r => r.id !== elementId) } };
         }
+        if (elementType === 'server') {
+          return { ...building, centralRack: { ...building.centralRack, servers: (building.centralRack.servers || []).filter(s => s.id !== elementId) } };
+        }
         if (elementType === 'termination') {
           return { ...building, centralRack: { ...building.centralRack, cableTerminations: building.centralRack.cableTerminations.filter(t => t.id !== elementId) } };
         }
@@ -1627,6 +1630,552 @@ export function EquipmentAssignmentStep({
                                     </div>
                       ))}
                   </div>
+                              )}
+
+                              {/* Switches */}
+                              {building.centralRack.switches && building.centralRack.switches.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">Switches ({building.centralRack.switches.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.switches.map((sw) => (
+                                      <div key={sw.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Network className="h-4 w-4" />
+                                            <span className="text-sm">{sw.brand} {sw.model}</span>
+                                            {isNewElement(sw) ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'switch',
+                                                buildingId: building.id,
+                                                elementId: sw.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'switch',
+                                                buildingId: building.id,
+                                                elementId: sw.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {/* Show assigned product */}
+                                        {sw.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === sw.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Show assigned services */}
+                                        {sw.services && sw.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {sw.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      Qty: {svc.quantity}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
+                              {/* Routers */}
+                              {building.centralRack.routers && building.centralRack.routers.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">Routers ({building.centralRack.routers.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.routers.map((router) => (
+                                      <div key={router.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Wifi className="h-4 w-4" />
+                                            <span className="text-sm">{router.brand} {router.model}</span>
+                                            {isNewElement(router) ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {isNewElement(router) && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => deleteNewElement(building.id, undefined, undefined, undefined, 'router', router.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'router',
+                                                buildingId: building.id,
+                                                elementId: router.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'router',
+                                                buildingId: building.id,
+                                                elementId: router.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {/* Show assigned product */}
+                                        {router.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === router.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Show assigned services */}
+                                        {router.services && router.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {router.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      Qty: {svc.quantity}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
+                              {/* Servers */}
+                              {building.centralRack.servers && building.centralRack.servers.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">Servers ({building.centralRack.servers.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.servers.map((server) => (
+                                      <div key={server.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Server className="h-4 w-4" />
+                                            <span className="text-sm">{server.brand} {server.model}</span>
+                                            {isNewElement(server) ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {isNewElement(server) && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => deleteNewElement(building.id, undefined, undefined, undefined, 'server', server.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'server',
+                                                buildingId: building.id,
+                                                elementId: server.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'server',
+                                                buildingId: building.id,
+                                                elementId: server.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {/* Show assigned product */}
+                                        {server.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === server.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Show assigned services */}
+                                        {server.services && server.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {server.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      Qty: {svc.quantity}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
+                              {/* PBX System */}
+                              {(building.centralRack as any).pbx && (
+                                <div className="mt-4">
+                                  <Label className="text-xs font-semibold mb-2 block">PBX System</Label>
+                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4" />
+                                        <span className="text-sm">{(building.centralRack as any).pbx.brand} {(building.centralRack as any).pbx.model}</span>
+                                        <Badge variant="secondary" className="text-xs">{(building.centralRack as any).pbx.type}</Badge>
+                                        {isNewElement((building.centralRack as any).pbx) ? (
+                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openProductDialog({
+                                            type: 'pbx',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).pbx.id,
+                                          })}
+                                        >
+                                          <Package className="h-3 w-3 mr-1" />
+                                          Assign Product
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openServiceDialog({
+                                            type: 'pbx',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).pbx.id,
+                                          })}
+                                        >
+                                          <Wrench className="h-3 w-3 mr-1" />
+                                          Add Service
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {/* Show assigned product */}
+                                    {(building.centralRack as any).pbx.productId && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                          <Package className="h-4 w-4 text-blue-600" />
+                                          <div className="flex-1">
+                                            <div className="text-sm font-medium">
+                                              {products.find(p => p.id === (building.centralRack as any).pbx.productId)?.name || 'Product Not Found'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* Show assigned services */}
+                                    {(building.centralRack as any).pbx.services && (building.centralRack as any).pbx.services.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Associated Services:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).pbx.services.map((svc: any) => (
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                              <Wrench className="h-3 w-3 text-green-600" />
+                                              <div className="flex-1">
+                                                <div className="text-xs font-medium">
+                                                  {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Qty: {svc.quantity}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ATA */}
+                              {(building.centralRack as any).ata && (
+                                <div className="mt-4">
+                                  <Label className="text-xs font-semibold mb-2 block">ATA (Analog Telephone Adapter)</Label>
+                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4" />
+                                        <span className="text-sm">{(building.centralRack as any).ata.brand} {(building.centralRack as any).ata.model}</span>
+                                        {isNewElement((building.centralRack as any).ata) ? (
+                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openProductDialog({
+                                            type: 'ata',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).ata.id,
+                                          })}
+                                        >
+                                          <Package className="h-3 w-3 mr-1" />
+                                          Assign Product
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openServiceDialog({
+                                            type: 'ata',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).ata.id,
+                                          })}
+                                        >
+                                          <Wrench className="h-3 w-3 mr-1" />
+                                          Add Service
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {/* Show assigned product */}
+                                    {(building.centralRack as any).ata.productId && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                          <Package className="h-4 w-4 text-blue-600" />
+                                          <div className="flex-1">
+                                            <div className="text-sm font-medium">
+                                              {products.find(p => p.id === (building.centralRack as any).ata.productId)?.name || 'Product Not Found'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* Show assigned services */}
+                                    {(building.centralRack as any).ata.services && (building.centralRack as any).ata.services.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Associated Services:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).ata.services.map((svc: any) => (
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                              <Wrench className="h-3 w-3 text-green-600" />
+                                              <div className="flex-1">
+                                                <div className="text-xs font-medium">
+                                                  {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Qty: {svc.quantity}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* NVR */}
+                              {(building.centralRack as any).nvr && (
+                                <div className="mt-4">
+                                  <Label className="text-xs font-semibold mb-2 block">NVR (Network Video Recorder)</Label>
+                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <Monitor className="h-4 w-4" />
+                                        <span className="text-sm">Channels: {(building.centralRack as any).nvr.channels}</span>
+                                        {isNewElement((building.centralRack as any).nvr) ? (
+                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openProductDialog({
+                                            type: 'nvr',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).nvr.id,
+                                          })}
+                                        >
+                                          <Package className="h-3 w-3 mr-1" />
+                                          Assign Product
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => openServiceDialog({
+                                            type: 'nvr',
+                                            buildingId: building.id,
+                                            elementId: (building.centralRack as any).nvr.id,
+                                          })}
+                                        >
+                                          <Wrench className="h-3 w-3 mr-1" />
+                                          Add Service
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {/* Show assigned product */}
+                                    {(building.centralRack as any).nvr.productId && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                          <Package className="h-4 w-4 text-blue-600" />
+                                          <div className="flex-1">
+                                            <div className="text-sm font-medium">
+                                              {products.find(p => p.id === (building.centralRack as any).nvr.productId)?.name || 'Product Not Found'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* Show assigned services */}
+                                    {(building.centralRack as any).nvr.services && (building.centralRack as any).nvr.services.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <Label className="text-xs font-semibold">Associated Services:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).nvr.services.map((svc: any) => (
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                              <Wrench className="h-3 w-3 text-green-600" />
+                                              <div className="flex-1">
+                                                <div className="text-xs font-medium">
+                                                  {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Qty: {svc.quantity}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               )}
                             </CardContent>
                           </Card>

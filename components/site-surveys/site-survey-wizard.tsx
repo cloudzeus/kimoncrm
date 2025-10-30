@@ -364,6 +364,7 @@ export function SiteSurveyWizard({
               equipment={wizardData.equipment}
               buildings={wizardData.buildings}
               siteSurveyData={siteSurveyData}
+              siteSurveyId={siteSurveyId}
               onSubmit={handleFinalSubmit}
               onBack={handlePrevious}
               loading={loading}

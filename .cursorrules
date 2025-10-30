@@ -1,0 +1,287 @@
+# Cursor AI Rules for KimonCRM - Next.js 15+ Project
+
+## Core Technology Stack
+- Always use Next.js 15.3+ (latest stable version)
+- Use Prisma ORM for all database operations with MySQL
+- Use Tailwind CSS for all styling
+- Use shadcn/ui components for all form controls and UI elements
+- Use Better-Auth (Auth.js v5) for all authentication implementations
+- Use BunnyCDN API for all image, video, and file uploads
+- Use Server-Side Rendering (SSR) for all API data fetching from external resources
+- Use `exceljs` for all Excel and CSV file import/export functionality
+
+## Next.js 15+ Architecture Principles
+
+### Component Architecture (CRITICAL)
+- **Default to Server Components**: ALL components should be Server Components unless they require client-side interactivity
+- **Minimal Client Components**: Only add `"use client"` directive when the component MUST have:
+  - Event handlers (onClick, onChange, onSubmit, etc.)
+  - React hooks (useState, useEffect, useContext, useReducer, etc.)
+  - Browser APIs (window, document, localStorage, sessionStorage, etc.)
+  - Third-party libraries that require client-side execution
+- **Composition Pattern**: Wrap small client components inside server components
+- **Props Down, Actions Up**: Pass data as props from Server Components, use Server Actions for mutations
+
+### Data Fetching Strategy (CRITICAL)
+- **Server-Side First**: ALWAYS fetch data server-side using async Server Components
+- **Direct Database Access**: Use Prisma queries directly in Server Components - NO API routes for internal data
+- **NO Client-Side Fetching**: Avoid `useEffect` + `fetch` patterns
+- **Streaming**: Use React Suspense and streaming for better UX with loading states
+- **Use skeleton components** (e.g., shadcn/ui `Skeleton`) in all page components when data is loading
+
+### Server Actions
+- Use Server Actions for all mutations (create, update, delete operations)
+- Mark functions with `"use server"` directive for form submissions and data mutations
+- Revalidate paths/tags after mutations using `revalidatePath()` or `revalidateTag()`
+- Handle errors gracefully with try-catch and return typed responses
+
+### Code Organization Pattern
+
+```typescript
+// ✅ GOOD: Server Component with data fetching
+async function ProductsPage() {
+  const products = await prisma.product.findMany({
+    include: { brand: true, category: true }
+  });
+  return <ProductListClient products={products} />;
+}
+
+// ✅ GOOD: Client Component for interactivity only
+'use client';
+function ProductListClient({ products }) {
+  const [selected, setSelected] = useState(null);
+  const handleSelect = (id) => setSelected(id);
+  return (
+    <div>
+      {products.map(p => (
+        <div key={p.id} onClick={() => handleSelect(p.id)}>
+          {p.name}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ✅ GOOD: Server Action for mutations
+async function deleteProduct(formData: FormData) {
+  'use server';
+  const id = formData.get('id');
+  await prisma.product.delete({ where: { id } });
+  revalidatePath('/products');
+}
+
+// ❌ BAD: Client Component fetching data
+'use client';
+function ProductsPage() {
+  const [products, setProducts] = useState([]);
+  useEffect(() => {
+    fetch('/api/products').then(res => res.json()).then(setProducts);
+  }, []);
+  return ...;
+}
+```
+
+## Database & ORM Rules
+- Always use Prisma as the ORM
+- Configure Prisma for MySQL database
+- Use Prisma Client for all database queries (direct from Server Components)
+- Implement proper error handling for database operations
+- **Use `prisma db push` for schema changes (NEVER use migrate)** [[memory:user_preference]]
+- Follow Prisma naming conventions (camelCase for fields, PascalCase for models)
+- Always use connection pooling in production
+- Use bulk operations for large imports (better performance)
+
+## Styling Rules
+- Use Tailwind CSS exclusively for styling
+- Follow Tailwind's utility-first approach
+- Use CSS variables for theme colors
+- Implement responsive design with Tailwind's responsive prefixes
+- Use Tailwind's dark mode utilities when needed
+- Avoid custom CSS files unless absolutely necessary
+
+## UI Components Rules
+- Use shadcn/ui components for all form elements
+- Install shadcn components via CLI when needed
+- Customize shadcn themes through CSS variables
+- Use shadcn's form components with react-hook-form
+- Implement proper form validation with zod
+- Use shadcn's data table components for tabular data
+- **Modern shadcn UI/UX**: Drag-and-drop file support, smart UI utilities
+- **No transparent backgrounds, no borders**: Use shadows for depth instead
+- **Headers**: Uppercase, no tonal variations (Greek text preference)
+
+## Authentication Rules
+- Always use Better-Auth (Auth.js v5) for authentication
+- Implement proper session management
+- Use Better-Auth's built-in providers when possible
+- Implement proper role-based access control
+- Handle authentication errors gracefully
+- Use Better-Auth's middleware for route protection
+
+## File Upload Rules
+- Use BunnyCDN API for all file uploads (images, videos, documents)
+- Store files in organized folder structures (leads/{id}/, customers/{id}/, etc.)
+- Maintain file metadata in database (File model)
+- Implement file versioning where needed (max 10 versions)
+- Clean up old versions automatically
+
+## Code Quality Rules
+- Use TypeScript strictly with proper typing
+- Implement proper error handling with try-catch blocks
+- Use async/await over promises
+- Follow ESLint and Prettier configurations
+- Use meaningful variable and function names
+- Implement proper JSDoc comments for complex functions
+- Use consistent file naming conventions (kebab-case for files, PascalCase for components)
+
+## File Organization
+- Components in `/components` directory (Server by default)
+- Client components clearly marked with `"use client"` at top
+- Pages in `/app` directory (App Router)
+- Database schemas in `/prisma` directory
+- Types in `/types` or `/lib/types` directory
+- Utilities in `/lib` directory
+- API routes in `/app/api` directory (only for external APIs, webhooks, file proxies)
+- Server Actions in `/app/actions` or colocated with components
+- Configuration files in root directory
+
+## Performance Rules
+- Implement proper caching strategies (`revalidate`, `cache`)
+- Use Next.js Image optimization
+- Implement lazy loading where appropriate
+- Use React.memo for expensive client components only
+- Implement proper bundle splitting (automatic with Next.js)
+- Use Next.js built-in performance optimizations
+- Minimize JavaScript sent to client (prefer Server Components)
+
+## Security Rules
+- Validate all user inputs (use zod for validation)
+- Use environment variables for sensitive data (stored in .env file)
+- Implement proper CORS policies
+- Use HTTPS in production
+- Implement proper rate limiting
+- Follow OWASP security guidelines
+- Keep sensitive logic server-side (Server Components, Server Actions)
+
+## API Design Rules
+- Use RESTful API design principles for external APIs only
+- Implement proper HTTP status codes
+- Use consistent error response formats
+- Implement proper request validation
+- Use middleware for common functionality
+- Document API endpoints properly
+- **Prefer Server Actions over API routes for internal mutations**
+
+## Environment Rules
+- Use environment variables for configuration
+- Separate development and production configurations
+- Use .env (NOT .env.local) for local development [[memory:user_preference]]
+- Never commit sensitive environment variables
+- Use type-safe environment variable validation
+
+## Greek Language Preferences
+- Prefer uppercase Greek text without accents (tonal marks)
+- Use ANSI 1253 to UTF-8 conversion with iconv-lite and ArrayBuffer approach
+- Greek labels in generated documents (e.g., "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ" for specifications)
+
+## Package Management Rules
+- Use npm consistently
+- Keep dependencies up to date
+- Use exact versions for critical dependencies
+- Remove unused dependencies regularly
+- Use peer dependencies appropriately
+
+## Git Rules
+- Use conventional commit messages
+- Create meaningful branch names
+- Use pull requests for code review
+- Keep commits atomic and focused
+- Use .gitignore properly
+
+## Deployment Rules
+- Use environment-specific configurations
+- Implement proper CI/CD pipelines
+- Use proper error monitoring
+- Implement proper logging
+- **Always use `db push` never migrate**
+- Implement proper backup strategies
+
+## Response Format Rules
+- Don't refer to tool names when speaking to the user
+- Implement changes rather than only suggesting them
+- Use proper error handling and user feedback (toast notifications)
+- Test changes before marking as complete
+
+## Key Next.js 15+ Patterns
+
+### Server Component Data Fetching
+```typescript
+// ✅ Direct Prisma query in Server Component
+async function UsersPage() {
+  const users = await prisma.user.findMany({
+    include: { department: true }
+  });
+  return <UserTable users={users} />;
+}
+```
+
+### Server Action for Mutations
+```typescript
+// ✅ Server Action with revalidation
+async function createUser(formData: FormData) {
+  'use server';
+  const name = formData.get('name') as string;
+  await prisma.user.create({ data: { name } });
+  revalidatePath('/users');
+  redirect('/users');
+}
+```
+
+### Composition: Server + Client
+```typescript
+// ✅ Server Component wrapping Client Component
+async function ProductPage({ params }) {
+  const product = await prisma.product.findUnique({
+    where: { id: params.id },
+    include: { specs: true, images: true }
+  });
+  
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <ProductDetailsClient product={product} />
+    </div>
+  );
+}
+```
+
+### Loading States with Suspense
+```typescript
+// ✅ Streaming with Suspense
+function ProductsPage() {
+  return (
+    <Suspense fallback={<ProductsSkeleton />}>
+      <ProductList />
+    </Suspense>
+  );
+}
+
+async function ProductList() {
+  const products = await prisma.product.findMany();
+  return <div>{/* render products */}</div>;
+}
+```
+
+## Dependencies Priority Order
+1. Next.js 15.3+ official packages
+2. Prisma and Prisma Client
+3. Auth.js v5 (Better-Auth)
+4. shadcn/ui components
+5. Tailwind CSS and plugins
+6. React ecosystem packages
+7. Utility libraries (zod, date-fns, exceljs, etc.)
+
+---
+
+**REMEMBER**: Server Components are the default. Only use `"use client"` when you absolutely need browser interactivity. This improves performance, security, and user experience.
+

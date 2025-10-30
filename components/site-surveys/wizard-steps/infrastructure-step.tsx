@@ -33,6 +33,8 @@ import {
   ChevronDown,
   ChevronRight,
   Link2,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 
 interface Building {
@@ -100,6 +102,9 @@ export function InfrastructureStep({
   const [rackDialog, setRackDialog] = useState(false);
   const [roomDialog, setRoomDialog] = useState(false);
   const [connectionDialog, setConnectionDialog] = useState(false);
+
+  // File generation state
+  const [generatingFile, setGeneratingFile] = useState(false);
 
   // Form states
   const [editingBuilding, setEditingBuilding] = useState<number | null>(null);
@@ -415,16 +420,92 @@ export function InfrastructureStep({
     }
   };
 
+  // Generate Infrastructure File
+  const handleGenerateInfrastructureFile = async () => {
+    if (localBuildings.length === 0) {
+      toast.error("Please add at least one building before generating the infrastructure file");
+      return;
+    }
+
+    setGeneratingFile(true);
+    try {
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-infrastructure-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          buildings: localBuildings,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate file');
+      }
+
+      if (data.success) {
+        toast.success(
+          data.message || `Successfully generated ${data.files.length} infrastructure file(s)`,
+          {
+            description: data.files.map((f: any) => `${f.filename} (v${f.version})`).join(', '),
+            duration: 5000,
+          }
+        );
+        
+        if (data.errors && data.errors.length > 0) {
+          toast.warning(
+            `Some files had errors`,
+            {
+              description: data.errors.map((e: any) => `${e.buildingName}: ${e.error}`).join(', '),
+              duration: 5000,
+            }
+          );
+        }
+      } else {
+        throw new Error('Generation failed');
+      }
+    } catch (error) {
+      console.error('Error generating infrastructure file:', error);
+      toast.error(
+        'Failed to generate infrastructure file',
+        {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+    } finally {
+      setGeneratingFile(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Infrastructure Setup</h3>
+          <h3 className="text-lg font-semibold">INFRASTRUCTURE SETUP</h3>
           <p className="text-sm text-muted-foreground">
             Define your site infrastructure including buildings, floors, racks, and rooms
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            onClick={handleGenerateInfrastructureFile}
+            disabled={localBuildings.length === 0 || generatingFile}
+            variant="default"
+          >
+            {generatingFile ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4 mr-2" />
+                Generate Infrastructure File
+              </>
+            )}
+          </Button>
           <Button onClick={() => openBuildingDialog()}>
             <Plus className="h-4 w-4 mr-2" />
             Add Building
