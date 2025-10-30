@@ -27,7 +27,7 @@ interface Proposal {
   } | null;
   rfp: {
     id: string;
-    rfpNo: string;
+    rfpNo: string | null;
   } | null;
   generatedByUser: {
     id: string;
