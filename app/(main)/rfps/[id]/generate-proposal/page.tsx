@@ -166,7 +166,7 @@ export default async function GenerateProposalPage({ params }: GenerateProposalP
       <ProposalForm
         rfpId={rfp.id}
         customerName={rfp.customer.name}
-        leadNumber={rfp.lead?.leadNumber}
+        leadNumber={rfp.lead?.leadNumber ?? undefined}
       />
 
       {/* Info Card */}
