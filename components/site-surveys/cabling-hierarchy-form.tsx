@@ -142,6 +142,8 @@ interface Floor {
   rooms: Room[];
   expanded?: boolean;
   images?: string[];
+  isTypical?: boolean;
+  repeatCount?: number;
 }
 
 interface FloorRack {

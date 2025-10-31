@@ -7,7 +7,7 @@ import { bunnyPut } from "@/lib/bunny/upload";
 import sharp from "sharp";
 
 /**
- * Search for images using Bing Image Search API
+ * Search for images using Google Custom Search API or Bing Image Search API
  */
 export async function searchImagesAction(query: string, count: number = 100) {
   try {
@@ -16,18 +16,126 @@ export async function searchImagesAction(query: string, count: number = 100) {
       return { success: false, error: "Unauthorized" };
     }
 
-    const apiKey = process.env.BING_IMAGE_SEARCH_API_KEY;
-    if (!apiKey) {
-      return { 
-        success: false, 
-        error: "Bing Image Search API key not configured. Please add BING_IMAGE_SEARCH_API_KEY to your .env file" 
-      };
+    // Try Google Custom Search first (easier to set up)
+    const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY;
+    const googleSearchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+    if (googleApiKey && googleSearchEngineId) {
+      return await searchImagesGoogle(query, count, googleApiKey, googleSearchEngineId);
     }
 
-    // Bing Image Search API endpoint
+    // Fallback to Bing if configured
+    const bingApiKey = process.env.BING_IMAGE_SEARCH_API_KEY;
+    if (bingApiKey) {
+      return await searchImagesBing(query, count, bingApiKey);
+    }
+
+    // No API keys configured
+    return { 
+      success: false, 
+      error: "No image search API configured. Please add GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID or BING_IMAGE_SEARCH_API_KEY to your .env file" 
+    };
+  } catch (error: any) {
+    console.error("Error searching images:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to search images",
+    };
+  }
+}
+
+/**
+ * Search images using Google Custom Search API
+ */
+async function searchImagesGoogle(query: string, count: number, apiKey: string, searchEngineId: string) {
+  try {
+    const maxResults = Math.min(count, 100); // Google allows max 100 results
+    const images: any[] = [];
+
+    // Google Custom Search returns 10 results per page, so we need to paginate
+    const pages = Math.ceil(maxResults / 10);
+    
+    for (let page = 0; page < pages; page++) {
+      const startIndex = page * 10 + 1;
+      const endpoint = "https://www.googleapis.com/customsearch/v1";
+      const params = new URLSearchParams({
+        key: apiKey,
+        cx: searchEngineId,
+        q: query,
+        searchType: "image",
+        num: "10",
+        start: startIndex.toString(),
+        safe: "active",
+        imgSize: "large",
+      });
+
+      const response = await fetch(`${endpoint}?${params}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Google API Error:", errorText);
+        
+        if (images.length > 0) {
+          // Return partial results if we got some
+          break;
+        }
+        
+        return { 
+          success: false, 
+          error: `Google API error: ${response.status}` 
+        };
+      }
+
+      const data = await response.json();
+
+      if (data.items) {
+        data.items.forEach((item: any) => {
+          images.push({
+            thumbnailUrl: item.image?.thumbnailLink || item.link,
+            contentUrl: item.link,
+            name: item.title || "",
+            width: item.image?.width || 0,
+            height: item.image?.height || 0,
+            thumbnail: {
+              width: 200,
+              height: 200,
+            },
+            hostPageUrl: item.image?.contextLink || "",
+            encodingFormat: item.mime || "",
+          });
+        });
+      }
+
+      // Break if no more results
+      if (!data.items || data.items.length < 10) {
+        break;
+      }
+    }
+
+    return {
+      success: true,
+      images,
+      totalEstimatedMatches: images.length,
+      provider: "google",
+    };
+  } catch (error: any) {
+    console.error("Google search error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to search with Google",
+    };
+  }
+}
+
+/**
+ * Search images using Bing Image Search API
+ */
+async function searchImagesBing(query: string, count: number, apiKey: string) {
+  try {
     const endpoint = "https://api.bing.microsoft.com/v7.0/images/search";
     
-    // Make the API request
     const response = await fetch(
       `${endpoint}?q=${encodeURIComponent(query)}&count=${Math.min(count, 150)}&imageType=Photo&safeSearch=Moderate`,
       {
@@ -49,17 +157,12 @@ export async function searchImagesAction(query: string, count: number = 100) {
 
     const data = await response.json();
 
-    // Extract relevant image information and ensure thumbnails are 200x200
     const images = data.value?.map((img: any) => {
-      // Bing provides thumbnailUrl but we want to standardize to 200x200
       let thumbnailUrl = img.thumbnailUrl || img.contentUrl;
       
-      // Try to get 200x200 thumbnail if available from Bing's thumbnail resizing
       if (thumbnailUrl && thumbnailUrl.includes('&w=') && thumbnailUrl.includes('&h=')) {
-        // Replace width and height parameters to get 200x200
         thumbnailUrl = thumbnailUrl.replace(/&w=\d+/, '&w=200').replace(/&h=\d+/, '&h=200');
       } else if (thumbnailUrl) {
-        // Append size parameters if not present
         thumbnailUrl += thumbnailUrl.includes('?') ? '&w=200&h=200' : '?w=200&h=200';
       }
 
@@ -82,12 +185,13 @@ export async function searchImagesAction(query: string, count: number = 100) {
       success: true,
       images,
       totalEstimatedMatches: data.totalEstimatedMatches || 0,
+      provider: "bing",
     };
   } catch (error: any) {
-    console.error("Error searching images:", error);
+    console.error("Bing search error:", error);
     return {
       success: false,
-      error: error.message || "Failed to search images",
+      error: error.message || "Failed to search with Bing",
     };
   }
 }

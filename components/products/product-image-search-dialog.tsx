@@ -74,13 +74,17 @@ export function ProductImageSearchDialog({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [defaultImageIndex, setDefaultImageIndex] = useState<number | null>(null);
 
-  // Initialize search query with product name
+  // Initialize search query with product name whenever product changes
   React.useEffect(() => {
-    if (open && !searchQuery) {
+    if (open) {
       const query = product.nameEn || product.name || product.code || "";
       setSearchQuery(query);
+      // Reset other states when product changes
+      setImages([]);
+      setSelectedImages(new Set());
+      setDefaultImageIndex(null);
     }
-  }, [open, product, searchQuery]);
+  }, [open, product.id]); // Depend on product.id to detect product changes
 
   // Handle image search
   const handleSearch = useCallback(async () => {
