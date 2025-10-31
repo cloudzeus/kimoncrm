@@ -132,7 +132,7 @@ export function EquipmentAssignmentStep({
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isAddNewRackDialogOpen, setIsAddNewRackDialogOpen] = useState(false);
   const [selectedElement, setSelectedElement] = useState<{
-    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack' | 'connection';
+    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack' | 'connection' | 'voipPbx' | 'headend' | 'nvr';
     buildingId: string;
     floorId?: string;
     rackId?: string;
@@ -1111,25 +1111,174 @@ export function EquipmentAssignmentStep({
       }
 
       // Handle central rack elements (only if no floorId)
-      if (selectedElement.type === 'termination' && building.centralRack) {
-        const updatedTerminations = building.centralRack.cableTerminations.map(term => {
-          if (term.id === selectedElement.elementId) {
-            return {
-              ...term,
-              isFutureProposal: true,
-              productId: selectedProductId,
-              quantity: productQuantity,
-            };
-          }
-          return term;
-        });
-        return {
-          ...building,
-          centralRack: {
-            ...building.centralRack,
-            cableTerminations: updatedTerminations,
-          },
-        };
+      if (building.centralRack) {
+        if (selectedElement.type === 'termination') {
+          const updatedTerminations = building.centralRack.cableTerminations.map(term => {
+            if (term.id === selectedElement.elementId) {
+              return {
+                ...term,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return term;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              cableTerminations: updatedTerminations,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'switch') {
+          const updatedSwitches = (building.centralRack.switches || []).map(sw => {
+            if (sw.id === selectedElement.elementId) {
+              return {
+                ...sw,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return sw;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              switches: updatedSwitches,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'router') {
+          const updatedRouters = (building.centralRack.routers || []).map(router => {
+            if (router.id === selectedElement.elementId) {
+              return {
+                ...router,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return router;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              routers: updatedRouters,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'server') {
+          const updatedServers = (building.centralRack.servers || []).map(server => {
+            if (server.id === selectedElement.elementId) {
+              return {
+                ...server,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return server;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              servers: updatedServers,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'voipPbx') {
+          const updatedVoipPbx = (building.centralRack.voipPbx || []).map(pbx => {
+            if (pbx.id === selectedElement.elementId) {
+              return {
+                ...pbx,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return pbx;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              voipPbx: updatedVoipPbx,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'headend') {
+          const updatedHeadend = (building.centralRack.headend || []).map(he => {
+            if (he.id === selectedElement.elementId) {
+              return {
+                ...he,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return he;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              headend: updatedHeadend,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'nvr') {
+          const updatedNvr = (building.centralRack.nvr || []).map(nvr => {
+            if (nvr.id === selectedElement.elementId) {
+              return {
+                ...nvr,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return nvr;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              nvr: updatedNvr,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'connection') {
+          const updatedConnections = (building.centralRack.connections || []).map(conn => {
+            if (conn.id === selectedElement.elementId) {
+              return {
+                ...conn,
+                isFutureProposal: true,
+                productId: selectedProductId,
+                quantity: productQuantity,
+              };
+            }
+            return conn;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              connections: updatedConnections,
+            },
+          };
+        }
       }
 
       return building;
@@ -1345,23 +1494,158 @@ export function EquipmentAssignmentStep({
       }
 
       // Handle central rack elements (only if no floorId)
-      if (selectedElement.type === 'termination' && building.centralRack) {
-        const updatedTerminations = building.centralRack.cableTerminations.map(term => {
-          if (term.id === selectedElement.elementId) {
-            return {
-              ...term,
-              services: [...(term.services || []), newService],
-            };
-          }
-          return term;
-        });
-        return {
-          ...building,
-          centralRack: {
-            ...building.centralRack,
-            cableTerminations: updatedTerminations,
-          },
-        };
+      if (building.centralRack) {
+        if (selectedElement.type === 'termination') {
+          const updatedTerminations = building.centralRack.cableTerminations.map(term => {
+            if (term.id === selectedElement.elementId) {
+              return {
+                ...term,
+                services: [...(term.services || []), newService],
+              };
+            }
+            return term;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              cableTerminations: updatedTerminations,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'switch') {
+          const updatedSwitches = (building.centralRack.switches || []).map(sw => {
+            if (sw.id === selectedElement.elementId) {
+              return {
+                ...sw,
+                services: [...(sw.services || []), newService],
+              };
+            }
+            return sw;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              switches: updatedSwitches,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'router') {
+          const updatedRouters = (building.centralRack.routers || []).map(router => {
+            if (router.id === selectedElement.elementId) {
+              return {
+                ...router,
+                services: [...(router.services || []), newService],
+              };
+            }
+            return router;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              routers: updatedRouters,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'server') {
+          const updatedServers = (building.centralRack.servers || []).map(server => {
+            if (server.id === selectedElement.elementId) {
+              return {
+                ...server,
+                services: [...(server.services || []), newService],
+              };
+            }
+            return server;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              servers: updatedServers,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'voipPbx') {
+          const updatedVoipPbx = (building.centralRack.voipPbx || []).map(pbx => {
+            if (pbx.id === selectedElement.elementId) {
+              return {
+                ...pbx,
+                services: [...(pbx.services || []), newService],
+              };
+            }
+            return pbx;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              voipPbx: updatedVoipPbx,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'headend') {
+          const updatedHeadend = (building.centralRack.headend || []).map(he => {
+            if (he.id === selectedElement.elementId) {
+              return {
+                ...he,
+                services: [...(he.services || []), newService],
+              };
+            }
+            return he;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              headend: updatedHeadend,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'nvr') {
+          const updatedNvr = (building.centralRack.nvr || []).map(nvr => {
+            if (nvr.id === selectedElement.elementId) {
+              return {
+                ...nvr,
+                services: [...(nvr.services || []), newService],
+              };
+            }
+            return nvr;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              nvr: updatedNvr,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'connection') {
+          const updatedConnections = (building.centralRack.connections || []).map(conn => {
+            if (conn.id === selectedElement.elementId) {
+              return {
+                ...conn,
+                services: [...(conn.services || []), newService],
+              };
+            }
+            return conn;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              connections: updatedConnections,
+            },
+          };
+        }
       }
 
       // Handle floor-level elements
