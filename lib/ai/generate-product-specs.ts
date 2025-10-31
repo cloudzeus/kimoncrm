@@ -112,22 +112,75 @@ function buildSpecsPrompt(context: ProductContext, languages: string[], groupSpe
     context.mtrgroupCode && `Group: ${context.mtrgroupCode}`,
   ].filter(Boolean).join(' | ');
 
-  let prompt = `You are a technical specification expert. Extract ONLY the official technical specifications for this product.\n\nProduct: ${productInfo}\n\nIMPORTANT: Use ONLY official manufacturer specifications. Do not guess or estimate values.\n\n`;
+  let prompt = `You are a technical specification expert specializing in IT, networking, and telecommunications products. Your task is to research and extract ACCURATE official technical specifications.
+
+PRODUCT: ${productInfo}
+
+${context.brand ? `\nBRAND CONTEXT: ${context.brand} - Research this brand's official documentation and use their exact terminology and specifications.\n` : ''}
+
+${context.category ? `\nCATEGORY CONTEXT: ${context.category} - Focus on specifications relevant to this product category. Use category-specific technical terminology and metrics.\n` : ''}
+
+${context.mtrgroupCode ? `\nPRODUCT GROUP: ${context.mtrgroupCode} - This product belongs to a specific group with standardized specifications. Follow the group's specification structure and requirements.\n` : ''}
+
+CRITICAL REQUIREMENTS:
+1. Research the EXACT product model using ALL identifiers provided (name, brand, model, EAN, category)
+2. Use ONLY official manufacturer datasheets and documentation from ${context.brand || 'the manufacturer'}
+3. Do NOT invent, guess, or estimate any specifications
+4. If you cannot find accurate official data, use "N/A" or "Contact manufacturer"
+5. Include proper units of measurement (W, Gbps, MHz, kg, mm, °C, etc.)
+6. Use the manufacturer's exact terminology and values
+7. Be specific and precise - avoid vague terms
+8. Leverage brand, category, and group context to ensure accuracy
+
+`;
 
   // If group specs exist, provide minimal guidance
   if (groupSpecs.length > 0) {
     console.log(`Building prompt with ${groupSpecs.length} group specs`);
-    prompt += `Generate ONLY these specs (use exact keys) with OFFICIAL manufacturer values:\n`;
+    prompt += `Generate specifications using these EXACT keys with OFFICIAL manufacturer values from ${context.brand || 'manufacturer'}:\n\n`;
     groupSpecs.forEach(spec => {
-      const desc = spec.description ? ` (${spec.description})` : '';
-      prompt += `- ${spec.specKey}: ${spec.specName}${spec.isRequired ? ' (REQUIRED)' : ''}${desc}\n`;
+      const desc = spec.description ? ` - ${spec.description}` : '';
+      const required = spec.isRequired ? ' [REQUIRED]' : ' [OPTIONAL]';
+      prompt += `- ${spec.specKey}: ${spec.specName}${required}${desc}\n`;
     });
-    prompt += `\nCRITICAL: Use ONLY official manufacturer specifications. If you don't know the exact official value, use "N/A" instead of guessing.\n\nReturn JSON:\n{"specifications": [{"specKey": "...", "translations": {"en": {"specName": "...", "specValue": "..."}, "el": {"specName": "...", "specValue": "..."}}}]}`;
+    prompt += `\nResearch ${context.brand || 'the'} ${context.name} to find exact official values for the above specifications.\n\n`;
+    prompt += `VALUE REQUIREMENTS:\n`;
+    prompt += `- Include units (e.g., "24 ports", "128 Gbps", "100-240V AC", "0°C to 45°C")\n`;
+    prompt += `- Use exact manufacturer specs - DO NOT guess\n`;
+    prompt += `- For unknowns, use "N/A"\n`;
+    prompt += `- For ranges, use format: "10/100/1000 Mbps"\n`;
+    prompt += `- Keep technical precision\n\n`;
+    prompt += `GREEK TRANSLATION RULES:\n`;
+    prompt += `- Spec names: Translate to professional Greek WITHOUT accents/tonoi\n`;
+    prompt += `- Spec values: Keep technical values in English/numbers (e.g., "128 Gbps" stays "128 Gbps")\n`;
+    prompt += `- Brand names stay in original language\n\n`;
+    prompt += `Return JSON:\n{"specifications": [{"specKey": "exact_key", "translations": {"en": {"specName": "Name", "specValue": "Value with units"}, "el": {"specName": "Ονομα", "specValue": "Value with units"}}}]}`;
   } else {
     console.log(`No group specs found, generating generic specs`);
-    prompt += `Generate 8-12 official technical specifications (CPU, RAM, storage, ports, WiFi, power, dimensions, weight, OS, etc.)\n`;
-    prompt += `CRITICAL: Use ONLY official manufacturer specifications. If you don't know the exact value, use "N/A".\n`;
-    prompt += `Use snake_case for keys. Return JSON only.`;
+    prompt += `Generate 8-15 official technical specifications for this ${context.category || 'product'}${context.brand ? ` from ${context.brand}` : ''}.\n\n`;
+    
+    // Category-specific guidance
+    if (context.category) {
+      const categoryLower = context.category.toLowerCase();
+      if (categoryLower.includes('switch') || categoryLower.includes('network') || categoryLower.includes('hub')) {
+        prompt += `NETWORK EQUIPMENT SPECIFICATIONS:\n- Port count and types (RJ45, SFP, SFP+, QSFP+)\n- Port speeds (10/100/1000 Mbps, 1/10/25/40/100 Gbps)\n- Switching capacity and forwarding rate (Gbps, Mpps)\n- PoE support (802.3af/at/bt) and power budget (W)\n- Management capabilities (Layer 2/3, VLAN, QoS)\n- MAC address table size\n- Packet buffer memory\n- Mounting options\n`;
+      } else if (categoryLower.includes('server') || categoryLower.includes('storage')) {
+        prompt += `SERVER/STORAGE SPECIFICATIONS:\n- Processor model, cores, and frequency\n- RAM capacity, type (DDR4/DDR5), and max supported\n- Storage capacity, type (HDD/SSD), and RAID levels\n- Number and type of drive bays\n- Expansion slots (PCIe)\n- Network interfaces (1GbE/10GbE)\n- Form factor and rack units (1U/2U/4U)\n- Redundant power supplies\n- Remote management (iLO, iDRAC, IPMI)\n`;
+      } else if (categoryLower.includes('router') || categoryLower.includes('firewall') || categoryLower.includes('gateway')) {
+        prompt += `ROUTER/FIREWALL SPECIFICATIONS:\n- Throughput capacity (Gbps)\n- Firewall/VPN throughput\n- Number of WAN/LAN ports\n- Routing protocols supported\n- Maximum NAT sessions\n- VPN tunnels supported\n- Security features\n- Failover/redundancy\n`;
+      } else if (categoryLower.includes('cable') || categoryLower.includes('patch') || categoryLower.includes('cord')) {
+        prompt += `CABLING SPECIFICATIONS:\n- Cable category (Cat5e, Cat6, Cat6A, Cat7, Cat8)\n- Conductor type and gauge (solid/stranded, AWG)\n- Shielding type (UTP, STP, FTP, S/FTP)\n- Bandwidth and maximum frequency (MHz)\n- Maximum length and attenuation\n- Jacket material and rating (plenum, riser, LSZH)\n- Compliance standards (TIA/EIA-568, ISO/IEC 11801)\n`;
+      } else if (categoryLower.includes('access point') || categoryLower.includes('wifi') || categoryLower.includes('wireless')) {
+        prompt += `WIRELESS EQUIPMENT SPECIFICATIONS:\n- Wireless standards (802.11a/b/g/n/ac/ax/be)\n- Frequency bands (2.4GHz, 5GHz, 6GHz)\n- Maximum data rate (Mbps/Gbps)\n- Number of spatial streams (MIMO)\n- Transmit power (dBm)\n- Antenna configuration and gain\n- PoE support\n- Concurrent clients supported\n`;
+      }
+    } else {
+      prompt += `GENERAL SPECIFICATIONS:\n- Model/SKU number\n- Physical dimensions (W×D×H) and weight\n- Performance specifications\n- Connectivity/interface options\n- Power requirements and consumption\n- Environmental operating conditions\n- Certifications (CE, FCC, UL, RoHS)\n`;
+    }
+    
+    prompt += `\nUse snake_case for keys (e.g., "port_count", "switching_capacity").\n`;
+    prompt += `Include units in all values.\n`;
+    prompt += `Greek translations: spec names without accents, values stay technical/English.\n`;
+    prompt += `Return JSON only: {"specifications": [{"specKey": "...", "translations": {"en": {...}, "el": {...}}}]}`;
   }
 
   return prompt;
@@ -162,43 +215,80 @@ export async function regenerateProductSpecsWithOpenAI(
     productContext.manufacturerCode && `Model/Part Number: ${productContext.manufacturerCode}`,
     productContext.eanCode && `EAN: ${productContext.eanCode}`,
     productContext.category && `Category: ${productContext.category}`,
-    productContext.mtrgroupCode && `Group: ${productContext.mtrgroupCode}`,
+    productContext.mtrgroupCode && `Product Group: ${productContext.mtrgroupCode}`,
   ].filter(Boolean).join(' | ');
 
-  let prompt = `You are a technical specification expert. Extract ONLY the official technical specifications for this product.\n\nProduct Information:\n${productInfo}\n\nCRITICAL: Use ONLY official manufacturer specifications. Do not guess or estimate values. If you don't know the exact value, use "N/A".\n\n`;
+  let prompt = `You are a technical specification expert specializing in IT, networking, and telecommunications products. Research and extract ACCURATE official technical specifications.
+
+PRODUCT IDENTIFICATION:
+${productInfo}
+
+${productContext.brand ? `\nBRAND CONTEXT: ${productContext.brand} - Use this brand's official terminology and specifications. Research this specific brand's documentation for accurate specs.\n` : ''}
+
+${productContext.category ? `\nCATEGORY CONTEXT: ${productContext.category} - Generate specifications relevant to this product category. Focus on category-specific technical details (e.g., for switches: port count, switching capacity; for servers: CPU, RAM, storage; for cables: category, shielding, bandwidth).\n` : ''}
+
+${productContext.mtrgroupCode ? `\nPRODUCT GROUP: ${productContext.mtrgroupCode} - This product belongs to a specific group with standardized specifications. Follow the group's specification structure.\n` : ''}
+
+CRITICAL REQUIREMENTS:
+1. Research the EXACT product model using ALL identifiers provided above
+2. Use ONLY official manufacturer datasheets and documentation from ${productContext.brand || 'the manufacturer'}
+3. Do NOT invent, guess, or estimate specifications
+4. If you cannot find accurate official data, use "N/A" or "Contact manufacturer"
+5. Include proper units of measurement (W, Gbps, MHz, kg, mm, °C, etc.)
+6. Use the manufacturer's exact terminology and values
+7. Leverage brand, category, and group information to ensure specifications are contextually appropriate
+
+`;
 
   if (existingSpecs.length > 0) {
-    prompt += `Current specifications:\n`;
+    prompt += `EXISTING SPECIFICATIONS TO REVIEW/UPDATE:\n`;
     existingSpecs.forEach((spec: any) => {
       const translations = spec.translations || [];
       const enTrans = translations.find((t: any) => t.languageCode === 'en') || {};
       prompt += `- ${spec.specKey}: ${enTrans.specName || spec.specKey} = ${enTrans.specValue || 'N/A'}\n`;
     });
-    prompt += `\nPlease review and update these specifications with OFFICIAL manufacturer values only. Keep the same keys but use accurate official specs. If official value is unknown, use "N/A".\n\n`;
+    prompt += `\nReview and update these with OFFICIAL manufacturer values only. Keep keys but correct values. Use "N/A" for unknowns.\n\n`;
   }
 
   if (groupSpecs.length > 0) {
-    prompt += `Required specifications (use these exact keys with OFFICIAL manufacturer values):\n`;
+    prompt += `REQUIRED SPECIFICATIONS (use exact keys with OFFICIAL values from ${productContext.brand || 'manufacturer'}):\n`;
     groupSpecs.forEach(spec => {
-      const desc = spec.description ? ` (${spec.description})` : '';
-      prompt += `- ${spec.specKey}: ${spec.specName}${spec.isRequired ? ' (REQUIRED)' : ''}${desc}\n`;
+      const desc = spec.description ? ` - ${spec.description}` : '';
+      const required = spec.isRequired ? ' [REQUIRED]' : ' [OPTIONAL]';
+      prompt += `- ${spec.specKey}: ${spec.specName}${required}${desc}\n`;
     });
+    prompt += `\nFor these group specs, research ${productContext.brand || 'the'} ${productContext.name} to find exact official values.\n\n`;
   } else {
-    prompt += `Generate 8-12 official technical specifications including:\n`;
-    prompt += `- CPU/Processor specifications\n`;
-    prompt += `- Memory (RAM) details\n`;
-    prompt += `- Storage capacity and type\n`;
-    prompt += `- Connectivity ports\n`;
-    prompt += `- Wireless capabilities (WiFi, Bluetooth)\n`;
-    prompt += `- Power requirements\n`;
-    prompt += `- Physical dimensions\n`;
-    prompt += `- Weight\n`;
-    prompt += `- Operating system\n`;
-    prompt += `- Any other relevant technical specs\n`;
+    prompt += `Generate 8-15 official technical specifications for this ${productContext.category || 'product'}${productContext.brand ? ` from ${productContext.brand}` : ''}.\n\n`;
+    
+    // Category-specific guidance
+    if (productContext.category) {
+      const categoryLower = productContext.category.toLowerCase();
+      if (categoryLower.includes('switch') || categoryLower.includes('network')) {
+        prompt += `NETWORK EQUIPMENT SPECS:\n- Port count and types (RJ45, SFP, SFP+)\n- Switching/forwarding capacity (Gbps/Mpps)\n- PoE support and power budget\n- Management layer (L2/L3)\n- Throughput and latency\n`;
+      } else if (categoryLower.includes('server') || categoryLower.includes('storage')) {
+        prompt += `SERVER/STORAGE SPECS:\n- Processor model and cores\n- RAM capacity and type\n- Storage capacity and RAID\n- Drive bays and expansion\n- Network interfaces\n- Form factor (rack units)\n`;
+      } else if (categoryLower.includes('router') || categoryLower.includes('firewall')) {
+        prompt += `ROUTER/FIREWALL SPECS:\n- Throughput capacity\n- VPN performance\n- Number of WAN/LAN ports\n- Routing protocols\n- NAT sessions\n- Security features\n`;
+      } else if (categoryLower.includes('cable') || categoryLower.includes('patch')) {
+        prompt += `CABLING SPECS:\n- Cable category (Cat5e/6/6A/7)\n- Conductor gauge (AWG)\n- Shielding type (UTP/STP/FTP)\n- Bandwidth and frequency\n- Length\n- Compliance standards\n`;
+      }
+    } else {
+      prompt += `GENERAL SPECS:\n- Model/SKU number\n- Physical dimensions and weight\n- Performance specifications\n- Connectivity/interfaces\n- Power requirements\n- Environmental ratings\n- Certifications\n`;
+    }
   }
 
-  prompt += `\nReturn ONLY valid JSON in this format:\n{"specifications": [{"specKey": "key_name", "translations": {"en": {"specName": "Spec Name", "specValue": "Value"}, "el": {"specName": "Όνομα Spec", "specValue": "Τιμή"}}}]}\n`;
-  prompt += `Use Greek alphabet (α-ω) for Greek (el) translations.`;
+  prompt += `\nVALUE FORMAT RULES:\n`;
+  prompt += `- Include units (e.g., "24 ports", "128 Gbps", "100-240V AC")\n`;
+  prompt += `- Use ranges: "0°C to 45°C" or "10/100/1000 Mbps"\n`;
+  prompt += `- Keep technical values precise\n\n`;
+  
+  prompt += `GREEK TRANSLATION:\n`;
+  prompt += `- Spec names: Professional Greek without accents/tonoi\n`;
+  prompt += `- Spec values: Keep technical values/numbers in English (e.g., "128 Gbps" stays "128 Gbps")\n`;
+  prompt += `- Brand names stay in original language\n\n`;
+  
+  prompt += `Return ONLY valid JSON:\n{"specifications": [{"specKey": "snake_case_key", "translations": {"en": {"specName": "Name", "specValue": "Value with units"}, "el": {"specName": "Ονομα", "specValue": "Value with units"}}}]}`;
 
   try {
     const response = await openai.chat.completions.create({

@@ -75,27 +75,62 @@ export async function POST(
     };
 
     // Generate descriptions using Claude
-    const prompt = `You are a professional product copywriter. Generate compelling marketing descriptions for the following product:
+    const prompt = `You are a professional technical copywriter specializing in B2B IT, networking, and telecommunications products. Your task is to generate accurate, compelling product descriptions based on REAL specifications.
 
+PRODUCT INFORMATION:
 Product Name: ${productInfo.name}
 Brand: ${productInfo.brand}
 Category: ${productInfo.category}
 Manufacturer: ${productInfo.manufacturer}
 
 ${productInfo.specifications.length > 0 ? `
-Technical Specifications:
+TECHNICAL SPECIFICATIONS:
 ${productInfo.specifications.map((s) => `- ${s.name}: ${s.value}`).join('\n')}
 ` : ''}
 
 ${productInfo.dimensions.width || productInfo.dimensions.length || productInfo.dimensions.height ? `
-Dimensions: ${productInfo.dimensions.width || 'N/A'} x ${productInfo.dimensions.length || 'N/A'} x ${productInfo.dimensions.height || 'N/A'} mm` : ''}
-${productInfo.dimensions.weight ? `Weight: ${productInfo.dimensions.weight} kg` : ''}
+PHYSICAL DIMENSIONS: ${productInfo.dimensions.width || 'N/A'} x ${productInfo.dimensions.length || 'N/A'} x ${productInfo.dimensions.height || 'N/A'} mm` : ''}
+${productInfo.dimensions.weight ? `WEIGHT: ${productInfo.dimensions.weight} kg` : ''}
 
-Generate two descriptions:
-1. A short description (2-3 sentences, ~100 words) - marketing focused, highlighting key benefits
-2. A full description (3-4 paragraphs, ~300 words) - detailed, professional, technical but accessible
+CRITICAL REQUIREMENTS:
+1. Base descriptions ONLY on the provided specifications and product information above
+2. Do NOT invent or assume specifications that are not provided
+3. Do NOT mention features or capabilities not explicitly listed in the specifications
+4. If specifications are limited, write concise descriptions focusing on what IS known
+5. Use factual, precise language - avoid marketing hyperbole or unverified claims
+6. For technical products, emphasize actual specifications and measurable characteristics
+7. Research the real product model to ensure accuracy if needed
 
-Return the response as a JSON object with the following structure:
+DESCRIPTION REQUIREMENTS:
+
+SHORT DESCRIPTION (2-3 sentences, ~80-120 words):
+- Lead with the product's primary purpose and category
+- Mention 2-3 most important technical specifications
+- State the key use case or application
+- Be factual and precise
+
+FULL DESCRIPTION (3-4 paragraphs, ~250-350 words):
+Paragraph 1: Overview - What is this product and its primary function
+Paragraph 2: Technical capabilities - Detail the specifications provided, organized logically
+Paragraph 3: Applications & benefits - Real-world use cases based on actual capabilities
+Paragraph 4 (if applicable): Installation, compatibility, or deployment considerations
+
+LANGUAGE REQUIREMENTS:
+
+ENGLISH:
+- Professional B2B tone
+- Technical accuracy is paramount
+- Use industry-standard terminology
+- Clear, concise sentence structure
+
+GREEK:
+- Professional business Greek
+- UPPERCASE for product names and brands only
+- NO accents/tonoi (tonal marks) in Greek text
+- Use Greek technical terminology where appropriate
+- Maintain the same factual accuracy as English
+
+Return the response as a JSON object with this EXACT structure:
 {
   "english": {
     "shortDescription": "...",
@@ -107,15 +142,11 @@ Return the response as a JSON object with the following structure:
   }
 }
 
-Guidelines:
-- Write in a professional, B2B tone
-- Highlight key features and benefits
-- Include technical details naturally
-- Make it suitable for a technical proposal document
-- Greek text should be professional business Greek (no accents/tonoi)
-- Focus on quality, reliability, and technical excellence
+EXAMPLE APPROACH:
+Instead of: "This cutting-edge solution revolutionizes your network infrastructure with unparalleled performance..."
+Write: "The [Model Name] is a [category] featuring [specific spec] and [specific spec], designed for [specific use case]..."
 
-Return ONLY the JSON object, no additional text.`;
+Return ONLY the JSON object, no additional text or explanations.`;
 
     const message = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',

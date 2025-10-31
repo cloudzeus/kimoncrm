@@ -83,6 +83,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { ProductImageSearchDialog } from './product-image-search-dialog';
 
 interface Product {
   id: string;
@@ -153,6 +154,8 @@ export default function ProductsManager() {
   const [translatingProduct, setTranslatingProduct] = useState<Product | null>(null);
   const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
   const [imagesProduct, setImagesProduct] = useState<Product | null>(null);
+  const [imageSearchDialogOpen, setImageSearchDialogOpen] = useState(false);
+  const [imageSearchProduct, setImageSearchProduct] = useState<Product | null>(null);
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
   const [specificationsProduct, setSpecificationsProduct] = useState<Product | null>(null);
   const [availableBrands, setAvailableBrands] = useState<Array<{ id: string; name: string }>>([]);
@@ -1311,6 +1314,13 @@ export default function ProductsManager() {
                             IMAGES
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => {
+                            setImageSearchProduct(product);
+                            setImageSearchDialogOpen(true);
+                          }}>
+                            <Search className="h-4 w-4 mr-2" />
+                            SEARCH IMAGES
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
                             setSpecificationsProduct(product);
                             setSpecificationsDialogOpen(true);
                           }}>
@@ -1442,6 +1452,23 @@ export default function ProductsManager() {
           fetchProducts();
         }}
       />
+
+      {/* Image Search Dialog */}
+      {imageSearchProduct && (
+        <ProductImageSearchDialog
+          open={imageSearchDialogOpen}
+          onOpenChange={setImageSearchDialogOpen}
+          product={{
+            id: imageSearchProduct.id,
+            name: imageSearchProduct.name,
+            code: imageSearchProduct.code || undefined,
+            nameEn: imageSearchProduct.translations?.find(t => t.languageCode === 'en')?.name || undefined,
+          }}
+          onSuccess={() => {
+            fetchProducts();
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
