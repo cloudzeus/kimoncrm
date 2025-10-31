@@ -69,6 +69,12 @@ import { ContactFormDialog } from "./contact-form-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResizableTableHeader } from "./resizable-table-header";
 import { ContactEmailsModal } from "./contact-emails-modal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Contact {
   id: string;
@@ -129,6 +135,7 @@ export function ContactsManager() {
   const [selectedContactForEmails, setSelectedContactForEmails] = useState<Contact | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState({
@@ -137,8 +144,6 @@ export function ContactsManager() {
     mobilePhone: true,
     city: true,
     country: true,
-    customers: true,
-    suppliers: true,
     projects: true,
   });
 
@@ -149,8 +154,6 @@ export function ContactsManager() {
     mobilePhone: 150,
     city: 150,
     country: 150,
-    customers: 200,
-    suppliers: 200,
     projects: 200,
   });
 
@@ -397,6 +400,69 @@ export function ContactsManager() {
     setEmailsModalOpen(true);
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(contacts.map(c => c.id));
+      setSelectedRows(allIds);
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (contactId: string, checked: boolean) => {
+    const newSelection = new Set(selectedRows);
+    if (checked) {
+      newSelection.add(contactId);
+    } else {
+      newSelection.delete(contactId);
+    }
+    setSelectedRows(newSelection);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      const promises = Array.from(selectedRows).map(id =>
+        fetch(`/api/contacts/${id}`, { method: "DELETE" })
+      );
+      
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.ok).length;
+      
+      if (successCount === selectedRows.size) {
+        toast.success(`${successCount} contact(s) deleted successfully`);
+      } else {
+        toast.warning(`${successCount} of ${selectedRows.size} contact(s) deleted`);
+      }
+      
+      setSelectedRows(new Set());
+      fetchContacts();
+    } catch (error) {
+      console.error("Error bulk deleting contacts:", error);
+      toast.error("Failed to delete contacts");
+    }
+  };
+
+  const handleBulkEmail = () => {
+    const selectedContacts = contacts.filter(c => selectedRows.has(c.id) && c.email);
+    if (selectedContacts.length === 0) {
+      toast.error("No contacts with email addresses selected");
+      return;
+    }
+    
+    const emails = selectedContacts.map(c => c.email).join(',');
+    window.location.href = `mailto:${emails}`;
+  };
+
+  const handleSendEmail = (contact: Contact) => {
+    if (!contact.email) {
+      toast.error("Contact has no email address");
+      return;
+    }
+    window.location.href = `mailto:${contact.email}`;
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -408,6 +474,29 @@ export function ContactsManager() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedRows.size > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <span className="mr-2">BULK ACTIONS ({selectedRows.size})</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>BULK ACTIONS</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleBulkEmail}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  SEND EMAIL
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleBulkDelete} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  DELETE SELECTED
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -534,21 +623,28 @@ export function ContactsManager() {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columnVisibility.name && (
-                <ResizableTableHeader
-                  width={columnWidths.name}
-                  onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, name: newWidth }))}
-                  sortable
-                  sortKey="name"
-                  sortConfig={sortConfig}
-                  onSort={() => handleSort('name')}
-                >
-                  NAME
-                </ResizableTableHeader>
-              )}
+        <TooltipProvider>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedRows.size === contacts.length && contacts.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                {columnVisibility.name && (
+                  <ResizableTableHeader
+                    width={columnWidths.name}
+                    onResize={(newWidth) => setColumnWidths((prev) => ({ ...prev, name: newWidth }))}
+                    sortable
+                    sortKey="name"
+                    sortConfig={sortConfig}
+                    onSort={() => handleSort('name')}
+                  >
+                    NAME
+                  </ResizableTableHeader>
+                )}
               {columnVisibility.email && (
                 <ResizableTableHeader
                   width={columnWidths.email}
@@ -597,12 +693,6 @@ export function ContactsManager() {
                   COUNTRY
                 </ResizableTableHeader>
               )}
-              {columnVisibility.customers && (
-                <TableHead style={{ width: `${columnWidths.customers}px` }}>CUSTOMERS</TableHead>
-              )}
-              {columnVisibility.suppliers && (
-                <TableHead style={{ width: `${columnWidths.suppliers}px` }}>SUPPLIERS</TableHead>
-              )}
               {columnVisibility.projects && (
                 <TableHead style={{ width: `${columnWidths.projects}px` }}>PROJECTS</TableHead>
               )}
@@ -621,26 +711,61 @@ export function ContactsManager() {
                   <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                 </TableRow>
               ))
             ) : contacts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-xs">
+                <TableCell colSpan={8} className="h-24 text-center text-xs">
                   No contacts found.
                 </TableCell>
               </TableRow>
             ) : (
               contacts.map((contact) => (
                 <TableRow key={contact.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedRows.has(contact.id)}
+                      onCheckedChange={(checked) => handleSelectRow(contact.id, checked as boolean)}
+                    />
+                  </TableCell>
                   {columnVisibility.name && (
                     <TableCell className="font-medium text-xs">
-                      {contact.title && (
-                        <span className="text-muted-foreground mr-1">
-                          {contact.title}
-                        </span>
-                      )}
-                      {contact.name}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">
+                            {contact.title && (
+                              <span className="text-muted-foreground mr-1">
+                                {contact.title}
+                              </span>
+                            )}
+                            {contact.name}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="space-y-1" style={{ fontSize: '8px' }}>
+                            {contact.customers && contact.customers.length > 0 && (
+                              <div>
+                                <div className="font-semibold">CUSTOMERS:</div>
+                                {contact.customers.map((c) => (
+                                  <div key={c.customer.id}>• {c.customer.name}</div>
+                                ))}
+                              </div>
+                            )}
+                            {contact.suppliers && contact.suppliers.length > 0 && (
+                              <div>
+                                <div className="font-semibold">SUPPLIERS:</div>
+                                {contact.suppliers.map((s) => (
+                                  <div key={s.supplier.id}>• {s.supplier.name}</div>
+                                ))}
+                              </div>
+                            )}
+                            {(!contact.customers || contact.customers.length === 0) && 
+                             (!contact.suppliers || contact.suppliers.length === 0) && (
+                              <div>No customers or suppliers</div>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   )}
                   {columnVisibility.email && (
@@ -654,46 +779,6 @@ export function ContactsManager() {
                   )}
                   {columnVisibility.country && (
                     <TableCell className="text-xs">{contact.country?.name || "-"}</TableCell>
-                  )}
-                  {columnVisibility.customers && (
-                    <TableCell className="text-xs">
-                      {contact.customers && contact.customers.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {contact.customers.slice(0, 2).map((c) => (
-                            <Badge key={c.customer.id} variant="secondary">
-                              {c.customer.name}
-                            </Badge>
-                          ))}
-                          {contact.customers.length > 2 && (
-                            <Badge variant="secondary">
-                              +{contact.customers.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                  )}
-                  {columnVisibility.suppliers && (
-                    <TableCell className="text-xs">
-                      {contact.suppliers && contact.suppliers.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {contact.suppliers.slice(0, 2).map((s) => (
-                            <Badge key={s.supplier.id} variant="secondary">
-                              {s.supplier.name}
-                            </Badge>
-                          ))}
-                          {contact.suppliers.length > 2 && (
-                            <Badge variant="secondary">
-                              +{contact.suppliers.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
                   )}
                   {columnVisibility.projects && (
                     <TableCell className="text-xs">
@@ -730,6 +815,13 @@ export function ContactsManager() {
                           VIEW DETAILS
                         </DropdownMenuItem>
                         <DropdownMenuItem 
+                          onClick={() => handleSendEmail(contact)}
+                          disabled={!contact.email}
+                        >
+                          <Mail className="mr-2 h-4 w-4" />
+                          SEND EMAIL
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
                           onClick={() => handleViewEmails(contact)}
                           disabled={!contact.email}
                         >
@@ -759,6 +851,7 @@ export function ContactsManager() {
             )}
           </TableBody>
         </Table>
+        </TooltipProvider>
       </div>
 
       {/* Pagination */}
