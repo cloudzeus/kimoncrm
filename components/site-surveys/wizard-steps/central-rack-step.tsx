@@ -370,15 +370,18 @@ export function CentralRackStep({
       // Central rack
       if (building.centralRack) {
         building.centralRack.cableTerminations?.forEach(term => {
-          if (term.productId) {
-            const key = term.productId;
+          // Support new products array format
+          const productsToProcess = term.products || (term.productId ? [{ productId: term.productId, quantity: term.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: term.productId,
-                name: getProductName(term.productId),
-                code: term.productId,
-                brand: getProductBrand(term.productId),
-                category: getProductCategory(term.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -387,9 +390,9 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += term.quantity || 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack');
-          }
+          });
           
           term.services?.forEach(svc => {
             const key = svc.serviceId;
@@ -413,15 +416,18 @@ export function CentralRackStep({
         });
 
         building.centralRack.switches?.forEach(sw => {
-          if (sw.productId) {
-            const key = sw.productId;
+          // Support new products array format
+          const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: sw.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: sw.productId,
-                name: getProductName(sw.productId),
-                code: sw.productId,
-                brand: getProductBrand(sw.productId),
-                category: getProductCategory(sw.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -430,9 +436,9 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack');
-          }
+          });
           
           sw.services?.forEach(svc => {
             const key = svc.serviceId;
@@ -456,15 +462,18 @@ export function CentralRackStep({
         });
 
         building.centralRack.routers?.forEach(router => {
-          if (router.productId) {
-            const key = router.productId;
+          // Support new products array format
+          const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: router.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: router.productId,
-                name: getProductName(router.productId),
-                code: router.productId,
-                brand: getProductBrand(router.productId),
-                category: getProductCategory(router.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -473,21 +482,24 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack');
-          }
+          });
         });
 
         building.centralRack.servers?.forEach(server => {
-          if (server.productId) {
-            const key = server.productId;
+          // Support new products array format
+          const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: server.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: server.productId,
-                name: getProductName(server.productId),
-                code: server.productId,
-                brand: getProductBrand(server.productId),
-                category: getProductCategory(server.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -496,21 +508,24 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack');
-          }
+          });
         });
 
         building.centralRack.voipPbx?.forEach(pbx => {
-          if (pbx.productId) {
-            const key = pbx.productId;
+          // Support new products array format
+          const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: pbx.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: pbx.productId,
-                name: getProductName(pbx.productId),
-                code: pbx.productId,
-                brand: getProductBrand(pbx.productId),
-                category: getProductCategory(pbx.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -519,21 +534,24 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack - VoIP PBX');
-          }
+          });
         });
 
         building.centralRack.headend?.forEach(headend => {
-          if (headend.productId) {
-            const key = headend.productId;
+          // Support new products array format
+          const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: headend.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: headend.productId,
-                name: getProductName(headend.productId),
-                code: headend.productId,
-                brand: getProductBrand(headend.productId),
-                category: getProductCategory(headend.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -542,21 +560,24 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack - Headend');
-          }
+          });
         });
 
         building.centralRack.nvr?.forEach(nvr => {
-          if (nvr.productId) {
-            const key = nvr.productId;
+          // Support new products array format
+          const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: nvr.quantity || 1 }] : []);
+          
+          productsToProcess.forEach(productAssignment => {
+            const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
-                id: nvr.productId,
-                name: getProductName(nvr.productId),
-                code: nvr.productId,
-                brand: getProductBrand(nvr.productId),
-                category: getProductCategory(nvr.productId),
+                id: productAssignment.productId,
+                name: getProductName(productAssignment.productId),
+                code: productAssignment.productId,
+                brand: getProductBrand(productAssignment.productId),
+                category: getProductCategory(productAssignment.productId),
                 quantity: 0,
                 unitPrice: 0,
                 margin: 0,
@@ -565,9 +586,9 @@ export function CentralRackStep({
               });
             }
             const product = productsMap.get(key)!;
-            product.quantity += 1;
+            product.quantity += productAssignment.quantity;
             product.locations.push('Central Rack - NVR');
-          }
+          });
         });
       }
 

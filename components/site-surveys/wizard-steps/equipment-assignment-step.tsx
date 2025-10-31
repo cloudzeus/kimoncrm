@@ -1115,11 +1115,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'termination') {
           const updatedTerminations = building.centralRack.cableTerminations.map(term => {
             if (term.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = term.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...term,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return term;
@@ -1136,11 +1155,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'switch') {
           const updatedSwitches = (building.centralRack.switches || []).map(sw => {
             if (sw.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = sw.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...sw,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return sw;
@@ -1157,11 +1195,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'router') {
           const updatedRouters = (building.centralRack.routers || []).map(router => {
             if (router.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = router.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...router,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return router;
@@ -1178,11 +1235,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'server') {
           const updatedServers = (building.centralRack.servers || []).map(server => {
             if (server.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = server.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...server,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return server;
@@ -1199,11 +1275,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'voipPbx') {
           const updatedVoipPbx = (building.centralRack.voipPbx || []).map(pbx => {
             if (pbx.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = pbx.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...pbx,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return pbx;
@@ -1220,11 +1315,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'headend') {
           const updatedHeadend = (building.centralRack.headend || []).map(he => {
             if (he.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = he.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...he,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return he;
@@ -1241,11 +1355,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'nvr') {
           const updatedNvr = (building.centralRack.nvr || []).map(nvr => {
             if (nvr.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = nvr.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...nvr,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return nvr;
@@ -1262,11 +1395,30 @@ export function EquipmentAssignmentStep({
         if (selectedElement.type === 'connection') {
           const updatedConnections = (building.centralRack.connections || []).map(conn => {
             if (conn.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = conn.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
               return {
                 ...conn,
                 isFutureProposal: true,
-                productId: selectedProductId,
-                quantity: productQuantity,
+                products: updatedProducts,
               };
             }
             return conn;

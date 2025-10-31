@@ -7,7 +7,8 @@ import { bunnyPut } from "@/lib/bunny/upload";
 import sharp from "sharp";
 
 /**
- * Search for images using Google Custom Search API or Bing Image Search API
+ * Search for images using multiple providers with automatic fallback
+ * Priority: SerpAPI (best for products) > Pexels > Google Custom Search > Bing
  */
 export async function searchImagesAction(query: string, count: number = 100) {
   try {
@@ -16,30 +17,174 @@ export async function searchImagesAction(query: string, count: number = 100) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Try Google Custom Search first (easier to set up)
+    // Try SerpAPI first (best for product images - real Google Images results)
+    const serpApiKey = process.env.SERPAPI_API_KEY;
+    if (serpApiKey) {
+      const result = await searchImagesSerpAPI(query, count, serpApiKey);
+      if (result.success) return result;
+      console.log("SerpAPI failed, trying next provider...");
+    }
+
+    // Try Pexels (high-quality stock photos, good for products)
+    const pexelsApiKey = process.env.PEXELS_API_KEY;
+    if (pexelsApiKey) {
+      const result = await searchImagesPexels(query, count, pexelsApiKey);
+      if (result.success) return result;
+      console.log("Pexels failed, trying next provider...");
+    }
+
+    // Try Google Custom Search
     const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY;
     const googleSearchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
-
     if (googleApiKey && googleSearchEngineId) {
-      return await searchImagesGoogle(query, count, googleApiKey, googleSearchEngineId);
+      const result = await searchImagesGoogle(query, count, googleApiKey, googleSearchEngineId);
+      if (result.success) return result;
+      console.log("Google failed, trying next provider...");
     }
 
     // Fallback to Bing if configured
     const bingApiKey = process.env.BING_IMAGE_SEARCH_API_KEY;
     if (bingApiKey) {
-      return await searchImagesBing(query, count, bingApiKey);
+      const result = await searchImagesBing(query, count, bingApiKey);
+      if (result.success) return result;
     }
 
     // No API keys configured
     return { 
       success: false, 
-      error: "No image search API configured. Please add GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID or BING_IMAGE_SEARCH_API_KEY to your .env file" 
+      error: "No image search API configured. Please add SERPAPI_API_KEY, PEXELS_API_KEY, GOOGLE_SEARCH_API_KEY, or BING_IMAGE_SEARCH_API_KEY to your .env file" 
     };
   } catch (error: any) {
     console.error("Error searching images:", error);
     return {
       success: false,
       error: error.message || "Failed to search images",
+    };
+  }
+}
+
+/**
+ * Search images using SerpAPI (Real Google Images results - best for products)
+ */
+async function searchImagesSerpAPI(query: string, count: number, apiKey: string) {
+  try {
+    const endpoint = "https://serpapi.com/search";
+    const params = new URLSearchParams({
+      engine: "google_images",
+      q: query,
+      api_key: apiKey,
+      num: Math.min(count, 100).toString(),
+      ijn: "0",
+    });
+
+    const response = await fetch(`${endpoint}?${params}`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("SerpAPI Error:", errorText);
+      return { 
+        success: false, 
+        error: `SerpAPI error: ${response.status}` 
+      };
+    }
+
+    const data = await response.json();
+
+    const images = (data.images_results || []).map((img: any) => ({
+      thumbnailUrl: img.thumbnail || img.original,
+      contentUrl: img.original || img.thumbnail,
+      name: img.title || query,
+      width: img.original_width || 0,
+      height: img.original_height || 0,
+      thumbnail: {
+        width: 200,
+        height: 200,
+      },
+      hostPageUrl: img.source || "",
+      encodingFormat: "",
+    }));
+
+    return {
+      success: true,
+      images,
+      totalEstimatedMatches: images.length,
+      provider: "serpapi",
+    };
+  } catch (error: any) {
+    console.error("SerpAPI search error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to search with SerpAPI",
+    };
+  }
+}
+
+/**
+ * Search images using Pexels API (High-quality stock photos)
+ */
+async function searchImagesPexels(query: string, count: number, apiKey: string) {
+  try {
+    const maxResults = Math.min(count, 80); // Pexels max 80 per request
+    const images: any[] = [];
+
+    // Pexels returns 15-80 results per page
+    const perPage = Math.min(maxResults, 80);
+    const endpoint = "https://api.pexels.com/v1/search";
+    const params = new URLSearchParams({
+      query,
+      per_page: perPage.toString(),
+      page: "1",
+    });
+
+    const response = await fetch(`${endpoint}?${params}`, {
+      headers: {
+        Authorization: apiKey,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Pexels API Error:", errorText);
+      return { 
+        success: false, 
+        error: `Pexels API error: ${response.status}` 
+      };
+    }
+
+    const data = await response.json();
+
+    if (data.photos) {
+      data.photos.forEach((photo: any) => {
+        images.push({
+          thumbnailUrl: photo.src.small || photo.src.tiny,
+          contentUrl: photo.src.large2x || photo.src.large || photo.src.original,
+          name: photo.alt || photo.photographer || query,
+          width: photo.width || 0,
+          height: photo.height || 0,
+          thumbnail: {
+            width: 200,
+            height: 200,
+          },
+          hostPageUrl: photo.url || "",
+          encodingFormat: "",
+        });
+      });
+    }
+
+    return {
+      success: true,
+      images,
+      totalEstimatedMatches: data.total_results || images.length,
+      provider: "pexels",
+    };
+  } catch (error: any) {
+    console.error("Pexels search error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to search with Pexels",
     };
   }
 }
