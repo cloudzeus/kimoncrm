@@ -68,6 +68,14 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
   // Track which floors are expanded
   const [expandedFloors, setExpandedFloors] = useState<Set<string>>(new Set());
   
+  // Helper function to calculate total floors considering typical floors with repeat count
+  const getTotalFloorsCount = () => {
+    return building.floors.reduce((total, floor) => {
+      const multiplier = floor.isTypical && floor.repeatCount ? floor.repeatCount : 1;
+      return total + multiplier;
+    }, 0);
+  };
+  
   // Track which sections are expanded within central rack
   const [expandedCentralRackSections, setExpandedCentralRackSections] = useState<Set<string>>(new Set(['terminations']));
   
@@ -1007,7 +1015,10 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
               />
             </div>
             <Badge variant="outline" className="ml-2">
-              {building.floors.length} {building.floors.length === 1 ? 'Floor' : 'Floors'}
+              {getTotalFloorsCount()} {getTotalFloorsCount() === 1 ? 'Floor' : 'Floors'}
+              {building.floors.some(f => f.isTypical) && (
+                <span className="ml-1 text-xs opacity-70">({building.floors.length} unique)</span>
+              )}
             </Badge>
             <div className="ml-4 flex items-center gap-2 bg-muted/50 px-3 py-1 rounded-md border">
               <span className="text-xs font-medium text-muted-foreground">Mode:</span>

@@ -14,7 +14,8 @@ export interface FloorData {
   rooms: RoomData[];
   racks?: FloorRackData[];
   isFutureProposal?: boolean;
-  repeatCount?: number; // For typical floors
+  isTypical?: boolean; // Flag to indicate if this is a typical floor
+  repeatCount?: number; // For typical floors - number of times this floor repeats
   image?: FileReference;
   blueprint?: FileReference;
   notes?: string;
@@ -64,6 +65,11 @@ export interface RoomData {
   notes?: string;
 }
 
+export interface ProductAssignment {
+  productId: string;
+  quantity: number;
+}
+
 export interface CableTerminationData {
   id: string;
   cableType: 'CAT6' | 'CAT6A' | 'CAT5e' | 'FIBER_SM' | 'FIBER_MM';
@@ -72,7 +78,8 @@ export interface CableTerminationData {
   terminatedFibers?: number;
   fromLocation?: string;
   toLocation?: string;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -84,7 +91,9 @@ export interface SwitchData {
   ports: number;
   poeEnabled: boolean;
   poePortsCount?: number;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -95,7 +104,9 @@ export interface RouterData {
   model: string;
   interfaces: RouterInterfaceData[];
   connections?: RouterConnectionData[];
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -105,7 +116,9 @@ export interface ServerData {
   brand: string;
   model: string;
   virtualMachines: VirtualMachineData[];
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -114,7 +127,9 @@ export interface HeadendData {
   id: string;
   brand: string;
   model: string;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -124,7 +139,9 @@ export interface VoipPbxData {
   brand: string;
   model: string;
   extensions?: number;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -135,7 +152,9 @@ export interface NvrData {
   model: string;
   channels?: number;
   storageCapacity?: string;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -144,7 +163,9 @@ export interface LoRaWANGatewayData {
   id: string;
   brand: string;
   model: string;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -155,7 +176,8 @@ export interface DeviceData {
   brand?: string;
   model?: string;
   quantity: number;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -164,7 +186,8 @@ export interface OutletData {
   id: string;
   type: 'DATA' | 'POWER' | 'COMBINED';
   quantity: number;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;
 }
@@ -174,7 +197,8 @@ export interface ConnectionData {
   fromDevice: string;
   toDevice: string;
   cableType?: string;
-  productId?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
   quantity?: number;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;

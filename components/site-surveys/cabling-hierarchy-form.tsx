@@ -1025,31 +1025,33 @@ export function CablingHierarchyForm({
       }
       
       building.floors.forEach((floor) => {
-        totalFloors++;
+        // Calculate floor multiplier for typical floors
+        const floorMultiplier = floor.isTypical && floor.repeatCount ? floor.repeatCount : 1;
+        totalFloors += floorMultiplier;
+        
         if (floor.floorRacks) {
-          totalRacks += floor.floorRacks.length;
+          totalRacks += floor.floorRacks.length * floorMultiplier;
           floor.floorRacks.forEach(rack => {
-            if (rack.devices) totalDevices += rack.devices.length;
+            if (rack.devices) totalDevices += rack.devices.length * floorMultiplier;
             if (rack.cableTerminations) {
-              rack.cableTerminations.forEach(ct => totalCableTerminations += ct.count);
+              rack.cableTerminations.forEach(ct => totalCableTerminations += (ct.count * floorMultiplier));
             }
             if (rack.fiberTerminations) {
               rack.fiberTerminations.forEach(ft => {
-                totalFiberStrands += ft.totalStrands;
-                totalTerminatedFiberStrands += ft.terminatedStrands;
+                totalFiberStrands += ft.totalStrands * floorMultiplier;
+                totalTerminatedFiberStrands += ft.terminatedStrands * floorMultiplier;
               });
             }
           });
         }
         
         floor.rooms.forEach((room) => {
-          totalRooms++;
-          
           // For typical rooms, multiply by the count of identical rooms
           const roomMultiplier = room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1;
           
-          totalOutlets += (room.outlets || 0) * roomMultiplier;
-          if (room.devices) totalDevices += room.devices.length * roomMultiplier;
+          totalRooms += roomMultiplier * floorMultiplier;
+          totalOutlets += (room.outlets || 0) * roomMultiplier * floorMultiplier;
+          if (room.devices) totalDevices += room.devices.length * roomMultiplier * floorMultiplier;
         });
       });
     });
