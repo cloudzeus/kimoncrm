@@ -155,13 +155,24 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Insert to ERP if requested and update product with MTRL and generated code
     if (insertToERP) {
+      // Validate required fields for ERP insertion
+      if (!productData.brandId || !productData.categoryId || !finalUnitId) {
+        return NextResponse.json({
+          success: true,
+          data: product,
+          erpInserted: false,
+          erpError: 'Missing required fields for ERP insertion (brand, category, or unit)',
+          message: 'Product created in database, but ERP insertion failed: Missing required fields'
+        });
+      }
+
       const erpResult = await insertProductToSoftOne({
         name: productData.name,
         code1: productData.code1 || '',
         code2: productData.code2 || '',
         brandId: productData.brandId,
         categoryId: productData.categoryId,
-        manufacturerId: productData.manufacturerId,
+        manufacturerId: productData.manufacturerId || null,
         unitId: finalUnitId,
         width: productData.width ? parseFloat(productData.width) : undefined,
         length: productData.length ? parseFloat(productData.length) : undefined,

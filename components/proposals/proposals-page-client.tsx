@@ -16,7 +16,8 @@ interface Proposal {
   status: string;
   stage: string;
   erpQuoteNumber: string | null;
-  createdAt: string;
+  wordDocumentUrl: string | null;
+  createdAt: Date;
   customer: {
     id: string;
     name: string;
@@ -35,8 +36,12 @@ interface Proposal {
   } | null;
 }
 
+interface ProposalInput extends Omit<Proposal, 'createdAt'> {
+  createdAt: string;
+}
+
 interface ProposalsPageClientProps {
-  proposals: Proposal[];
+  proposals: ProposalInput[];
 }
 
 export function ProposalsPageClient({ proposals: initialProposals }: ProposalsPageClientProps) {
@@ -44,7 +49,7 @@ export function ProposalsPageClient({ proposals: initialProposals }: ProposalsPa
   const [proposals] = useState<Proposal[]>(
     initialProposals.map(p => ({
       ...p,
-      createdAt: new Date(p.createdAt) as any,
+      createdAt: new Date(p.createdAt),
     }))
   );
 

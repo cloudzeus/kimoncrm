@@ -95,19 +95,40 @@ export async function POST(
       services,
     });
 
-    // Check if a proposal already exists for this RFP
+    // Check if a proposal already exists for this site survey (one proposal per site survey)
+    // Prioritize siteSurveyId to ensure we maintain single proposal per site survey
+    const siteSurveyId = rfp.lead?.siteSurvey?.id;
     const existingProposal = await prisma.proposal.findFirst({
-      where: { rfpId },
+      where: siteSurveyId ? {
+        siteSurveyId: siteSurveyId,
+      } : {
+        rfpId: rfpId,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     let proposal;
     
     if (existingProposal) {
+      // Save old Word document URL as revision before updating
+      if (existingProposal.wordDocumentUrl) {
+        // Store old version in notes or create a revision record
+        const oldNotes = existingProposal.notes || '';
+        const revisionNote = `\n\n--- Revision ${new Date().toISOString()} ---\nOld Document: ${existingProposal.wordDocumentUrl}`;
+        
+        await prisma.proposal.update({
+          where: { id: existingProposal.id },
+          data: {
+            notes: oldNotes + revisionNote,
+          },
+        });
+      }
+
       // Update existing proposal instead of creating a new one
       proposal = await prisma.proposal.update({
         where: { id: existingProposal.id },
         data: {
+          rfpId, // Ensure rfpId is updated if it changed
           projectTitle,
           projectDescription,
           projectScope,

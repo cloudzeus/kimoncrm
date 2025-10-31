@@ -278,9 +278,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΑΡΙΘΜΟΣ ΠΡΟΤΑΣΗΣ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 140,
-      headerClassName: 'text-xs',
       render: (value, row) => (
         <span className="font-mono text-xs">
           {value || row.id.substring(0, 8)}
@@ -292,9 +290,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΤΙΤΛΟΣ ΕΡΓΟΥ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 250,
-      headerClassName: 'text-xs',
       render: (value) => {
         const title = value || 'Χωρίς τίτλο';
         const truncated = truncateText(title, 60);
@@ -323,9 +319,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΠΕΛΑΤΗΣ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 200,
-      headerClassName: 'text-xs',
       render: (value, row) => {
         const customerName = row.customer.name;
         const truncated = truncateText(customerName, 60);
@@ -354,9 +348,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'LEAD',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 120,
-      headerClassName: 'text-xs',
       render: (value, row) => <span className="text-xs">{row.lead?.leadNumber || '-'}</span>,
     },
     {
@@ -364,9 +356,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΚΑΤΑΣΤΑΣΗ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 150,
-      headerClassName: 'text-xs',
       render: (value) => {
         const statusInfo = getStatusBadge(value);
         return (
@@ -381,9 +371,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΣΤΑΔΙΟ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 200,
-      headerClassName: 'text-xs',
       render: (value) => (
         <Badge variant="outline" className="text-xs">
           {getStageBadge(value)}
@@ -395,9 +383,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΚΩΔΙΚΟΣ ERP',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 150,
-      headerClassName: 'text-xs',
       render: (value) => value ? (
         <Badge variant="default" className="bg-blue-600 font-mono text-xs">
           {value}
@@ -411,9 +397,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΔΗΜΙΟΥΡΓΗΘΗΚΕ ΑΠΟ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 180,
-      headerClassName: 'text-xs',
       render: (value, row) => <span className="text-xs">{row.generatedByUser?.name || 'Άγνωστος'}</span>,
     },
     {
@@ -421,10 +405,8 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       label: 'ΗΜΕΡΟΜΗΝΙΑ',
       sortable: true,
       filterable: true,
-      resizable: true,
       width: 120,
       type: 'date',
-      headerClassName: 'text-xs',
       render: (value) => <span className="text-xs">{format(new Date(value), 'dd/MM/yyyy')}</span>,
     },
     {
@@ -433,7 +415,6 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       sortable: false,
       filterable: false,
       width: 100,
-      headerClassName: 'text-xs',
       render: (value, row) => (
         <DropdownMenu key={`dropdown-${row.id}`}>
           <DropdownMenuTrigger asChild>

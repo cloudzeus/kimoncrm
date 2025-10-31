@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
 import { bunnyPut, bunnyDelete } from '@/lib/bunny/upload';
@@ -158,6 +159,10 @@ export async function POST(
       },
     });
 
+    // Revalidate product pages to show new image
+    revalidatePath(`/products/${id}`);
+    revalidatePath('/products');
+
     return NextResponse.json({
       success: true,
       data: productImage,
@@ -247,6 +252,10 @@ export async function DELETE(
     await prisma.productImage.delete({
       where: { id: imageId },
     });
+
+    // Revalidate product pages to reflect deletion
+    revalidatePath(`/products/${id}`);
+    revalidatePath('/products');
 
     return NextResponse.json({
       success: true,

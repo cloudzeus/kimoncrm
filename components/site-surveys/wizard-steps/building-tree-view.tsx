@@ -4347,32 +4347,32 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                       )}
 
                                       {/* Switches */}
-                                      {rack.switches && rack.switches.length > 0 && (
-                                        <div className="mt-4">
-                                          <Collapsible 
-                                            open={expandedFloorRackSections.get(rack.id)?.has('switches') || false}
-                                            onOpenChange={() => toggleFloorRackSection(rack.id, 'switches')}
-                                          >
-                                            <CollapsibleTrigger asChild>
-                                              <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
-                                                <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
-                                                  {expandedFloorRackSections.get(rack.id)?.has('switches') ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                  ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                  )}
-                                                  <Network className="h-4 w-4" />
-                                                  Switches
-                                                  <Badge variant="secondary" className="ml-2">
-                                                    {rack.switches.length}
-                                                  </Badge>
-                                                </Label>
-                                              </div>
-                                            </CollapsibleTrigger>
+                                      <div className="mt-4">
+                                        <Collapsible 
+                                          open={expandedFloorRackSections.get(rack.id)?.has('switches') || false}
+                                          onOpenChange={() => toggleFloorRackSection(rack.id, 'switches')}
+                                        >
+                                          <CollapsibleTrigger asChild>
+                                            <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                              <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                {expandedFloorRackSections.get(rack.id)?.has('switches') ? (
+                                                  <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronRight className="h-4 w-4" />
+                                                )}
+                                                <Network className="h-4 w-4" />
+                                                Switches
+                                                <Badge variant="secondary" className="ml-2">
+                                                  {rack.switches?.length || 0}
+                                                </Badge>
+                                              </Label>
+                                            </div>
+                                          </CollapsibleTrigger>
 
-                                            <CollapsibleContent>
-                                              <div className="space-y-2 pl-6">
-                                                {rack.switches.map((sw) => (
+                                          <CollapsibleContent>
+                                            <div className="space-y-2 pl-6">
+                                              {rack.switches && rack.switches.length > 0 ? (
+                                                rack.switches.map((sw) => (
                                                   <div key={sw.id} className="p-2 rounded border bg-muted/30">
                                                     <div className="grid grid-cols-3 gap-2">
                                                       <div>
@@ -4404,40 +4404,343 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                                       </div>
                                                     </div>
                                                   </div>
-                                                ))}
+                                                ))
+                                              ) : (
+                                                <p className="text-xs text-muted-foreground p-2">No switches added yet</p>
+                                              )}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      </div>
+
+                                      {/* Routers */}
+                                      <div className="mt-4">
+                                        <Collapsible 
+                                          open={expandedFloorRackSections.get(rack.id)?.has('routers') || false}
+                                          onOpenChange={() => toggleFloorRackSection(rack.id, 'routers')}
+                                        >
+                                          <CollapsibleTrigger asChild>
+                                            <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                              <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                {expandedFloorRackSections.get(rack.id)?.has('routers') ? (
+                                                  <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronRight className="h-4 w-4" />
+                                                )}
+                                                <Wifi className="h-4 w-4" />
+                                                Routers
+                                                <Badge variant="secondary" className="ml-2">
+                                                  {rack.routers?.length || 0}
+                                                </Badge>
+                                              </Label>
+                                            </div>
+                                          </CollapsibleTrigger>
+
+                                          <CollapsibleContent>
+                                            <div className="space-y-2 pl-6">
+                                              {rack.routers && rack.routers.length > 0 ? (
+                                                rack.routers.map((router) => (
+                                                  <div key={router.id} className="p-2 rounded border bg-muted/30">
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs">Brand</Label>
+                                                        <Input
+                                                          value={router.brand || ''}
+                                                          placeholder="e.g., Cisco"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">Model</Label>
+                                                        <Input
+                                                          value={router.model || ''}
+                                                          placeholder="Model"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">IP</Label>
+                                                        <Input
+                                                          value={router.ip || ''}
+                                                          placeholder="192.168.1.x"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : (
+                                                <p className="text-xs text-muted-foreground p-2">No routers added yet</p>
+                                              )}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      </div>
+
+                                      {/* Servers */}
+                                      <div className="mt-4">
+                                        <Collapsible 
+                                          open={expandedFloorRackSections.get(rack.id)?.has('servers') || false}
+                                          onOpenChange={() => toggleFloorRackSection(rack.id, 'servers')}
+                                        >
+                                          <CollapsibleTrigger asChild>
+                                            <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                              <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                {expandedFloorRackSections.get(rack.id)?.has('servers') ? (
+                                                  <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronRight className="h-4 w-4" />
+                                                )}
+                                                <Server className="h-4 w-4" />
+                                                Servers
+                                                <Badge variant="secondary" className="ml-2">
+                                                  {rack.servers?.length || 0}
+                                                </Badge>
+                                              </Label>
+                                            </div>
+                                          </CollapsibleTrigger>
+
+                                          <CollapsibleContent>
+                                            <div className="space-y-2 pl-6">
+                                              {rack.servers && rack.servers.length > 0 ? (
+                                                rack.servers.map((server) => (
+                                                  <div key={server.id} className="p-2 rounded border bg-muted/30">
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs">Name</Label>
+                                                        <Input
+                                                          value={server.name || ''}
+                                                          placeholder="Server name"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs">Type</Label>
+                                                        <Input
+                                                          value={server.type || ''}
+                                                          placeholder="Server type"
+                                                          className="h-7 text-xs"
+                                                          readOnly
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : (
+                                                <p className="text-xs text-muted-foreground p-2">No servers added yet</p>
+                                              )}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      </div>
+
+                                      {/* ATA */}
+                                      {rack.ata && (
+                                        <div className="mt-4">
+                                          <div className="p-2 bg-muted/30 rounded border">
+                                            <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                              <Phone className="h-4 w-4" />
+                                              ATA
+                                            </Label>
+                                            <div className="grid grid-cols-3 gap-2 pl-6">
+                                              <div>
+                                                <Label className="text-xs">Brand</Label>
+                                                <Input
+                                                  value={rack.ata.brand || ''}
+                                                  placeholder="Brand"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
                                               </div>
-                                            </CollapsibleContent>
-                                          </Collapsible>
+                                              <div>
+                                                <Label className="text-xs">Model</Label>
+                                                <Input
+                                                  value={rack.ata.model || ''}
+                                                  placeholder="Model"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Ports</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={rack.ata.ports || ''}
+                                                  placeholder="0"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* NVR */}
+                                      {rack.nvr && (
+                                        <div className="mt-4">
+                                          <div className="p-2 bg-muted/30 rounded border">
+                                            <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                              <Camera className="h-4 w-4" />
+                                              NVR
+                                            </Label>
+                                            <div className="grid grid-cols-2 gap-2 pl-6">
+                                              <div>
+                                                <Label className="text-xs">Channels</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={rack.nvr.channels || ''}
+                                                  placeholder="0"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">VMS</Label>
+                                                <Input
+                                                  value={rack.nvr.vms || ''}
+                                                  placeholder="VMS software"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Headend */}
+                                      {rack.headend && (
+                                        <div className="mt-4">
+                                          <div className="p-2 bg-muted/30 rounded border">
+                                            <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                              <Monitor className="h-4 w-4" />
+                                              Headend
+                                            </Label>
+                                            <div className="grid grid-cols-4 gap-2 pl-6">
+                                              <div>
+                                                <Label className="text-xs">Name</Label>
+                                                <Input
+                                                  value={rack.headend.name || ''}
+                                                  placeholder="Name"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Brand</Label>
+                                                <Input
+                                                  value={rack.headend.brand || ''}
+                                                  placeholder="Brand"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Model</Label>
+                                                <Input
+                                                  value={rack.headend.model || ''}
+                                                  placeholder="Model"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Channels</Label>
+                                                <Input
+                                                  type="number"
+                                                  value={rack.headend.channels || ''}
+                                                  placeholder="0"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* LoRaWAN Gateway */}
+                                      {rack.loraWanGateway && (
+                                        <div className="mt-4">
+                                          <div className="p-2 bg-muted/30 rounded border">
+                                            <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                              <Wifi className="h-4 w-4" />
+                                              LoRaWAN Gateway
+                                            </Label>
+                                            <div className="grid grid-cols-4 gap-2 pl-6">
+                                              <div>
+                                                <Label className="text-xs">Name</Label>
+                                                <Input
+                                                  value={rack.loraWanGateway.name || ''}
+                                                  placeholder="Name"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Brand</Label>
+                                                <Input
+                                                  value={rack.loraWanGateway.brand || ''}
+                                                  placeholder="Brand"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Model</Label>
+                                                <Input
+                                                  value={rack.loraWanGateway.model || ''}
+                                                  placeholder="Model"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">EUI</Label>
+                                                <Input
+                                                  value={rack.loraWanGateway.eui || ''}
+                                                  placeholder="EUI"
+                                                  className="h-7 text-xs"
+                                                  readOnly
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
                                         </div>
                                       )}
 
                                       {/* Connections */}
-                                      {rack.connections && rack.connections.length > 0 && (
-                                        <div className="mt-4">
-                                          <Collapsible 
-                                            open={expandedFloorRackSections.get(rack.id)?.has('connections') || false}
-                                            onOpenChange={() => toggleFloorRackSection(rack.id, 'connections')}
-                                          >
-                                            <CollapsibleTrigger asChild>
-                                              <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
-                                                <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
-                                                  {expandedFloorRackSections.get(rack.id)?.has('connections') ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                  ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                  )}
-                                                  <Cable className="h-4 w-4" />
-                                                  Connections
-                                                  <Badge variant="secondary" className="ml-2">
-                                                    {rack.connections.length}
-                                                  </Badge>
-                                                </Label>
-                                              </div>
-                                            </CollapsibleTrigger>
+                                      <div className="mt-4">
+                                        <Collapsible 
+                                          open={expandedFloorRackSections.get(rack.id)?.has('connections') || false}
+                                          onOpenChange={() => toggleFloorRackSection(rack.id, 'connections')}
+                                        >
+                                          <CollapsibleTrigger asChild>
+                                            <div className="flex items-center justify-between mb-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                                              <Label className="text-sm font-semibold flex items-center gap-2 cursor-pointer">
+                                                {expandedFloorRackSections.get(rack.id)?.has('connections') ? (
+                                                  <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronRight className="h-4 w-4" />
+                                                )}
+                                                <Cable className="h-4 w-4" />
+                                                Connections
+                                                <Badge variant="secondary" className="ml-2">
+                                                  {rack.connections?.length || 0}
+                                                </Badge>
+                                              </Label>
+                                            </div>
+                                          </CollapsibleTrigger>
 
-                                            <CollapsibleContent>
-                                              <div className="space-y-2 pl-6">
-                                                {rack.connections.map((conn) => (
+                                          <CollapsibleContent>
+                                            <div className="space-y-2 pl-6">
+                                              {rack.connections && rack.connections.length > 0 ? (
+                                                rack.connections.map((conn) => (
                                                   <div key={conn.id} className="p-2 rounded border bg-muted/30">
                                                     <div className="grid grid-cols-3 gap-2">
                                                       <div>
@@ -4468,12 +4771,14 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                                                       </div>
                                                     </div>
                                                   </div>
-                                                ))}
-                                              </div>
-                                            </CollapsibleContent>
-                                          </Collapsible>
-                                        </div>
-                                      )}
+                                                ))
+                                              ) : (
+                                                <p className="text-xs text-muted-foreground p-2">No connections added yet</p>
+                                              )}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      </div>
                                     </div>
                                   </CollapsibleContent>
                                 </div>

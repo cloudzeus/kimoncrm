@@ -117,7 +117,10 @@ export async function POST(
       height: product.height ? Number(product.height) : undefined,
       length: product.length ? Number(product.length) : undefined,
       weight: product.weight ? Number(product.weight) : undefined,
-      unit: product.unit,
+      unit: product.unit ? {
+        name: product.unit.name,
+        shortcut: product.unit.shortcut || '',
+      } : undefined,
     };
 
     // Generate the Word document
@@ -131,7 +134,7 @@ export async function POST(
     const encodedFileName = encodeURIComponent(sanitizedFileName);
 
     // Return the document as a proper binary response
-    return new Response(buffer, {
+    return new Response(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

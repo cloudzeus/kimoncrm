@@ -29,6 +29,9 @@ export interface CentralRackData {
   switches?: SwitchData[];
   routers?: RouterData[];
   servers?: ServerData[];
+  voipPbx?: VoipPbxData[];
+  headend?: HeadendData[];
+  nvr?: NvrData[];
   connections?: ConnectionData[];
   isFutureProposal?: boolean;
 }
@@ -111,6 +114,27 @@ export interface HeadendData {
   id: string;
   brand: string;
   model: string;
+  productId?: string;
+  services?: ServiceAssociationData[];
+  isFutureProposal?: boolean;
+}
+
+export interface VoipPbxData {
+  id: string;
+  brand: string;
+  model: string;
+  extensions?: number;
+  productId?: string;
+  services?: ServiceAssociationData[];
+  isFutureProposal?: boolean;
+}
+
+export interface NvrData {
+  id: string;
+  brand: string;
+  model: string;
+  channels?: number;
+  storageCapacity?: string;
   productId?: string;
   services?: ServiceAssociationData[];
   isFutureProposal?: boolean;

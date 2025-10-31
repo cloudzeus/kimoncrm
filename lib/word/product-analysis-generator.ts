@@ -175,7 +175,7 @@ export async function generateProductAnalysisDocument(
         }
         return tagValue;
       },
-      getSize: function (img: any, tagValue: any, tagName: string) {
+      getSize: function (img: any, tagValue: any, tagName: string): [number, number] {
         // Return image size (width, height in pixels)
         // Check if image buffer is valid
         if (!img || !Buffer.isBuffer(img) || img.length === 0) {
@@ -313,7 +313,7 @@ export async function generateMultiProductAnalysisBuffer(
         }
         return null;
       },
-      getSize: function (img: any, tagValue: any, tagName: string) {
+      getSize: function (img: any, tagValue: any, tagName: string): [number, number] {
         if (!img || img.length === 0) {
           return [0, 0];
         }

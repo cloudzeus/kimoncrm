@@ -21,6 +21,7 @@ export async function POST(
     const body = await req.json();
     const { 
       recipientEmails, // Array of email addresses
+      ccRecipients, // Optional CC recipients
       subject,
       message,
       includeWordDoc = true,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -9,8 +8,8 @@ import { toast } from "sonner";
 interface Category {
   id: string;
   name: string;
-  parentId?: string | null;
-  softoneCode?: string | null;
+  parentId?: string;
+  softoneCode?: string;
   order: number;
   _count?: { products: number };
   translations?: Array<{ languageCode: string; name?: string; description?: string; language?: { code: string; flag: string; nativeName: string } }>;

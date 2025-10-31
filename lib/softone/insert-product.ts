@@ -153,6 +153,22 @@ export async function insertProductToSoftOne(
       };
     }
 
+    // Validate brand has softoneCode
+    if (!brand.softoneCode) {
+      return {
+        success: false,
+        error: `Brand must have a valid softoneCode`,
+      };
+    }
+
+    // Validate category has softoneCode
+    if (!category.softoneCode) {
+      return {
+        success: false,
+        error: `Category must have a valid softoneCode`,
+      };
+    }
+
     // Parse and pad category softoneCode to 3 digits (e.g., "7" -> "007")
     const categoryCodePadded = category.softoneCode.padStart(3, '0');
     const categoryCodeNum = parseInt(categoryCodePadded, 10);
@@ -164,16 +180,29 @@ export async function insertProductToSoftOne(
     }
 
     // Parse brand softoneCode as number
-    const brandCodeNum = brand.softoneCode ? parseInt(brand.softoneCode, 10) : 0;
-    if (brandCodeNum === 0) {
+    const brandCodeNum = parseInt(brand.softoneCode, 10);
+    if (isNaN(brandCodeNum) || brandCodeNum === 0) {
       return {
         success: false,
-        error: `Brand must have a valid softoneCode`,
+        error: `Brand must have a valid softoneCode (current: ${brand.softoneCode})`,
       };
     }
 
-    // Parse unit code as number (default 101)
-    const unitCodeNum = unit?.softoneCode ? parseInt(unit.softoneCode, 10) : 101;
+    // Validate and parse unit code
+    if (!unit || !unit.softoneCode) {
+      return {
+        success: false,
+        error: 'Unit must have a valid softoneCode',
+      };
+    }
+    
+    const unitCodeNum = parseInt(unit.softoneCode, 10);
+    if (isNaN(unitCodeNum)) {
+      return {
+        success: false,
+        error: `Invalid unit code: ${unit.softoneCode}`,
+      };
+    }
 
     // Generate next available product code: CATEGORY.BRAND.XXXXX
     // Brand code should be 3 digits padded

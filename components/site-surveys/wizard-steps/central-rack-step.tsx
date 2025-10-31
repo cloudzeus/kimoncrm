@@ -127,10 +127,10 @@ export function CentralRackStep({
     const fetchData = async () => {
       try {
         const [productsRes, servicesRes, brandsRes, categoriesRes] = await Promise.all([
-          fetch('/api/products?limit=1000&includeImages=true'),
-          fetch('/api/services?limit=1000'),
-          fetch('/api/brands?limit=1000'),
-          fetch('/api/master-data/categories?limit=1000')
+          fetch('/api/products?limit=999999&includeImages=true'),
+          fetch('/api/services?limit=999999'),
+          fetch('/api/brands?limit=999999'),
+          fetch('/api/master-data/categories?limit=999999')
         ]);
         
         const productsData = await productsRes.json();
@@ -219,7 +219,7 @@ export function CentralRackStep({
 
       if (response.ok) {
         // Refresh products list
-        const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+        const productsRes = await fetch('/api/products?limit=999999&includeImages=true');
         const productsData = await productsRes.json();
         if (productsData.success) {
           setProductsList(productsData.data);
@@ -255,7 +255,7 @@ export function CentralRackStep({
 
       if (response.ok) {
         // Refresh products list
-        const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+        const productsRes = await fetch('/api/products?limit=999999&includeImages=true');
         const productsData = await productsRes.json();
         if (productsData.success) {
           setProductsList(productsData.data);
@@ -314,7 +314,7 @@ export function CentralRackStep({
   // Function to refresh products list
   const refreshProductsList = async () => {
     try {
-      const productsRes = await fetch('/api/products?limit=1000&includeImages=true');
+      const productsRes = await fetch('/api/products?limit=999999&includeImages=true');
       const productsData = await productsRes.json();
       if (productsData.success) {
         setProductsList(productsData.data);
@@ -498,6 +498,75 @@ export function CentralRackStep({
             const product = productsMap.get(key)!;
             product.quantity += 1;
             product.locations.push('Central Rack');
+          }
+        });
+
+        building.centralRack.voipPbx?.forEach(pbx => {
+          if (pbx.productId) {
+            const key = pbx.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: pbx.productId,
+                name: getProductName(pbx.productId),
+                code: pbx.productId,
+                brand: getProductBrand(pbx.productId),
+                category: getProductCategory(pbx.productId),
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack - VoIP PBX');
+          }
+        });
+
+        building.centralRack.headend?.forEach(headend => {
+          if (headend.productId) {
+            const key = headend.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: headend.productId,
+                name: getProductName(headend.productId),
+                code: headend.productId,
+                brand: getProductBrand(headend.productId),
+                category: getProductCategory(headend.productId),
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack - Headend');
+          }
+        });
+
+        building.centralRack.nvr?.forEach(nvr => {
+          if (nvr.productId) {
+            const key = nvr.productId;
+            if (!productsMap.has(key)) {
+              productsMap.set(key, {
+                id: nvr.productId,
+                name: getProductName(nvr.productId),
+                code: nvr.productId,
+                brand: getProductBrand(nvr.productId),
+                category: getProductCategory(nvr.productId),
+                quantity: 0,
+                unitPrice: 0,
+                margin: 0,
+                totalPrice: 0,
+                locations: []
+              });
+            }
+            const product = productsMap.get(key)!;
+            product.quantity += 1;
+            product.locations.push('Central Rack - NVR');
           }
         });
       }
@@ -1645,7 +1714,7 @@ export function CentralRackStep({
                 <div>
                   <h3 className="text-sm font-medium mb-3">Specifications</h3>
                   {selectedProduct?.specifications ? (
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs">
                       <pre className="whitespace-pre-wrap">{JSON.stringify(selectedProduct.specifications, null, 2)}</pre>
                     </div>
                   ) : (
@@ -1669,7 +1738,7 @@ export function CentralRackStep({
                 <div>
                   <h3 className="text-sm font-medium mb-3">Translations</h3>
                   {selectedProduct?.translations ? (
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs">
                       <pre className="whitespace-pre-wrap">{JSON.stringify(selectedProduct.translations, null, 2)}</pre>
                     </div>
                   ) : (
@@ -1692,7 +1761,7 @@ export function CentralRackStep({
                 {/* Product Description */}
                 <div>
                   <h3 className="text-sm font-medium mb-3">Description</h3>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs">
+                  <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs">
                     {selectedProduct?.description || 'No description available'}
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { auth } from '@/auth';
 
@@ -122,6 +123,11 @@ export async function PATCH(
         siteSurvey: true,
       },
     });
+
+    // Revalidate proposal pages to ensure fresh data
+    revalidatePath(`/proposals/${id}/edit`);
+    revalidatePath(`/proposals/${id}`);
+    revalidatePath('/proposals');
 
     return Response.json({
       success: true,

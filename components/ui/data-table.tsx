@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +117,51 @@ export function DataTable<T extends Record<string, any>>({
     }), {})
   );
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+
+  // Column resize handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingColumn) return;
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(50, resizeStartWidth + diff);
+      setColumnConfig(prev => ({
+        ...prev,
+        [resizingColumn]: {
+          ...prev[resizingColumn],
+          width: newWidth,
+        },
+      }));
+    };
+
+    const handleMouseUp = () => {
+      if (resizingColumn) {
+        setResizingColumn(null);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+      }
+    };
+
+    if (resizingColumn) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const handleResizeStart = (columnKey: string, startX: number) => {
+    setResizingColumn(columnKey);
+    setResizeStartX(startX);
+    setResizeStartWidth(columnConfig[columnKey]?.width || 150);
+  };
 
   // Helper functions
   const getNestedValue = (obj: any, path: string) => {
@@ -385,8 +430,12 @@ export function DataTable<T extends Record<string, any>>({
                 {visibleColumns.map((column, index) => (
                   <th
                     key={`header-${column.key as string}-${index}`}
-                    className="px-4 py-3 text-left font-medium text-muted-foreground"
-                    style={{ width: columnConfig[column.key as string]?.width }}
+                    className="px-4 py-3 text-left font-medium text-muted-foreground relative group"
+                    style={resizable && columnConfig[column.key as string] ? {
+                      width: `${columnConfig[column.key as string].width}px`,
+                      minWidth: `${columnConfig[column.key as string].width}px`,
+                      maxWidth: `${columnConfig[column.key as string].width}px`,
+                    } : { width: columnConfig[column.key as string]?.width }}
                   >
                     <div className="flex items-center space-x-2">
                       {sortable && column.sortable !== false && (
@@ -410,13 +459,16 @@ export function DataTable<T extends Record<string, any>>({
                         <span>{column.label}</span>
                       )}
                       
-                      {resizable && (
-                        <div className="flex-1 cursor-col-resize" 
-                             onMouseDown={(e) => {
-                               // Column resize logic would go here
-                               // This is a simplified version
-                             }}>
-                          <GripVertical className="h-3 w-3 opacity-0 hover:opacity-100" />
+                      {resizable && column.resizable !== false && (
+                        <div 
+                          className="absolute right-0 top-0 h-full w-2 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/50 flex items-center justify-center" 
+                          style={{ width: "8px", marginRight: "-4px" }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleResizeStart(column.key as string, e.clientX);
+                          }}
+                        >
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
                     </div>
@@ -462,7 +514,15 @@ export function DataTable<T extends Record<string, any>>({
                     )}
                     
                     {visibleColumns.map((column, columnIndex) => (
-                      <td key={`${getRowId(row)}-${column.key as string}-${columnIndex}`} className="px-4 py-3">
+                      <td 
+                        key={`${getRowId(row)}-${column.key as string}-${columnIndex}`} 
+                        className="px-4 py-3"
+                        style={resizable && columnConfig[column.key as string] ? {
+                          width: `${columnConfig[column.key as string].width}px`,
+                          minWidth: `${columnConfig[column.key as string].width}px`,
+                          maxWidth: `${columnConfig[column.key as string].width}px`,
+                        } : undefined}
+                      >
                         {column.render ? (
                           column.render(getNestedValue(row, column.key), row)
                         ) : (

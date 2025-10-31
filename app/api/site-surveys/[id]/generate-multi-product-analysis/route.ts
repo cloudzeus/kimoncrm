@@ -125,11 +125,14 @@ export async function POST(
         shortDescription: t.shortDescription ?? undefined,
       })),
       specifications: product.specifications,
-      width: product.width ?? undefined,
-      height: product.height ?? undefined,
-      length: product.length ?? undefined,
-      weight: product.weight ?? undefined,
-      unit: product.unit ?? undefined,
+      width: product.width ? Number(product.width) : undefined,
+      height: product.height ? Number(product.height) : undefined,
+      length: product.length ? Number(product.length) : undefined,
+      weight: product.weight ? Number(product.weight) : undefined,
+      unit: product.unit ? {
+        name: product.unit.name,
+        shortcut: product.unit.shortcut || '',
+      } : undefined,
     }));
 
     // Generate the Word document with all products
@@ -141,7 +144,7 @@ export async function POST(
     console.log(`Successfully generated analysis document for ${products.length} products`);
 
     // Return the document as a proper binary response
-    return new Response(buffer, {
+    return new Response(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

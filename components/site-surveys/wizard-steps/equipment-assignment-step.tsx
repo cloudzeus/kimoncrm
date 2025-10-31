@@ -197,7 +197,7 @@ export function EquipmentAssignmentStep({
   const fetchProducts = async () => {
     try {
       setLoadingProducts(true);
-      const response = await fetch('/api/products?limit=1000'); // Get more products for selection
+      const response = await fetch('/api/products?limit=999999'); // Load all products
       if (response.ok) {
         const result = await response.json();
         console.log('📦 Products loaded:', result.data?.length || 0);
@@ -764,6 +764,90 @@ export function EquipmentAssignmentStep({
     onUpdate(updatedBuildings);
     if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
     toast({ title: "Success", description: "New server added as future proposal" });
+  };
+
+  // Add NEW VoIP PBX to central rack
+  const addNewVoipPbxToRack = (buildingId: string) => {
+    const newVoipPbx: any = {
+      id: `voippbx-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      extensions: 0,
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId || !building.centralRack) return building;
+      return {
+        ...building,
+        centralRack: {
+          ...building.centralRack,
+          voipPbx: [...(building.centralRack.voipPbx || []), newVoipPbx],
+        },
+      };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New VoIP PBX added as future proposal" });
+  };
+
+  // Add NEW Headend to central rack
+  const addNewHeadendToRack = (buildingId: string) => {
+    const newHeadend: any = {
+      id: `headend-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId || !building.centralRack) return building;
+      return {
+        ...building,
+        centralRack: {
+          ...building.centralRack,
+          headend: [...(building.centralRack.headend || []), newHeadend],
+        },
+      };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New Headend added as future proposal" });
+  };
+
+  // Add NEW NVR to central rack
+  const addNewNvrToRack = (buildingId: string) => {
+    const newNvr: any = {
+      id: `nvr-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      channels: 0,
+      storageCapacity: '',
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId || !building.centralRack) return building;
+      return {
+        ...building,
+        centralRack: {
+          ...building.centralRack,
+          nvr: [...(building.centralRack.nvr || []), newNvr],
+        },
+      };
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New NVR added as future proposal" });
   };
 
   // Add NEW cable termination to rack - opens modal for configuration
@@ -1407,7 +1491,7 @@ export function EquipmentAssignmentStep({
   return (
     <div className="space-y-6">
       {/* Info Banner */}
-      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+      <div className="bg-blue-50 dark:bg-blue-800/50 border border-blue-200 dark:border-blue-600 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <div className="bg-blue-600 rounded-full p-2">
             <Package className="h-5 w-5 text-white" />
@@ -1505,6 +1589,15 @@ export function EquipmentAssignmentStep({
                                   <Badge variant="outline" className="text-xs">
                                     {building.centralRack.servers?.length || 0} Servers
                                   </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.voipPbx?.length || 0} PBX
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.headend?.length || 0} Headend
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {building.centralRack.nvr?.length || 0} NVR
+                                  </Badge>
                                 </div>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
@@ -1528,6 +1621,15 @@ export function EquipmentAssignmentStep({
                                     <DropdownMenuItem onClick={() => addNewServerToRack(building.id)}>
                                       <Server className="h-4 w-4 mr-2" />Server
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewVoipPbxToRack(building.id)}>
+                                      <Phone className="h-4 w-4 mr-2" />VoIP PBX
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewHeadendToRack(building.id)}>
+                                      <Tv className="h-4 w-4 mr-2" />Headend
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewNvrToRack(building.id)}>
+                                      <Camera className="h-4 w-4 mr-2" />NVR
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => addNewConnectionToRack(building.id, undefined, 'central')}>
                                       <Cable className="h-4 w-4 mr-2" />Connection
@@ -1542,7 +1644,7 @@ export function EquipmentAssignmentStep({
                                 <div className="space-y-2">
                                   <Label className="text-xs font-semibold">Cable Terminations</Label>
                                   {building.centralRack.cableTerminations.map((termination) => (
-                                    <div key={termination.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                    <div key={termination.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
                                       <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                           <Cable className="h-4 w-4" />
@@ -1592,7 +1694,7 @@ export function EquipmentAssignmentStep({
                                       {termination.productId && (
                                         <div className="mt-2 pt-2 border-t">
                                           <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                          <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                          <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                             <Package className="h-4 w-4 text-blue-600" />
                                             <div className="flex-1">
                                               <div className="text-sm font-medium">
@@ -1612,7 +1714,7 @@ export function EquipmentAssignmentStep({
                                           <Label className="text-xs font-semibold">Associated Services:</Label>
                                           <div className="space-y-1 mt-1">
                                             {termination.services.map((svc) => (
-                                              <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                              <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                                 <Wrench className="h-3 w-3 text-green-600" />
                                                 <div className="flex-1">
                                                   <div className="text-xs font-medium">
@@ -1643,7 +1745,7 @@ export function EquipmentAssignmentStep({
                                   </CollapsibleTrigger>
                                   <CollapsibleContent className="mt-2 space-y-1">
                                     {building.centralRack.switches.map((sw) => (
-                                      <div key={sw.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                      <div key={sw.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
                                             <Network className="h-4 w-4" />
@@ -1687,7 +1789,7 @@ export function EquipmentAssignmentStep({
                                         {sw.productId && (
                                           <div className="mt-2 pt-2 border-t">
                                             <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                               <Package className="h-4 w-4 text-blue-600" />
                                               <div className="flex-1">
                                                 <div className="text-sm font-medium">
@@ -1703,7 +1805,7 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold">Associated Services:</Label>
                                             <div className="space-y-1 mt-1">
                                               {sw.services.map((svc) => (
-                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                                   <Wrench className="h-3 w-3 text-green-600" />
                                                   <div className="flex-1">
                                                     <div className="text-xs font-medium">
@@ -1735,7 +1837,7 @@ export function EquipmentAssignmentStep({
                                   </CollapsibleTrigger>
                                   <CollapsibleContent className="mt-2 space-y-1">
                                     {building.centralRack.routers.map((router) => (
-                                      <div key={router.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                      <div key={router.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
                                             <Wifi className="h-4 w-4" />
@@ -1789,7 +1891,7 @@ export function EquipmentAssignmentStep({
                                         {router.productId && (
                                           <div className="mt-2 pt-2 border-t">
                                             <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                               <Package className="h-4 w-4 text-blue-600" />
                                               <div className="flex-1">
                                                 <div className="text-sm font-medium">
@@ -1805,7 +1907,7 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold">Associated Services:</Label>
                                             <div className="space-y-1 mt-1">
                                               {router.services.map((svc) => (
-                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                                   <Wrench className="h-3 w-3 text-green-600" />
                                                   <div className="flex-1">
                                                     <div className="text-xs font-medium">
@@ -1837,7 +1939,7 @@ export function EquipmentAssignmentStep({
                                   </CollapsibleTrigger>
                                   <CollapsibleContent className="mt-2 space-y-1">
                                     {building.centralRack.servers.map((server) => (
-                                      <div key={server.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                      <div key={server.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
                                             <Server className="h-4 w-4" />
@@ -1891,7 +1993,7 @@ export function EquipmentAssignmentStep({
                                         {server.productId && (
                                           <div className="mt-2 pt-2 border-t">
                                             <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                               <Package className="h-4 w-4 text-blue-600" />
                                               <div className="flex-1">
                                                 <div className="text-sm font-medium">
@@ -1907,7 +2009,7 @@ export function EquipmentAssignmentStep({
                                             <Label className="text-xs font-semibold">Associated Services:</Label>
                                             <div className="space-y-1 mt-1">
                                               {server.services.map((svc) => (
-                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                                   <Wrench className="h-3 w-3 text-green-600" />
                                                   <div className="flex-1">
                                                     <div className="text-xs font-medium">
@@ -1928,11 +2030,350 @@ export function EquipmentAssignmentStep({
                                 </Collapsible>
                               )}
 
+                              {/* VoIP PBX */}
+                              {building.centralRack.voipPbx && building.centralRack.voipPbx.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">VoIP PBX ({building.centralRack.voipPbx.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.voipPbx.map((pbx) => (
+                                      <div key={pbx.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Phone className="h-4 w-4" />
+                                            <span className="text-sm">{pbx.brand} {pbx.model}</span>
+                                            {pbx.extensions && <span className="text-xs text-muted-foreground">({pbx.extensions} ext)</span>}
+                                            {pbx.isFutureProposal ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {pbx.isFutureProposal && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => {
+                                                  const updatedBuildings = localBuildings.map(b => {
+                                                    if (b.id !== building.id || !b.centralRack) return b;
+                                                    return {
+                                                      ...b,
+                                                      centralRack: {
+                                                        ...b.centralRack,
+                                                        voipPbx: b.centralRack.voipPbx?.filter(p => p.id !== pbx.id) || []
+                                                      }
+                                                    };
+                                                  });
+                                                  setLocalBuildings(updatedBuildings);
+                                                  onUpdate(updatedBuildings);
+                                                  if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'voipPbx',
+                                                buildingId: building.id,
+                                                elementId: pbx.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'voipPbx',
+                                                buildingId: building.id,
+                                                elementId: pbx.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {pbx.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === pbx.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {pbx.services && pbx.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {pbx.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
+                              {/* Headend */}
+                              {building.centralRack.headend && building.centralRack.headend.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">Headend ({building.centralRack.headend.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.headend.map((headend) => (
+                                      <div key={headend.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Tv className="h-4 w-4" />
+                                            <span className="text-sm">{headend.brand} {headend.model}</span>
+                                            {headend.isFutureProposal ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {headend.isFutureProposal && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => {
+                                                  const updatedBuildings = localBuildings.map(b => {
+                                                    if (b.id !== building.id || !b.centralRack) return b;
+                                                    return {
+                                                      ...b,
+                                                      centralRack: {
+                                                        ...b.centralRack,
+                                                        headend: b.centralRack.headend?.filter(h => h.id !== headend.id) || []
+                                                      }
+                                                    };
+                                                  });
+                                                  setLocalBuildings(updatedBuildings);
+                                                  onUpdate(updatedBuildings);
+                                                  if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'headend',
+                                                buildingId: building.id,
+                                                elementId: headend.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'headend',
+                                                buildingId: building.id,
+                                                elementId: headend.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {headend.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === headend.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {headend.services && headend.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {headend.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
+                              {/* NVR */}
+                              {building.centralRack.nvr && building.centralRack.nvr.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">NVR ({building.centralRack.nvr.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.nvr.map((nvr) => (
+                                      <div key={nvr.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Camera className="h-4 w-4" />
+                                            <span className="text-sm">{nvr.brand} {nvr.model}</span>
+                                            {nvr.channels && <span className="text-xs text-muted-foreground">({nvr.channels} ch)</span>}
+                                            {nvr.storageCapacity && <span className="text-xs text-muted-foreground">{nvr.storageCapacity}</span>}
+                                            {nvr.isFutureProposal ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {nvr.isFutureProposal && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => {
+                                                  const updatedBuildings = localBuildings.map(b => {
+                                                    if (b.id !== building.id || !b.centralRack) return b;
+                                                    return {
+                                                      ...b,
+                                                      centralRack: {
+                                                        ...b.centralRack,
+                                                        nvr: b.centralRack.nvr?.filter(n => n.id !== nvr.id) || []
+                                                      }
+                                                    };
+                                                  });
+                                                  setLocalBuildings(updatedBuildings);
+                                                  onUpdate(updatedBuildings);
+                                                  if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'nvr',
+                                                buildingId: building.id,
+                                                elementId: nvr.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'nvr',
+                                                buildingId: building.id,
+                                                elementId: nvr.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {nvr.productId && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
+                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === nvr.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {nvr.services && nvr.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {nvr.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+
                               {/* PBX System */}
                               {(building.centralRack as any).pbx && (
                                 <div className="mt-4">
                                   <Label className="text-xs font-semibold mb-2 block">PBX System</Label>
-                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                  <div className="p-3 bg-white dark:bg-slate-300 rounded border">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <Phone className="h-4 w-4" />
@@ -1977,7 +2418,7 @@ export function EquipmentAssignmentStep({
                                     {(building.centralRack as any).pbx.productId && (
                                       <div className="mt-2 pt-2 border-t">
                                         <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                           <Package className="h-4 w-4 text-blue-600" />
                                           <div className="flex-1">
                                             <div className="text-sm font-medium">
@@ -1993,7 +2434,7 @@ export function EquipmentAssignmentStep({
                                         <Label className="text-xs font-semibold">Associated Services:</Label>
                                         <div className="space-y-1 mt-1">
                                           {(building.centralRack as any).pbx.services.map((svc: any) => (
-                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                               <Wrench className="h-3 w-3 text-green-600" />
                                               <div className="flex-1">
                                                 <div className="text-xs font-medium">
@@ -2016,7 +2457,7 @@ export function EquipmentAssignmentStep({
                               {(building.centralRack as any).ata && (
                                 <div className="mt-4">
                                   <Label className="text-xs font-semibold mb-2 block">ATA (Analog Telephone Adapter)</Label>
-                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                  <div className="p-3 bg-white dark:bg-slate-300 rounded border">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <Phone className="h-4 w-4" />
@@ -2060,7 +2501,7 @@ export function EquipmentAssignmentStep({
                                     {(building.centralRack as any).ata.productId && (
                                       <div className="mt-2 pt-2 border-t">
                                         <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                           <Package className="h-4 w-4 text-blue-600" />
                                           <div className="flex-1">
                                             <div className="text-sm font-medium">
@@ -2076,7 +2517,7 @@ export function EquipmentAssignmentStep({
                                         <Label className="text-xs font-semibold">Associated Services:</Label>
                                         <div className="space-y-1 mt-1">
                                           {(building.centralRack as any).ata.services.map((svc: any) => (
-                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                               <Wrench className="h-3 w-3 text-green-600" />
                                               <div className="flex-1">
                                                 <div className="text-xs font-medium">
@@ -2099,7 +2540,7 @@ export function EquipmentAssignmentStep({
                               {(building.centralRack as any).nvr && (
                                 <div className="mt-4">
                                   <Label className="text-xs font-semibold mb-2 block">NVR (Network Video Recorder)</Label>
-                                  <div className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                  <div className="p-3 bg-white dark:bg-slate-300 rounded border">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <Monitor className="h-4 w-4" />
@@ -2143,7 +2584,7 @@ export function EquipmentAssignmentStep({
                                     {(building.centralRack as any).nvr.productId && (
                                       <div className="mt-2 pt-2 border-t">
                                         <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
                                           <Package className="h-4 w-4 text-blue-600" />
                                           <div className="flex-1">
                                             <div className="text-sm font-medium">
@@ -2159,7 +2600,7 @@ export function EquipmentAssignmentStep({
                                         <Label className="text-xs font-semibold">Associated Services:</Label>
                                         <div className="space-y-1 mt-1">
                                           {(building.centralRack as any).nvr.services.map((svc: any) => (
-                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
                                               <Wrench className="h-3 w-3 text-green-600" />
                                               <div className="flex-1">
                                                 <div className="text-xs font-medium">
@@ -2225,8 +2666,8 @@ export function EquipmentAssignmentStep({
                                 {floor.racks && floor.racks.map((rack) => (
                                   <div key={rack.id} className={`p-3 rounded border ${
                                     rack.isFutureProposal 
-                                      ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-300 border-2' 
-                                      : 'bg-white dark:bg-slate-900'
+                                      ? 'bg-blue-50 dark:bg-blue-800/50 border-blue-300 border-2' 
+                                      : 'bg-white dark:bg-slate-300'
                                   }`}>
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-2">
@@ -2310,7 +2751,7 @@ export function EquipmentAssignmentStep({
                                                             <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
                                                           </div>
                                                           {(termination.cableType === 'FIBER_SM' || termination.cableType === 'FIBER_MM') && (
-                                                            <div className="grid grid-cols-2 gap-2 mb-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200">
+                                                            <div className="grid grid-cols-2 gap-2 mb-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded border border-blue-200">
                                                               <div>
                                                                 <Label className="text-xs">Total Fibers</Label>
                                                                 <Input
@@ -2384,7 +2825,7 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {termination.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{product?.name || 'Product Not Found'}</span>
                                                         <span className="text-muted-foreground">× {termination.quantity}</span>
@@ -2395,7 +2836,7 @@ export function EquipmentAssignmentStep({
                                                   {termination.services && termination.services.length > 0 && (
                                                     <div className="pl-4 space-y-1">
                                                       {termination.services.map((svc) => (
-                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
@@ -2452,7 +2893,7 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {sw.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === sw.productId)?.name || 'Product'}</span>
                                                         <span className="text-muted-foreground">× {sw.quantity}</span>
@@ -2463,7 +2904,7 @@ export function EquipmentAssignmentStep({
                                                   {sw.services && sw.services.length > 0 && (
                                                     <div className="pl-4 space-y-1">
                                                       {sw.services.map((svc) => (
-                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
@@ -2508,7 +2949,7 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {conn.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === conn.productId)?.name || 'Product'}</span>
                                                         <span className="text-muted-foreground">× {conn.quantity}</span>
@@ -2519,7 +2960,7 @@ export function EquipmentAssignmentStep({
                                                   {conn.services && conn.services.length > 0 && (
                                                     <div className="pl-4 space-y-1">
                                                       {conn.services.map((svc) => (
-                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
@@ -2539,7 +2980,7 @@ export function EquipmentAssignmentStep({
 
                                 {/* Rooms */}
                                 {floor.rooms && floor.rooms.map((room) => (
-                                  <div key={room.id} className="p-3 bg-white dark:bg-slate-900 rounded border">
+                                  <div key={room.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => toggleRoom(room.id)}>
@@ -2619,7 +3060,7 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {device.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === device.productId)?.name || 'Product'}</span>
                                                         <span className="text-muted-foreground">× {device.quantity}</span>
@@ -2630,7 +3071,7 @@ export function EquipmentAssignmentStep({
                                                   {device.services && device.services.length > 0 && (
                                                     <div className="pl-4 space-y-1">
                                                       {device.services.map((svc) => (
-                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
@@ -2711,7 +3152,7 @@ export function EquipmentAssignmentStep({
                                                   {/* Show assigned product */}
                                                   {conn.productId && (
                                                     <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/20 p-1 rounded">
+                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
                                                         <Package className="h-3 w-3 text-blue-600" />
                                                         <span className="font-medium">{products.find(p => p.id === conn.productId)?.name || 'Product'}</span>
                                                         <span className="text-muted-foreground">× {conn.quantity}</span>
@@ -2722,7 +3163,7 @@ export function EquipmentAssignmentStep({
                                                   {conn.services && conn.services.length > 0 && (
                                                     <div className="pl-4 space-y-1">
                                                       {conn.services.map((svc) => (
-                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/20 p-1 rounded">
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
                                                           <Wrench className="h-3 w-3 text-green-600" />
                                                           <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
                                                           <span className="text-muted-foreground">× {svc.quantity}</span>
@@ -2773,7 +3214,7 @@ export function EquipmentAssignmentStep({
                   onChange={(e) => setProductSearchTerm(e.target.value)}
                 />
                 {selectedProductId && (
-                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 flex items-center justify-between">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-800/50 rounded border border-blue-200 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-sm">{products.find(p => p.id === selectedProductId)?.code}</div>
                       <div className="text-xs text-muted-foreground">{products.find(p => p.id === selectedProductId)?.name}</div>
@@ -2944,7 +3385,7 @@ export function EquipmentAssignmentStep({
                   onChange={(e) => setServiceSearchTerm(e.target.value)}
                 />
                 {selectedServiceId && (
-                  <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded border border-green-200 flex items-center justify-between">
+                  <div className="p-2 bg-green-50 dark:bg-green-800/50 rounded border border-green-200 flex items-center justify-between">
                     <div>
                       <div className="font-medium text-sm">{services.find(s => s.id === selectedServiceId)?.code}</div>
                       <div className="text-xs text-muted-foreground">{services.find(s => s.id === selectedServiceId)?.name}</div>
@@ -3025,7 +3466,7 @@ export function EquipmentAssignmentStep({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200">
+            <div className="p-3 bg-blue-50 dark:bg-blue-800/50 rounded border border-blue-200">
               <p className="text-sm text-blue-900 dark:text-blue-100">
                 ⚡ This will create a <strong>NEW</strong> rack marked as a future proposal
               </p>
@@ -3237,7 +3678,7 @@ export function EquipmentAssignmentStep({
 
             {/* Fiber-specific fields */}
             {(terminationForm.cableType === 'FIBER_SM' || terminationForm.cableType === 'FIBER_MM') && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-800/40 rounded-lg border border-blue-200">
                 <div>
                   <Label htmlFor="totalFibers">Total Fibers</Label>
                   <Input

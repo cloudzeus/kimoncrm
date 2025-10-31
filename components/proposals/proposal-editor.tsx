@@ -20,9 +20,11 @@ import {
   ListChecks,
   Download,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  PackageCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProposalProductsEnhancementModal } from '@/components/proposals/proposal-products-enhancement-modal';
 
 interface ProposalEditorProps {
   proposal: any; // Proposal with all relations
@@ -35,6 +37,7 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [sendingToERP, setSendingToERP] = useState(false);
   const [regeneratingAI, setRegeneratingAI] = useState(false);
+  const [enhancementModalOpen, setEnhancementModalOpen] = useState(false);
 
   // Editable content states
   const [infrastructureDesc, setInfrastructureDesc] = useState(proposal.infrastructureDesc || '');
@@ -88,6 +91,26 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
     setGeneratingDoc(true);
     
     try {
+      // First, save any unsaved changes to ensure Word document has latest content
+      const saveResponse = await fetch(`/api/proposals/${proposal.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          infrastructureDesc,
+          technicalDesc,
+          productsDesc,
+          servicesDesc,
+          scopeOfWork,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save changes before generating document');
+      }
+
+      // Now generate the Word document with the saved content
       const response = await fetch(`/api/proposals/${proposal.id}/generate-document`, {
         method: 'POST',
       });
@@ -315,6 +338,15 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
                 )}
               </Button>
 
+              <Button
+                className="rounded-none bg-pink-600 hover:bg-pink-700 text-white border-r border-pink-500"
+                size="sm"
+                onClick={() => setEnhancementModalOpen(true)}
+              >
+                <PackageCheck className="h-4 w-4 mr-1" />
+                CHECK PRODUCTS
+              </Button>
+
               {proposal.wordDocumentUrl && (
                 <Button
                   className="rounded-none bg-cyan-600 hover:bg-cyan-700 text-white border-r border-cyan-500"
@@ -517,6 +549,13 @@ export function ProposalEditor({ proposal: initialProposal }: ProposalEditorProp
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Product Enhancement Modal */}
+      <ProposalProductsEnhancementModal
+        open={enhancementModalOpen}
+        onOpenChange={setEnhancementModalOpen}
+        proposalId={proposal.id}
+      />
     </div>
   );
 }

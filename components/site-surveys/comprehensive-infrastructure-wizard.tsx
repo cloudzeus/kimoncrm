@@ -976,8 +976,8 @@ export function ComprehensiveInfrastructureWizard({
     try {
       // Step 1: Fetch all products and services
       const [productsRes, servicesRes] = await Promise.all([
-        fetch('/api/products?limit=10000'), // Get all products
-        fetch('/api/services?limit=10000'), // Get all services
+        fetch('/api/products?limit=999999'), // Get all products
+        fetch('/api/services?limit=999999'), // Get all services
       ]);
 
       if (!productsRes.ok || !servicesRes.ok) {

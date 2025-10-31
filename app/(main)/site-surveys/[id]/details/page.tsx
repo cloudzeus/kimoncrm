@@ -8,11 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   Building2,
-  FileText,
-  Download,
   Edit,
   Network,
-  FileImage,
+  FileText,
   Phone,
   Wifi,
   Camera,
@@ -23,7 +21,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
-import { FilesList } from "@/components/files/files-list";
 import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarchy-form";
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
@@ -132,111 +129,12 @@ export default function SiteSurveyDetailsPage() {
   const [voipDialogOpen, setVoipDialogOpen] = useState(false);
   const [cablingDialogOpen, setCablingDialogOpen] = useState(false);
   const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
-  const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
-  const [generatingWord, setGeneratingWord] = useState(false);
-  const [downloadingBOM, setDownloadingBOM] = useState(false);
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
 
   useEffect(() => {
     fetchSurveyDetails();
   }, [id]);
-
-  const generateWordDocument = async () => {
-    try {
-      setGeneratingWord(true);
-      
-      const response = await fetch(`/api/site-surveys/${id}/generate-word`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to generate Word document");
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Site-Survey-${survey?.title.replace(/[^a-zA-Z0-9]/g, '-')}-${id}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast.success("Word document generated successfully!");
-    } catch (error) {
-      console.error("Error generating Word document:", error);
-      toast.error("Failed to generate Word document");
-    } finally {
-      setGeneratingWord(false);
-    }
-  };
-
-  const downloadBOM = async () => {
-    if (!survey) return;
-    
-    try {
-      setDownloadingBOM(true);
-
-      // Prepare site survey data
-      const siteSurveyData = {
-        title: survey.title,
-        description: survey.description,
-        customer: survey.customer ? {
-          name: survey.customer.name,
-          email: survey.customer.email || undefined,
-          phone: survey.customer.phone01 || undefined,
-        } : undefined,
-        contact: survey.contact ? {
-          name: survey.contact.name,
-          email: survey.contact.email || undefined,
-          phone: survey.contact.mobilePhone || survey.contact.workPhone || undefined,
-        } : undefined,
-        assignTo: survey.assignTo ? {
-          name: survey.assignTo.name,
-          email: survey.assignTo.email || undefined,
-        } : undefined,
-        createdAt: survey.createdAt,
-        updatedAt: survey.updatedAt,
-        files: [],
-      };
-
-      // Generate BOM Excel using comprehensive infrastructure data
-      const bomResponse = await fetch('/api/site-surveys/generate-bom-excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siteSurveyData,
-        }),
-      });
-
-      if (!bomResponse.ok) {
-        throw new Error("Failed to generate BOM Excel");
-      }
-      
-      const blob = await bomResponse.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `BOM-${survey.title.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast.success("BOM Excel downloaded successfully!");
-    } catch (error) {
-      console.error("Error downloading BOM:", error);
-      toast.error("Failed to download BOM Excel");
-    } finally {
-      setDownloadingBOM(false);
-    }
-  };
 
   const handleSaveProjectInfo = async (data: any) => {
     const response = await fetch(`/api/site-surveys/${id}`, {
@@ -493,43 +391,6 @@ export default function SiteSurveyDetailsPage() {
           }}
         />
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 justify-end mb-6">
-          <Button
-            variant="outline"
-            onClick={generateWordDocument}
-            disabled={generatingWord}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            {generatingWord ? "GENERATING..." : "DOWNLOAD WORD DOC"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={downloadBOM}
-            disabled={downloadingBOM}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {downloadingBOM ? "DOWNLOADING..." : "DOWNLOAD BOM"}
-          </Button>
-        </div>
-
-        {/* Files Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileImage className="h-5 w-5" />
-              ATTACHED FILES & BLUEPRINTS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FilesList
-              entityId={survey.id}
-              entityType="SITESURVEY"
-              refreshTrigger={filesRefreshTrigger}
-              onFileDeleted={() => setFilesRefreshTrigger((prev) => prev + 1)}
-            />
-          </CardContent>
-        </Card>
       </div>
 
       {/* Edit Modals */}

@@ -87,8 +87,8 @@ export default function ProposalDocumentStep({
         
         // Fetch products and services
         const [productsRes, servicesRes] = await Promise.all([
-          fetch('/api/products?limit=1000&includeImages=true'),
-          fetch('/api/services?limit=1000')
+          fetch('/api/products?limit=999999&includeImages=true'),
+          fetch('/api/services?limit=999999')
         ]);
         
         if (productsRes.ok) {

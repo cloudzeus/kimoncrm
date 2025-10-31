@@ -139,7 +139,7 @@ export async function POST(
     }
 
     // Update lead status if infrastructure step is completed
-    if (stepCompleted === 1 && siteSurvey.lead) {
+    if (stepCompleted === 1 && siteSurvey.lead && siteSurvey.leadId) {
       await db.lead.update({
         where: { id: siteSurvey.leadId },
         data: {

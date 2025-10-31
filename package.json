@@ -25,6 +25,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
     "@auth/core": "^0.41.0",
     "@auth/prisma-adapter": "^2.10.0",
     "@azure/msal-node": "^2.6.5",
