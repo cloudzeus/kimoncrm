@@ -1431,6 +1431,74 @@ export function EquipmentAssignmentStep({
             },
           };
         }
+
+        if (selectedElement.type === 'ata') {
+          const ata = (building.centralRack as any).ata;
+          if (ata && ata.id === selectedElement.elementId) {
+            const existingProducts = ata.products || [];
+            const existingIndex = existingProducts.findIndex((p: any) => p.productId === selectedProductId);
+            
+            let updatedProducts;
+            if (existingIndex >= 0) {
+              updatedProducts = [...existingProducts];
+              updatedProducts[existingIndex] = {
+                ...updatedProducts[existingIndex],
+                quantity: updatedProducts[existingIndex].quantity + productQuantity,
+              };
+            } else {
+              updatedProducts = [
+                ...existingProducts,
+                { productId: selectedProductId, quantity: productQuantity },
+              ];
+            }
+            
+            return {
+              ...building,
+              centralRack: {
+                ...building.centralRack,
+                ata: {
+                  ...ata,
+                  isFutureProposal: true,
+                  products: updatedProducts,
+                },
+              },
+            };
+          }
+        }
+
+        if (selectedElement.type === 'pbx') {
+          const pbx = (building.centralRack as any).pbx;
+          if (pbx && pbx.id === selectedElement.elementId) {
+            const existingProducts = pbx.products || [];
+            const existingIndex = existingProducts.findIndex((p: any) => p.productId === selectedProductId);
+            
+            let updatedProducts;
+            if (existingIndex >= 0) {
+              updatedProducts = [...existingProducts];
+              updatedProducts[existingIndex] = {
+                ...updatedProducts[existingIndex],
+                quantity: updatedProducts[existingIndex].quantity + productQuantity,
+              };
+            } else {
+              updatedProducts = [
+                ...existingProducts,
+                { productId: selectedProductId, quantity: productQuantity },
+              ];
+            }
+            
+            return {
+              ...building,
+              centralRack: {
+                ...building.centralRack,
+                pbx: {
+                  ...pbx,
+                  isFutureProposal: true,
+                  products: updatedProducts,
+                },
+              },
+            };
+          }
+        }
       }
 
       return building;
@@ -2090,10 +2158,10 @@ export function EquipmentAssignmentStep({
                                           {termination.isFutureProposal && (
                                             <Badge variant="default" className="text-xs">🔮 Proposal</Badge>
                                           )}
-                                          {termination.productId && (
+                                          {((termination.products && termination.products.length > 0) || termination.productId) && (
                                   <Badge variant="outline" className="text-xs">
                                               <Package className="h-3 w-3 mr-1" />
-                                              Product Assigned
+                                              {termination.products && termination.products.length > 1 ? `${termination.products.length} Products` : 'Product Assigned'}
                                   </Badge>
                                 )}
                               </div>
@@ -2126,20 +2194,40 @@ export function EquipmentAssignmentStep({
                               </Button>
                             </div>
                               </div>
-                                      {/* Show assigned product */}
-                                      {termination.productId && (
+                                      {/* Show assigned products */}
+                                      {((termination.products && termination.products.length > 0) || termination.productId) && (
                                         <div className="mt-2 pt-2 border-t">
-                                          <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                          <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                            <Package className="h-4 w-4 text-blue-600" />
-                                            <div className="flex-1">
-                                              <div className="text-sm font-medium">
-                                                {products.find(p => p.id === termination.productId)?.name || termination.productId}
+                                          <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                          <div className="space-y-1 mt-1">
+                                            {/* Handle new products array format */}
+                                            {termination.products && termination.products.length > 0 ? (
+                                              termination.products.map((productAssignment, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))
+                                            ) : termination.productId ? (
+                                              /* Handle legacy single productId format */
+                                              <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                                <div className="flex-1">
+                                                  <div className="text-sm font-medium">
+                                                    {products.find(p => p.id === termination.productId)?.name || termination.productId}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {products.find(p => p.id === termination.productId)?.code} × {termination.quantity || 1}
+                                                  </div>
+                                                </div>
                                               </div>
-                                              <div className="text-xs text-muted-foreground">
-                                                {products.find(p => p.id === termination.productId)?.code} × {termination.quantity || 1}
-                                              </div>
-                                            </div>
+                                            ) : null}
                                           </div>
                                         </div>
                                       )}
@@ -2221,17 +2309,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {/* Show assigned product */}
-                                        {sw.productId && (
+                                        {/* Show assigned products */}
+                                        {((sw.products && sw.products.length > 0) || sw.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === sw.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {sw.products && sw.products.length > 0 ? (
+                                                sw.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : sw.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === sw.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2323,17 +2429,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {/* Show assigned product */}
-                                        {router.productId && (
+                                        {/* Show assigned products */}
+                                        {((router.products && router.products.length > 0) || router.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === router.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {router.products && router.products.length > 0 ? (
+                                                router.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : router.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === router.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2425,17 +2549,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {/* Show assigned product */}
-                                        {server.productId && (
+                                        {/* Show assigned products */}
+                                        {((server.products && server.products.length > 0) || server.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === server.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {server.products && server.products.length > 0 ? (
+                                                server.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : server.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === server.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2542,16 +2684,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {pbx.productId && (
+                                        {/* Show assigned products */}
+                                        {((pbx.products && pbx.products.length > 0) || pbx.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === pbx.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {pbx.products && pbx.products.length > 0 ? (
+                                                pbx.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : pbx.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === pbx.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2654,16 +2815,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {headend.productId && (
+                                        {/* Show assigned products */}
+                                        {((headend.products && headend.products.length > 0) || headend.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === headend.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {headend.products && headend.products.length > 0 ? (
+                                                headend.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : headend.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === headend.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2768,16 +2948,35 @@ export function EquipmentAssignmentStep({
                                             </Button>
                                           </div>
                                         </div>
-                                        {nvr.productId && (
+                                        {/* Show assigned products */}
+                                        {((nvr.products && nvr.products.length > 0) || nvr.productId) && (
                                           <div className="mt-2 pt-2 border-t">
-                                            <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                            <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === nvr.productId)?.name || 'Product Not Found'}
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {nvr.products && nvr.products.length > 0 ? (
+                                                nvr.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))
+                                              ) : nvr.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === nvr.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
                                                 </div>
-                                              </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         )}
@@ -2850,17 +3049,35 @@ export function EquipmentAssignmentStep({
                                         </Button>
                                       </div>
                                     </div>
-                                    {/* Show assigned product */}
-                                    {(building.centralRack as any).pbx.productId && (
+                                    {/* Show assigned products */}
+                                    {(((building.centralRack as any).pbx.products && (building.centralRack as any).pbx.products.length > 0) || (building.centralRack as any).pbx.productId) && (
                                       <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                          <Package className="h-4 w-4 text-blue-600" />
-                                          <div className="flex-1">
-                                            <div className="text-sm font-medium">
-                                              {products.find(p => p.id === (building.centralRack as any).pbx.productId)?.name || 'Product Not Found'}
+                                        <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).pbx.products && (building.centralRack as any).pbx.products.length > 0 ? (
+                                            (building.centralRack as any).pbx.products.map((productAssignment: any, idx: number) => (
+                                              <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                                <div className="flex-1">
+                                                  <div className="text-sm font-medium">
+                                                    {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))
+                                          ) : (building.centralRack as any).pbx.productId ? (
+                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === (building.centralRack as any).pbx.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
                                             </div>
-                                          </div>
+                                          ) : null}
                                         </div>
                                       </div>
                                     )}
@@ -2933,17 +3150,35 @@ export function EquipmentAssignmentStep({
                                         </Button>
                                       </div>
                                     </div>
-                                    {/* Show assigned product */}
-                                    {(building.centralRack as any).ata.productId && (
+                                    {/* Show assigned products */}
+                                    {(((building.centralRack as any).ata.products && (building.centralRack as any).ata.products.length > 0) || (building.centralRack as any).ata.productId) && (
                                       <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                          <Package className="h-4 w-4 text-blue-600" />
-                                          <div className="flex-1">
-                                            <div className="text-sm font-medium">
-                                              {products.find(p => p.id === (building.centralRack as any).ata.productId)?.name || 'Product Not Found'}
+                                        <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).ata.products && (building.centralRack as any).ata.products.length > 0 ? (
+                                            (building.centralRack as any).ata.products.map((productAssignment: any, idx: number) => (
+                                              <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                                <div className="flex-1">
+                                                  <div className="text-sm font-medium">
+                                                    {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))
+                                          ) : (building.centralRack as any).ata.productId ? (
+                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === (building.centralRack as any).ata.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
                                             </div>
-                                          </div>
+                                          ) : null}
                                         </div>
                                       </div>
                                     )}
@@ -3016,17 +3251,35 @@ export function EquipmentAssignmentStep({
                                         </Button>
                                       </div>
                                     </div>
-                                    {/* Show assigned product */}
-                                    {(building.centralRack as any).nvr.productId && (
+                                    {/* Show assigned products */}
+                                    {(((building.centralRack as any).nvr.products && (building.centralRack as any).nvr.products.length > 0) || (building.centralRack as any).nvr.productId) && (
                                       <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Assigned Product:</Label>
-                                        <div className="flex items-center gap-2 mt-1 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                          <Package className="h-4 w-4 text-blue-600" />
-                                          <div className="flex-1">
-                                            <div className="text-sm font-medium">
-                                              {products.find(p => p.id === (building.centralRack as any).nvr.productId)?.name || 'Product Not Found'}
+                                        <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                        <div className="space-y-1 mt-1">
+                                          {(building.centralRack as any).nvr.products && (building.centralRack as any).nvr.products.length > 0 ? (
+                                            (building.centralRack as any).nvr.products.map((productAssignment: any, idx: number) => (
+                                              <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                                <div className="flex-1">
+                                                  <div className="text-sm font-medium">
+                                                    {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))
+                                          ) : (building.centralRack as any).nvr.productId ? (
+                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                              <Package className="h-4 w-4 text-blue-600" />
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">
+                                                  {products.find(p => p.id === (building.centralRack as any).nvr.productId)?.name || 'Product Not Found'}
+                                                </div>
+                                              </div>
                                             </div>
-                                          </div>
+                                          ) : null}
                                         </div>
                                       </div>
                                     )}
