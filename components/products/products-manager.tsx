@@ -505,10 +505,12 @@ export default function ProductsManager() {
     setSelectedProductIds([]);
   }, [products]);
 
-  // Delete product
+  // Add product to ERP
   const handleAddToERP = async (productId: string) => {
+    console.log('handleAddToERP called with productId:', productId);
     setAddingToERP(productId);
     try {
+      console.log('Sending request to /api/products/' + productId + '/add-to-erp');
       const response = await fetch(`/api/products/${productId}/add-to-erp`, {
         method: 'POST',
         headers: {
@@ -516,7 +518,9 @@ export default function ProductsManager() {
         },
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (data.success) {
         toast({
