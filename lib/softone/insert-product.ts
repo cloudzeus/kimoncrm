@@ -51,14 +51,17 @@ async function checkProductDuplicate(
 ): Promise<{ isDuplicate: boolean; existingProduct?: any }> {
   const conditions = [];
   
-  if (eanCode) {
+  // Only check if eanCode has a real value (not null, not empty, not 'N/A')
+  if (eanCode && eanCode.trim() !== '' && eanCode !== 'N/A') {
     conditions.push({ code1: eanCode });
   }
   
-  if (manufacturerCode) {
+  // Only check if manufacturerCode has a real value
+  if (manufacturerCode && manufacturerCode.trim() !== '' && manufacturerCode !== 'N/A') {
     conditions.push({ code2: manufacturerCode });
   }
 
+  // If no valid codes to check, no duplicate
   if (conditions.length === 0) {
     return { isDuplicate: false };
   }
@@ -227,11 +230,19 @@ export async function insertProductToSoftOne(
     };
 
     // Prepare database product format
+    // Clean up codes: remove 'N/A', empty strings, or null values
+    const cleanCode1 = productData.code1 && productData.code1 !== 'N/A' && productData.code1.trim() !== '' 
+      ? productData.code1 
+      : undefined;
+    const cleanCode2 = productData.code2 && productData.code2 !== 'N/A' && productData.code2.trim() !== '' 
+      ? productData.code2 
+      : undefined;
+    
     const dbProduct: DatabaseProduct = {
       name: productData.name,
       code: generatedCode,
-      code1: productData.code1,
-      code2: productData.code2,
+      code1: cleanCode1,
+      code2: cleanCode2,
       brandId: productData.brandId,
       categoryId: productData.categoryId,
       manufacturerId: productData.manufacturerId || null,
