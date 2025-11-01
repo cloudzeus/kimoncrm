@@ -356,17 +356,21 @@ export function EquipmentAssignmentStep({
         const deviceTypes = ['servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
         for (const deviceType of deviceTypes) {
           if (elementInfo.type === deviceType.slice(0, -1) && building.centralRack[deviceType]) {
-            const updated = building.centralRack[deviceType].map((device: any) => {
-              if (device.id === elementInfo.elementId) {
-                return {
-                  ...device,
-                  products: device.products?.filter((p: any) => p.productId !== productId) || [],
-                  productId: device.productId === productId ? undefined : device.productId
-                };
-              }
-              return device;
-            });
-            return { ...building, centralRack: { ...building.centralRack, [deviceType]: updated } };
+            const deviceArray = building.centralRack[deviceType];
+            // Check if it's an array
+            if (Array.isArray(deviceArray)) {
+              const updated = deviceArray.map((device: any) => {
+                if (device.id === elementInfo.elementId) {
+                  return {
+                    ...device,
+                    products: device.products?.filter((p: any) => p.productId !== productId) || [],
+                    productId: device.productId === productId ? undefined : device.productId
+                  };
+                }
+                return device;
+              });
+              return { ...building, centralRack: { ...building.centralRack, [deviceType]: updated } };
+            }
           }
         }
       }
@@ -382,7 +386,7 @@ export function EquipmentAssignmentStep({
 
               const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
               for (const elType of elementTypes) {
-                if (rack[elType]) {
+                if (rack[elType] && Array.isArray(rack[elType])) {
                   const updated = rack[elType].map((el: any) => {
                     if (el.id === elementInfo.elementId) {
                       return {
@@ -406,7 +410,7 @@ export function EquipmentAssignmentStep({
             if (elementInfo.roomId && room.id === elementInfo.roomId) {
               const roomElementTypes = ['devices', 'outlets', 'connections'];
               for (const elType of roomElementTypes) {
-                if (room[elType]) {
+                if (room[elType] && Array.isArray(room[elType])) {
                   const updated = room[elType].map((el: any) => {
                     if (el.id === elementInfo.elementId) {
                       return {
@@ -443,7 +447,7 @@ export function EquipmentAssignmentStep({
       if (elementInfo.location === 'central' && building.centralRack) {
         const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
         for (const elType of elementTypes) {
-          if (building.centralRack[elType]) {
+          if (building.centralRack[elType] && Array.isArray(building.centralRack[elType])) {
             const updated = building.centralRack[elType].map((el: any) => {
               if (el.id === elementInfo.elementId) {
                 return {
@@ -469,7 +473,7 @@ export function EquipmentAssignmentStep({
 
               const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
               for (const elType of elementTypes) {
-                if (rack[elType]) {
+                if (rack[elType] && Array.isArray(rack[elType])) {
                   const updated = rack[elType].map((el: any) => {
                     if (el.id === elementInfo.elementId) {
                       return {
@@ -492,7 +496,7 @@ export function EquipmentAssignmentStep({
             if (elementInfo.roomId && room.id === elementInfo.roomId) {
               const roomElementTypes = ['devices', 'outlets', 'connections'];
               for (const elType of roomElementTypes) {
-                if (room[elType]) {
+                if (room[elType] && Array.isArray(room[elType])) {
                   const updated = room[elType].map((el: any) => {
                     if (el.id === elementInfo.elementId) {
                       return {
