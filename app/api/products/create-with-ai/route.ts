@@ -21,18 +21,20 @@ export async function POST(request: NextRequest) {
       insertToERP,
     } = body;
 
-    // Check for duplicates first
-    if (productData.code1 || productData.code2) {
-      const conditions = [];
-      
-      if (productData.code1) {
-        conditions.push({ code1: productData.code1 });
-      }
-      
-      if (productData.code2) {
-        conditions.push({ code2: productData.code2 });
-      }
+    // Check for duplicates first (only if codes are provided and not empty)
+    const conditions = [];
+    
+    // Only check code1 (EAN) if it has a real value (not null, not empty, not 'N/A')
+    if (productData.code1 && productData.code1.trim() !== '' && productData.code1 !== 'N/A') {
+      conditions.push({ code1: productData.code1 });
+    }
+    
+    // Only check code2 (Manufacturer Code) if it has a real value
+    if (productData.code2 && productData.code2.trim() !== '' && productData.code2 !== 'N/A') {
+      conditions.push({ code2: productData.code2 });
+    }
 
+    if (conditions.length > 0) {
       const existingProduct = await prisma.product.findFirst({
         where: { OR: conditions },
         select: {
@@ -45,24 +47,27 @@ export async function POST(request: NextRequest) {
 
       if (existingProduct) {
         const duplicateFields = [];
-        if (productData.code1 && existingProduct.code1 === productData.code1) {
+        if (productData.code1 && productData.code1 !== 'N/A' && existingProduct.code1 === productData.code1) {
           duplicateFields.push(`EAN Code: ${productData.code1}`);
         }
-        if (productData.code2 && existingProduct.code2 === productData.code2) {
+        if (productData.code2 && productData.code2 !== 'N/A' && existingProduct.code2 === productData.code2) {
           duplicateFields.push(`Manufacturer Code: ${productData.code2}`);
         }
         
-        return NextResponse.json({
-          success: false,
-          error: `Product already exists with: ${duplicateFields.join(', ')}\n\nExisting Product:\nID: ${existingProduct.id}\nName: ${existingProduct.name}\nEAN: ${existingProduct.code1 || 'N/A'}\nManufacturer Code: ${existingProduct.code2 || 'N/A'}`,
-          isDuplicate: true,
-          duplicateProduct: {
-            id: existingProduct.id,
-            name: existingProduct.name,
-            code1: existingProduct.code1,
-            code2: existingProduct.code2,
-          }
-        }, { status: 400 });
+        // Only return error if we actually found matching fields
+        if (duplicateFields.length > 0) {
+          return NextResponse.json({
+            success: false,
+            error: `Product already exists with: ${duplicateFields.join(', ')}\n\nExisting Product:\nID: ${existingProduct.id}\nName: ${existingProduct.name}\nEAN: ${existingProduct.code1 || 'N/A'}\nManufacturer Code: ${existingProduct.code2 || 'N/A'}`,
+            isDuplicate: true,
+            duplicateProduct: {
+              id: existingProduct.id,
+              name: existingProduct.name,
+              code1: existingProduct.code1,
+              code2: existingProduct.code2,
+            }
+          }, { status: 400 });
+        }
       }
     }
 
