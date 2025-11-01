@@ -1695,12 +1695,10 @@ export function CentralRackStep({
           hasSpecs: productDetails.specifications && Object.keys(productDetails.specifications || {}).length > 0
         });
         return {
+          ...productDetails,
           id: product.id,
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          quantity: product.quantity,
-          ...productDetails
+          quantity: product.quantity
+          // productDetails already contains name, brand, category, etc.
         };
       });
 
