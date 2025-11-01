@@ -991,7 +991,8 @@ export function CentralRackStep({
             });
           });
 
-          rack.servers?.forEach(server => {
+          if (Array.isArray(rack.servers)) {
+            rack.servers.forEach(server => {
             // Support new products array format
             const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: 1 }] : []);
             
@@ -1035,9 +1036,11 @@ export function CentralRackStep({
               service.quantity += (svc.quantity || 1) * floorMultiplier;
               service.locations.push(`${floor.name} - ${rack.name} - Server${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
-          });
+            });
+          }
 
-          rack.voipPbx?.forEach(pbx => {
+          if (Array.isArray(rack.voipPbx)) {
+            rack.voipPbx.forEach(pbx => {
             // Support new products array format
             const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
             
@@ -1081,9 +1084,11 @@ export function CentralRackStep({
               service.quantity += (svc.quantity || 1) * floorMultiplier;
               service.locations.push(`${floor.name} - ${rack.name} - VoIP PBX${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
-          });
+            });
+          }
 
-          rack.headend?.forEach(headend => {
+          if (Array.isArray(rack.headend)) {
+            rack.headend.forEach(headend => {
             // Support new products array format
             const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: 1 }] : []);
             
@@ -1127,9 +1132,11 @@ export function CentralRackStep({
               service.quantity += (svc.quantity || 1) * floorMultiplier;
               service.locations.push(`${floor.name} - ${rack.name} - Headend${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
-          });
+            });
+          }
 
-          rack.nvr?.forEach(nvr => {
+          if (Array.isArray(rack.nvr)) {
+            rack.nvr.forEach(nvr => {
             // Support new products array format
             const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: 1 }] : []);
             
@@ -1173,9 +1180,11 @@ export function CentralRackStep({
               service.quantity += (svc.quantity || 1) * floorMultiplier;
               service.locations.push(`${floor.name} - ${rack.name} - NVR${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
-          });
+            });
+          }
 
-          rack.ata?.forEach(ata => {
+          if (Array.isArray(rack.ata)) {
+            rack.ata.forEach(ata => {
             // Support new products array format
             const productsToProcess = ata.products || (ata.productId ? [{ productId: ata.productId, quantity: 1 }] : []);
             
@@ -1219,7 +1228,8 @@ export function CentralRackStep({
               service.quantity += (svc.quantity || 1) * floorMultiplier;
               service.locations.push(`${floor.name} - ${rack.name} - ATA${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
-          });
+            });
+          }
 
           rack.connections?.forEach(conn => {
             // Support new products array format
