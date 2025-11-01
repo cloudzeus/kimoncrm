@@ -93,6 +93,9 @@ export async function POST(request: NextRequest) {
           if (imageResponse.ok) {
             const imageBuffer = await imageResponse.arrayBuffer();
             
+            // Determine image type from URL
+            const imageType = imageUrl.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+            
             allChildren.push(
               new Paragraph({
                 children: [
@@ -102,6 +105,7 @@ export async function POST(request: NextRequest) {
                       width: 300,
                       height: 300,
                     },
+                    type: imageType,
                   }),
                 ],
                 alignment: AlignmentType.CENTER,
