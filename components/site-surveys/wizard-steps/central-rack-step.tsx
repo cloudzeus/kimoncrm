@@ -1317,7 +1317,7 @@ export function CentralRackStep({
                     {(brandProducts || []).map((product) => {
                       const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                       return (
-                        <tr key={product.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <tr key={product.id} className="border-b hover:bg-gray-300 dark:hover:bg-gray-800">
                           {visibleColumns.product && (
                             <td className="p-2">
                               <div className="flex items-center gap-2">
@@ -1545,7 +1545,7 @@ export function CentralRackStep({
                   {collectedServices.map((service) => {
                     const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                     return (
-                      <tr key={service.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <tr key={service.id} className="border-b hover:bg-gray-300 dark:hover:bg-gray-800">
                         <td className="p-2">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
