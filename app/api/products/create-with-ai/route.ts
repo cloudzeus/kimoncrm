@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
         code1: productData.code1 || null,
         code2: productData.code2 || null,
         name: productData.name,
+        mtrgroup: productData.mtrgroupCode || null,
+        mtrmark: productData.mtrmark || null,
+        mtrmanfctr: productData.mtrmanfctr || null,
         brandId: productData.brandId,
         categoryId: productData.categoryId,
         manufacturerId: productData.manufacturerId || null,
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest) {
         isActive: productData.isActive !== false,
         // Create specifications if provided
         specifications: aiData?.specifications ? {
-          create: await Promise.all(
+          create: (await Promise.all(
             aiData.specifications.map(async (spec: any) => {
               // Find matching group spec to link
               let groupSpecId = null;
@@ -107,27 +110,57 @@ export async function POST(request: NextRequest) {
                 if (groupSpec) groupSpecId = groupSpec.id;
               }
 
+              // Handle both array format and object format for translations
+              let translationsToCreate;
+              if (Array.isArray(spec.translations)) {
+                // Array format
+                translationsToCreate = spec.translations.filter((t: any) => 
+                  t && t.specName && t.specValue
+                );
+              } else if (spec.translations && typeof spec.translations === 'object') {
+                // Object format (from AI)
+                translationsToCreate = Object.entries(spec.translations)
+                  .filter(([_, translation]: [string, any]) => 
+                    translation && translation.specName && translation.specValue
+                  )
+                  .map(([langCode, translation]: [string, any]) => ({
+                    languageCode: langCode,
+                    specName: translation.specName,
+                    specValue: translation.specValue,
+                  }));
+              } else {
+                // Fallback: create from specName/specValue at top level
+                translationsToCreate = [
+                  {
+                    languageCode: 'en',
+                    specName: spec.specName || spec.specKey || 'Unknown',
+                    specValue: spec.specValue || 'N/A',
+                  },
+                  {
+                    languageCode: 'el',
+                    specName: spec.specName || spec.specKey || 'Unknown',
+                    specValue: spec.specValue || 'N/A',
+                  }
+                ];
+              }
+
+              // Skip if no valid translations
+              if (!translationsToCreate || translationsToCreate.length === 0) {
+                console.warn(`Skipping spec ${spec.specKey} - no valid translations`);
+                return null;
+              }
+
               return {
                 specKey: spec.specKey,
                 order: spec.order || 0,
                 groupSpecId,
+                aiProvider: spec.aiProvider || null,
                 translations: {
-                  create: spec.translations || [
-                    {
-                      languageCode: 'en',
-                      specName: spec.specName || spec.specKey,
-                      specValue: spec.specValue || '',
-                    },
-                    {
-                      languageCode: 'el',
-                      specName: spec.specName || spec.specKey,
-                      specValue: spec.specValue || '',
-                    }
-                  ]
+                  create: translationsToCreate
                 }
               };
             })
-          )
+          )).filter(Boolean) // Remove null entries
         } : undefined,
         // Create translations if provided
         translations: aiData?.translations ? {

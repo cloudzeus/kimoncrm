@@ -93,18 +93,40 @@ export async function POST(request: NextRequest) {
             for (const spec of generatedSpecs) {
               const groupSpecId = groupSpecsMap.get(spec.specKey) || null;
 
+              // Validate and prepare translations
+              const translationsToCreate = Object.entries(spec.translations || {})
+                .filter(([langCode, translation]: [string, any]) => {
+                  if (!translation || typeof translation !== 'object') {
+                    console.warn(`Product ${product.id}: Invalid translation for spec ${spec.specKey}, language ${langCode}`);
+                    return false;
+                  }
+                  if (!translation.specName || !translation.specValue) {
+                    console.warn(`Product ${product.id}: Missing specName or specValue for spec ${spec.specKey}, language ${langCode}`);
+                    return false;
+                  }
+                  return true;
+                })
+                .map(([langCode, translation]: [string, any]) => ({
+                  languageCode: langCode,
+                  specName: translation.specName,
+                  specValue: translation.specValue,
+                }));
+
+              // Skip if no valid translations
+              if (translationsToCreate.length === 0) {
+                console.warn(`Product ${product.id}: Skipping spec ${spec.specKey} - no valid translations`);
+                continue;
+              }
+
               await prisma.productSpec.create({
                 data: {
                   productId: product.id,
                   specKey: spec.specKey,
                   order: order++,
                   groupSpecId,
+                  aiProvider: spec.aiProvider || null,
                   translations: {
-                    create: Object.entries(spec.translations).map(([langCode, translation]) => ({
-                      languageCode: langCode,
-                      specName: translation.specName,
-                      specValue: translation.specValue,
-                    })),
+                    create: translationsToCreate,
                   },
                 },
               });
