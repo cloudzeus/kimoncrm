@@ -6,9 +6,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { products, services, siteSurveyName } = body;
 
-    if (!products || !Array.isArray(products)) {
+    console.log('🔧 BOM API received:', {
+      productsCount: products?.length || 0,
+      servicesCount: services?.length || 0,
+      siteSurveyName,
+      hasProducts: !!products,
+      isProductsArray: Array.isArray(products),
+      sampleProduct: products?.[0],
+      sampleService: services?.[0]
+    });
+
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      console.error('❌ BOM API: Invalid or empty products array');
       return NextResponse.json(
-        { error: 'Missing or invalid products data' },
+        { error: 'Missing or invalid products data. Please ensure you have products assigned in Steps 1 and 2.' },
         { status: 400 }
       );
     }

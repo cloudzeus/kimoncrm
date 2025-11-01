@@ -1576,19 +1576,26 @@ export function CentralRackStep({
   const handleGenerateBOM = async () => {
     try {
       console.log('🚀 Starting BOM generation...');
+      console.log('📦 Buildings data:', buildings);
+      console.log('📦 Collected products:', collectedProducts);
+      console.log('📦 Collected services:', collectedServices);
+      console.log('📦 Products by brand:', productsByBrand);
       
-      // Check if we have products
-      if (!productsByBrand || Object.keys(productsByBrand).length === 0) {
+      // Check if we have products OR services
+      const hasProducts = collectedProducts && collectedProducts.length > 0;
+      const hasServices = collectedServices && collectedServices.length > 0;
+      
+      if (!hasProducts && !hasServices) {
         toast({
-          title: "No Products",
-          description: "No products found to generate BOM. Please add products in Step 2 first.",
+          title: "No Items Found",
+          description: "No products or services found to generate BOM. Please add items in Steps 1 and 2 first.",
           variant: "destructive",
         });
         return;
       }
 
       // Prepare products data with pricing
-      const productsWithPricing = Object.values(productsByBrand || {}).flat().map((product: any) => {
+      const productsWithPricing = (collectedProducts || []).map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const productDetails = getProductDetails(product.id);
         return {
@@ -1616,7 +1623,8 @@ export function CentralRackStep({
         productsCount: productsWithPricing.length,
         servicesCount: servicesWithPricing.length,
         brands: [...new Set(productsWithPricing.map(p => p.brand))],
-        sampleProduct: productsWithPricing[0]
+        sampleProduct: productsWithPricing[0],
+        sampleService: servicesWithPricing[0]
       });
 
       const response = await fetch('/api/site-surveys/generate-bom-excel', {
@@ -1662,9 +1670,13 @@ export function CentralRackStep({
   const handleGenerateProductsAnalysis = async () => {
     try {
       console.log('🚀 Starting Products Analysis generation...');
+      console.log('📦 Buildings data:', buildings);
+      console.log('📦 Collected products:', collectedProducts);
+      console.log('📦 Products by brand:', productsByBrand);
+      console.log('📦 Products list:', productsList);
       
       // Check if we have products
-      if (!productsByBrand || Object.keys(productsByBrand).length === 0) {
+      if (!collectedProducts || collectedProducts.length === 0) {
         toast({
           title: "No Products",
           description: "No products found to generate analysis. Please add products in Step 2 first.",
@@ -1673,19 +1685,28 @@ export function CentralRackStep({
         return;
       }
 
-      // Prepare products data for analysis
-      const productsForAnalysis = Object.values(productsByBrand || {}).flat().map((product: any) => {
+      // Prepare products data for analysis - use collectedProducts directly
+      const productsForAnalysis = (collectedProducts || []).map((product: any) => {
         const productDetails = getProductDetails(product.id);
+        console.log(`📝 Product ${product.id}:`, {
+          product,
+          productDetails,
+          hasImages: productDetails.images && productDetails.images.length > 0,
+          hasSpecs: productDetails.specifications && Object.keys(productDetails.specifications || {}).length > 0
+        });
         return {
-          ...product,
-          ...productDetails,
-          quantity: product.quantity
+          id: product.id,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          quantity: product.quantity,
+          ...productDetails
         };
       });
 
       console.log('🔍 Products Analysis Data being sent:', {
         productsCount: productsForAnalysis.length,
-        sampleProduct: productsForAnalysis[0]
+        allProducts: productsForAnalysis
       });
 
       const response = await fetch('/api/site-surveys/generate-products-analysis', {

@@ -7,15 +7,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { products, siteSurveyName } = body;
 
-    if (!products || !Array.isArray(products)) {
+    console.log('📊 Product Analysis API received:', {
+      productsCount: products?.length || 0,
+      siteSurveyName,
+      hasProducts: !!products,
+      isProductsArray: Array.isArray(products),
+      sampleProduct: products?.[0]
+    });
+
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      console.error('❌ Product Analysis API: Invalid or empty products array');
       return NextResponse.json(
-        { error: 'Missing or invalid products data' },
+        { error: 'Missing or invalid products data. Please ensure you have products assigned in Step 2.' },
         { status: 400 }
       );
     }
 
     // Fetch full product details including specifications and images
     const productIds = products.map(p => p.id);
+    console.log('🔍 Fetching full product details for IDs:', productIds);
+    
     const fullProducts = await prisma.product.findMany({
       where: {
         id: { in: productIds }
@@ -33,6 +44,19 @@ export async function POST(request: NextRequest) {
         },
         translations: true
       }
+    });
+
+    console.log('✅ Fetched full products from database:', {
+      count: fullProducts.length,
+      productsWithImages: fullProducts.filter(p => p.images && p.images.length > 0).length,
+      productsWithSpecs: fullProducts.filter(p => p.specifications && p.specifications.length > 0).length,
+      sampleProduct: fullProducts[0] ? {
+        id: fullProducts[0].id,
+        name: fullProducts[0].name,
+        imagesCount: fullProducts[0].images?.length || 0,
+        specsCount: fullProducts[0].specifications?.length || 0,
+        translationsCount: fullProducts[0].translations?.length || 0
+      } : null
     });
 
     // Create all children first
