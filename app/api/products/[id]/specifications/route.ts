@@ -118,6 +118,32 @@ export async function POST(
           if (groupSpec) groupSpecId = groupSpec.id;
         }
 
+        // Validate and prepare translations
+        const translationsToCreate = Object.entries(spec.translations || {})
+          .filter(([langCode, translation]: [string, any]) => {
+            // Validate that translation has required fields
+            if (!translation || typeof translation !== 'object') {
+              console.warn(`Invalid translation for spec ${spec.specKey}, language ${langCode}:`, translation);
+              return false;
+            }
+            if (!translation.specName || !translation.specValue) {
+              console.warn(`Missing specName or specValue for spec ${spec.specKey}, language ${langCode}:`, translation);
+              return false;
+            }
+            return true;
+          })
+          .map(([langCode, translation]: [string, any]) => ({
+            languageCode: langCode,
+            specName: translation.specName,
+            specValue: translation.specValue,
+          }));
+
+        // Skip if no valid translations
+        if (translationsToCreate.length === 0) {
+          console.warn(`Skipping spec ${spec.specKey} - no valid translations found. Spec object:`, JSON.stringify(spec, null, 2));
+          continue;
+        }
+
         const createdSpec = await prisma.productSpec.create({
           data: {
             productId,
@@ -126,11 +152,7 @@ export async function POST(
             groupSpecId,
             aiProvider: spec.aiProvider || null,
             translations: {
-              create: Object.entries(spec.translations).map(([langCode, translation]) => ({
-                languageCode: langCode,
-                specName: translation.specName,
-                specValue: translation.specValue,
-              })),
+              create: translationsToCreate,
             },
           },
           include: {
