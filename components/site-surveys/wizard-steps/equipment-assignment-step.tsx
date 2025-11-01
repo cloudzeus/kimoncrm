@@ -303,6 +303,223 @@ export function EquipmentAssignmentStep({
     return element?.isFutureProposal || element?.id?.includes('proposal');
   };
 
+  // Delete handlers for products and services
+  const handleDeleteProduct = (buildingId: string, elementInfo: any, productId: string) => {
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+
+      // Central rack elements
+      if (elementInfo.location === 'central' && building.centralRack) {
+        if (elementInfo.type === 'termination' && building.centralRack.cableTerminations) {
+          const updated = building.centralRack.cableTerminations.map(term => {
+            if (term.id === elementInfo.elementId) {
+              return {
+                ...term,
+                products: term.products?.filter(p => p.productId !== productId) || [],
+                productId: term.productId === productId ? undefined : term.productId
+              };
+            }
+            return term;
+          });
+          return { ...building, centralRack: { ...building.centralRack, cableTerminations: updated } };
+        }
+
+        if (elementInfo.type === 'switch' && building.centralRack.switches) {
+          const updated = building.centralRack.switches.map(sw => {
+            if (sw.id === elementInfo.elementId) {
+              return {
+                ...sw,
+                products: sw.products?.filter(p => p.productId !== productId) || [],
+                productId: sw.productId === productId ? undefined : sw.productId
+              };
+            }
+            return sw;
+          });
+          return { ...building, centralRack: { ...building.centralRack, switches: updated } };
+        }
+
+        if (elementInfo.type === 'router' && building.centralRack.routers) {
+          const updated = building.centralRack.routers.map(router => {
+            if (router.id === elementInfo.elementId) {
+              return {
+                ...router,
+                products: router.products?.filter(p => p.productId !== productId) || [],
+                productId: router.productId === productId ? undefined : router.productId
+              };
+            }
+            return router;
+          });
+          return { ...building, centralRack: { ...building.centralRack, routers: updated } };
+        }
+
+        // Add similar logic for servers, voipPbx, headend, nvr, ata
+        const deviceTypes = ['servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
+        for (const deviceType of deviceTypes) {
+          if (elementInfo.type === deviceType.slice(0, -1) && building.centralRack[deviceType]) {
+            const updated = building.centralRack[deviceType].map((device: any) => {
+              if (device.id === elementInfo.elementId) {
+                return {
+                  ...device,
+                  products: device.products?.filter((p: any) => p.productId !== productId) || [],
+                  productId: device.productId === productId ? undefined : device.productId
+                };
+              }
+              return device;
+            });
+            return { ...building, centralRack: { ...building.centralRack, [deviceType]: updated } };
+          }
+        }
+      }
+
+      // Floor rack elements
+      if (elementInfo.floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== elementInfo.floorId) return floor;
+
+          if (elementInfo.rackId && floor.racks) {
+            const updatedRacks = floor.racks.map(rack => {
+              if (rack.id !== elementInfo.rackId) return rack;
+
+              const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
+              for (const elType of elementTypes) {
+                if (rack[elType]) {
+                  const updated = rack[elType].map((el: any) => {
+                    if (el.id === elementInfo.elementId) {
+                      return {
+                        ...el,
+                        products: el.products?.filter((p: any) => p.productId !== productId) || [],
+                        productId: el.productId === productId ? undefined : el.productId
+                      };
+                    }
+                    return el;
+                  });
+                  return { ...rack, [elType]: updated };
+                }
+              }
+              return rack;
+            });
+            return { ...floor, racks: updatedRacks };
+          }
+
+          // Room devices
+          const updatedRooms = floor.rooms.map(room => {
+            if (elementInfo.roomId && room.id === elementInfo.roomId) {
+              const roomElementTypes = ['devices', 'outlets', 'connections'];
+              for (const elType of roomElementTypes) {
+                if (room[elType]) {
+                  const updated = room[elType].map((el: any) => {
+                    if (el.id === elementInfo.elementId) {
+                      return {
+                        ...el,
+                        products: el.products?.filter((p: any) => p.productId !== productId) || [],
+                        productId: el.productId === productId ? undefined : el.productId
+                      };
+                    }
+                    return el;
+                  });
+                  return { ...room, [elType]: updated };
+                }
+              }
+            }
+            return room;
+          });
+          return { ...floor, rooms: updatedRooms };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+  };
+
+  const handleDeleteService = (buildingId: string, elementInfo: any, serviceId: string) => {
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+
+      // Central rack elements
+      if (elementInfo.location === 'central' && building.centralRack) {
+        const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
+        for (const elType of elementTypes) {
+          if (building.centralRack[elType]) {
+            const updated = building.centralRack[elType].map((el: any) => {
+              if (el.id === elementInfo.elementId) {
+                return {
+                  ...el,
+                  services: el.services?.filter((s: any) => s.serviceId !== serviceId) || []
+                };
+              }
+              return el;
+            });
+            return { ...building, centralRack: { ...building.centralRack, [elType]: updated } };
+          }
+        }
+      }
+
+      // Floor rack elements
+      if (elementInfo.floorId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== elementInfo.floorId) return floor;
+
+          if (elementInfo.rackId && floor.racks) {
+            const updatedRacks = floor.racks.map(rack => {
+              if (rack.id !== elementInfo.rackId) return rack;
+
+              const elementTypes = ['cableTerminations', 'switches', 'routers', 'servers', 'voipPbx', 'headend', 'nvr', 'ata', 'connections'];
+              for (const elType of elementTypes) {
+                if (rack[elType]) {
+                  const updated = rack[elType].map((el: any) => {
+                    if (el.id === elementInfo.elementId) {
+                      return {
+                        ...el,
+                        services: el.services?.filter((s: any) => s.serviceId !== serviceId) || []
+                      };
+                    }
+                    return el;
+                  });
+                  return { ...rack, [elType]: updated };
+                }
+              }
+              return rack;
+            });
+            return { ...floor, racks: updatedRacks };
+          }
+
+          // Room devices
+          const updatedRooms = floor.rooms.map(room => {
+            if (elementInfo.roomId && room.id === elementInfo.roomId) {
+              const roomElementTypes = ['devices', 'outlets', 'connections'];
+              for (const elType of roomElementTypes) {
+                if (room[elType]) {
+                  const updated = room[elType].map((el: any) => {
+                    if (el.id === elementInfo.elementId) {
+                      return {
+                        ...el,
+                        services: el.services?.filter((s: any) => s.serviceId !== serviceId) || []
+                      };
+                    }
+                    return el;
+                  });
+                  return { ...room, [elType]: updated };
+                }
+              }
+            }
+            return room;
+          });
+          return { ...floor, rooms: updatedRooms };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+  };
+
   // Pricing helper functions
   const updateProductPricing = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
     const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
@@ -2620,6 +2837,14 @@ export function EquipmentAssignmentStep({
                                                       {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                     </div>
                                                   </div>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'termination', elementId: termination.id }, productAssignment.productId)}
+                                                  >
+                                                    <Trash2 className="h-3 w-3" />
+                                                  </Button>
                                                 </div>
                                               ))
                                             ) : termination.productId ? (
@@ -2634,6 +2859,14 @@ export function EquipmentAssignmentStep({
                                                     {products.find(p => p.id === termination.productId)?.code} × {termination.quantity || 1}
                                                   </div>
                                                 </div>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'termination', elementId: termination.id }, termination.productId)}
+                                                >
+                                                  <Trash2 className="h-3 w-3" />
+                                                </Button>
                                               </div>
                                             ) : null}
                                           </div>
@@ -2656,6 +2889,14 @@ export function EquipmentAssignmentStep({
                                                     Qty: {svc.quantity}
                                                   </div>
                                                 </div>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  onClick={() => handleDeleteService(building.id, { location: 'central', type: 'termination', elementId: termination.id }, svc.serviceId)}
+                                                >
+                                                  <Trash2 className="h-3 w-3" />
+                                                </Button>
                                               </div>
                       ))}
                     </div>
