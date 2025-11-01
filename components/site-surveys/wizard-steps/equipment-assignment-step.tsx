@@ -486,6 +486,11 @@ export function EquipmentAssignmentStep({
               if (rack.id !== rackId) return rack;
               if (elementType === 'switch') return { ...rack, switches: rack.switches.filter(sw => sw.id !== elementId) };
               if (elementType === 'router') return { ...rack, routers: (rack.routers || []).filter(r => r.id !== elementId) };
+              if (elementType === 'server') return { ...rack, servers: (rack.servers || []).filter(s => s.id !== elementId) };
+              if (elementType === 'voipPbx') return { ...rack, voipPbx: (rack.voipPbx || []).filter(p => p.id !== elementId) };
+              if (elementType === 'headend') return { ...rack, headend: (rack.headend || []).filter(h => h.id !== elementId) };
+              if (elementType === 'nvr') return { ...rack, nvr: (rack.nvr || []).filter(n => n.id !== elementId) };
+              if (elementType === 'ata') return { ...rack, ata: (rack.ata || []).filter(a => a.id !== elementId) };
               if (elementType === 'termination') return { ...rack, cableTerminations: (rack.cableTerminations || []).filter(t => t.id !== elementId) };
               if (elementType === 'connection') return { ...rack, connections: rack.connections.filter(c => c.id !== elementId) };
               return rack;
@@ -737,7 +742,7 @@ export function EquipmentAssignmentStep({
   };
 
   // Add NEW server to rack
-  const addNewServerToRack = (buildingId: string) => {
+  const addNewServerToRack = (buildingId: string, floorId: string | undefined = undefined, rackId: string | undefined = undefined) => {
     const newServer: any = {
       id: `server-proposal-${Date.now()}`,
       name: '',
@@ -750,14 +755,30 @@ export function EquipmentAssignmentStep({
     };
 
     const updatedBuildings = localBuildings.map(building => {
-      if (building.id !== buildingId && building.centralRack) return building;
-      return {
-        ...building,
-        centralRack: building.centralRack ? {
-          ...building.centralRack,
-          servers: [...(building.centralRack.servers || []), newServer],
-        } : building.centralRack,
-      };
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            servers: [...(building.centralRack.servers || []), newServer],
+          },
+        };
+      } else if (floorId && rackId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, servers: [...(rack.servers || []), newServer] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
     });
 
     setLocalBuildings(updatedBuildings);
@@ -766,8 +787,8 @@ export function EquipmentAssignmentStep({
     toast({ title: "Success", description: "New server added as future proposal" });
   };
 
-  // Add NEW VoIP PBX to central rack
-  const addNewVoipPbxToRack = (buildingId: string) => {
+  // Add NEW VoIP PBX to rack
+  const addNewVoipPbxToRack = (buildingId: string, floorId: string | undefined = undefined, rackId: string | undefined = undefined) => {
     const newVoipPbx: any = {
       id: `voippbx-proposal-${Date.now()}`,
       brand: '',
@@ -778,14 +799,30 @@ export function EquipmentAssignmentStep({
     };
 
     const updatedBuildings = localBuildings.map(building => {
-      if (building.id !== buildingId || !building.centralRack) return building;
-      return {
-        ...building,
-        centralRack: {
-          ...building.centralRack,
-          voipPbx: [...(building.centralRack.voipPbx || []), newVoipPbx],
-        },
-      };
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            voipPbx: [...(building.centralRack.voipPbx || []), newVoipPbx],
+          },
+        };
+      } else if (floorId && rackId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, voipPbx: [...(rack.voipPbx || []), newVoipPbx] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
     });
 
     setLocalBuildings(updatedBuildings);
@@ -794,8 +831,8 @@ export function EquipmentAssignmentStep({
     toast({ title: "Success", description: "New VoIP PBX added as future proposal" });
   };
 
-  // Add NEW Headend to central rack
-  const addNewHeadendToRack = (buildingId: string) => {
+  // Add NEW Headend to rack
+  const addNewHeadendToRack = (buildingId: string, floorId: string | undefined = undefined, rackId: string | undefined = undefined) => {
     const newHeadend: any = {
       id: `headend-proposal-${Date.now()}`,
       brand: '',
@@ -805,14 +842,30 @@ export function EquipmentAssignmentStep({
     };
 
     const updatedBuildings = localBuildings.map(building => {
-      if (building.id !== buildingId || !building.centralRack) return building;
-      return {
-        ...building,
-        centralRack: {
-          ...building.centralRack,
-          headend: [...(building.centralRack.headend || []), newHeadend],
-        },
-      };
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            headend: [...(building.centralRack.headend || []), newHeadend],
+          },
+        };
+      } else if (floorId && rackId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, headend: [...(rack.headend || []), newHeadend] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
     });
 
     setLocalBuildings(updatedBuildings);
@@ -821,8 +874,8 @@ export function EquipmentAssignmentStep({
     toast({ title: "Success", description: "New Headend added as future proposal" });
   };
 
-  // Add NEW NVR to central rack
-  const addNewNvrToRack = (buildingId: string) => {
+  // Add NEW NVR to rack
+  const addNewNvrToRack = (buildingId: string, floorId: string | undefined = undefined, rackId: string | undefined = undefined) => {
     const newNvr: any = {
       id: `nvr-proposal-${Date.now()}`,
       brand: '',
@@ -834,20 +887,80 @@ export function EquipmentAssignmentStep({
     };
 
     const updatedBuildings = localBuildings.map(building => {
-      if (building.id !== buildingId || !building.centralRack) return building;
-      return {
-        ...building,
-        centralRack: {
-          ...building.centralRack,
-          nvr: [...(building.centralRack.nvr || []), newNvr],
-        },
-      };
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            nvr: [...(building.centralRack.nvr || []), newNvr],
+          },
+        };
+      } else if (floorId && rackId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, nvr: [...(rack.nvr || []), newNvr] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
     });
 
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
     toast({ title: "Success", description: "New NVR added as future proposal" });
+  };
+
+  // Add NEW ATA to rack
+  const addNewAtaToRack = (buildingId: string, floorId: string | undefined = undefined, rackId: string | undefined = undefined) => {
+    const newAta: any = {
+      id: `ata-proposal-${Date.now()}`,
+      brand: '',
+      model: '',
+      ports: 0,
+      services: [],
+      isFutureProposal: true,
+    };
+
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+      
+      if (!floorId && building.centralRack) {
+        // Central rack
+        return {
+          ...building,
+          centralRack: {
+            ...building.centralRack,
+            ata: [...(building.centralRack.ata || []), newAta],
+          },
+        };
+      } else if (floorId && rackId) {
+        // Floor rack
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== floorId) return floor;
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            return { ...rack, ata: [...(rack.ata || []), newAta] };
+          });
+          return { ...floor, racks: updatedRacks };
+        });
+        return { ...building, floors: updatedFloors };
+      }
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+    if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    toast({ title: "Success", description: "New ATA added as future proposal" });
   };
 
   // Add NEW cable termination to rack - opens modal for configuration
@@ -1133,6 +1246,161 @@ export function EquipmentAssignmentStep({
                   return conn;
                 });
                 return { ...rack, connections: updatedConnections };
+              }
+
+              if (selectedElement.type === 'server' && rack.servers) {
+                const updatedServers = rack.servers.map(server => {
+                  if (server.id === selectedElement.elementId) {
+                    const existingProducts = server.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
+                      ...server,
+                      isFutureProposal: true,
+                      products: updatedProducts,
+                    };
+                  }
+                  return server;
+                });
+                return { ...rack, servers: updatedServers };
+              }
+
+              if (selectedElement.type === 'voipPbx' && rack.voipPbx) {
+                const updatedVoipPbx = rack.voipPbx.map(pbx => {
+                  if (pbx.id === selectedElement.elementId) {
+                    const existingProducts = pbx.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
+                      ...pbx,
+                      isFutureProposal: true,
+                      products: updatedProducts,
+                    };
+                  }
+                  return pbx;
+                });
+                return { ...rack, voipPbx: updatedVoipPbx };
+              }
+
+              if (selectedElement.type === 'headend' && rack.headend) {
+                const updatedHeadend = rack.headend.map(he => {
+                  if (he.id === selectedElement.elementId) {
+                    const existingProducts = he.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
+                      ...he,
+                      isFutureProposal: true,
+                      products: updatedProducts,
+                    };
+                  }
+                  return he;
+                });
+                return { ...rack, headend: updatedHeadend };
+              }
+
+              if (selectedElement.type === 'nvr' && rack.nvr) {
+                const updatedNvr = rack.nvr.map(nvr => {
+                  if (nvr.id === selectedElement.elementId) {
+                    const existingProducts = nvr.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
+                      ...nvr,
+                      isFutureProposal: true,
+                      products: updatedProducts,
+                    };
+                  }
+                  return nvr;
+                });
+                return { ...rack, nvr: updatedNvr };
+              }
+
+              if (selectedElement.type === 'ata' && rack.ata) {
+                const updatedAta = rack.ata.map(ata => {
+                  if (ata.id === selectedElement.elementId) {
+                    const existingProducts = ata.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
+                      ...ata,
+                      isFutureProposal: true,
+                      products: updatedProducts,
+                    };
+                  }
+                  return ata;
+                });
+                return { ...rack, ata: updatedAta };
               }
 
               return rack;
@@ -1740,6 +2008,71 @@ export function EquipmentAssignmentStep({
                   return conn;
                 });
                 return { ...rack, connections: updatedConnections };
+              }
+
+              if (selectedElement.type === 'server' && rack.servers) {
+                const updatedServers = rack.servers.map(server => {
+                  if (server.id === selectedElement.elementId) {
+                    return {
+                      ...server,
+                      services: [...(server.services || []), newService],
+                    };
+                  }
+                  return server;
+                });
+                return { ...rack, servers: updatedServers };
+              }
+
+              if (selectedElement.type === 'voipPbx' && rack.voipPbx) {
+                const updatedVoipPbx = rack.voipPbx.map(pbx => {
+                  if (pbx.id === selectedElement.elementId) {
+                    return {
+                      ...pbx,
+                      services: [...(pbx.services || []), newService],
+                    };
+                  }
+                  return pbx;
+                });
+                return { ...rack, voipPbx: updatedVoipPbx };
+              }
+
+              if (selectedElement.type === 'headend' && rack.headend) {
+                const updatedHeadend = rack.headend.map(he => {
+                  if (he.id === selectedElement.elementId) {
+                    return {
+                      ...he,
+                      services: [...(he.services || []), newService],
+                    };
+                  }
+                  return he;
+                });
+                return { ...rack, headend: updatedHeadend };
+              }
+
+              if (selectedElement.type === 'nvr' && rack.nvr) {
+                const updatedNvr = rack.nvr.map(nvr => {
+                  if (nvr.id === selectedElement.elementId) {
+                    return {
+                      ...nvr,
+                      services: [...(nvr.services || []), newService],
+                    };
+                  }
+                  return nvr;
+                });
+                return { ...rack, nvr: updatedNvr };
+              }
+
+              if (selectedElement.type === 'ata' && rack.ata) {
+                const updatedAta = rack.ata.map(ata => {
+                  if (ata.id === selectedElement.elementId) {
+                    return {
+                      ...ata,
+                      services: [...(ata.services || []), newService],
+                    };
+                  }
+                  return ata;
+                });
+                return { ...rack, ata: updatedAta };
               }
 
               return rack;
@@ -3467,6 +3800,21 @@ export function EquipmentAssignmentStep({
                                           <DropdownMenuItem onClick={() => addNewRouterToRack(building.id, floor.id, rack.id)}>
                                             <Wifi className="h-4 w-4 mr-2" />Router
                                           </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewServerToRack(building.id, floor.id, rack.id)}>
+                                            <Server className="h-4 w-4 mr-2" />Server
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewVoipPbxToRack(building.id, floor.id, rack.id)}>
+                                            <Phone className="h-4 w-4 mr-2" />VoIP PBX
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewHeadendToRack(building.id, floor.id, rack.id)}>
+                                            <Tv className="h-4 w-4 mr-2" />Headend
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewNvrToRack(building.id, floor.id, rack.id)}>
+                                            <Camera className="h-4 w-4 mr-2" />NVR
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => addNewAtaToRack(building.id, floor.id, rack.id)}>
+                                            <Box className="h-4 w-4 mr-2" />ATA
+                                          </DropdownMenuItem>
                                           <DropdownMenuSeparator />
                                           <DropdownMenuItem onClick={() => addNewConnectionToRack(building.id, floor.id, rack.id)}>
                                             <Cable className="h-4 w-4 mr-2" />Connection
@@ -3761,6 +4109,391 @@ export function EquipmentAssignmentStep({
                     </div>
                   </div>
                 )}
+
+                                        {/* Servers */}
+                                        {rack.servers && rack.servers.length > 0 && (
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">Servers ({rack.servers.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white p-2 rounded-md">
+                                              {rack.servers.map((server) => (
+                                                <div key={server.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Server className="h-3 w-3" />
+                                                      <span className="text-xs">{server.brand} {server.model}</span>
+                                                      {isNewElement(server) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(server) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'server', server.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'server', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: server.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'server', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: server.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {((server.products && server.products.length > 0) || server.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {server.products && server.products.length > 0 ? (
+                                                        server.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : server.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === server.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {server.quantity}</span>
+                                                        </div>
+                                                      ) : null}
+                                                    </div>
+                                                  )}
+                                                  {server.services && server.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {server.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
+
+                                        {/* VoIP PBX */}
+                                        {rack.voipPbx && rack.voipPbx.length > 0 && (
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">VoIP PBX ({rack.voipPbx.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white p-2 rounded-md">
+                                              {rack.voipPbx.map((pbx) => (
+                                                <div key={pbx.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Phone className="h-3 w-3" />
+                                                      <span className="text-xs">{pbx.brand} {pbx.model}</span>
+                                                      {isNewElement(pbx) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(pbx) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'voipPbx', pbx.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'voipPbx', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: pbx.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'voipPbx', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: pbx.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {((pbx.products && pbx.products.length > 0) || pbx.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {pbx.products && pbx.products.length > 0 ? (
+                                                        pbx.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : pbx.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === pbx.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {pbx.quantity}</span>
+                                                        </div>
+                                                      ) : null}
+                                                    </div>
+                                                  )}
+                                                  {pbx.services && pbx.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {pbx.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
+
+                                        {/* Headend */}
+                                        {rack.headend && rack.headend.length > 0 && (
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">Headend ({rack.headend.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white p-2 rounded-md">
+                                              {rack.headend.map((he) => (
+                                                <div key={he.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Tv className="h-3 w-3" />
+                                                      <span className="text-xs">{he.brand} {he.model}</span>
+                                                      {isNewElement(he) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(he) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'headend', he.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'headend', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: he.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'headend', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: he.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {((he.products && he.products.length > 0) || he.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {he.products && he.products.length > 0 ? (
+                                                        he.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : he.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === he.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {he.quantity}</span>
+                                                        </div>
+                                                      ) : null}
+                                                    </div>
+                                                  )}
+                                                  {he.services && he.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {he.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
+
+                                        {/* NVR */}
+                                        {rack.nvr && rack.nvr.length > 0 && (
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">NVR ({rack.nvr.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white p-2 rounded-md">
+                                              {rack.nvr.map((nvr) => (
+                                                <div key={nvr.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Camera className="h-3 w-3" />
+                                                      <span className="text-xs">{nvr.brand} {nvr.model}</span>
+                                                      {isNewElement(nvr) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(nvr) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'nvr', nvr.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'nvr', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: nvr.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'nvr', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: nvr.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {((nvr.products && nvr.products.length > 0) || nvr.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {nvr.products && nvr.products.length > 0 ? (
+                                                        nvr.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : nvr.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === nvr.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {nvr.quantity}</span>
+                                                        </div>
+                                                      ) : null}
+                                                    </div>
+                                                  )}
+                                                  {nvr.services && nvr.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {nvr.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
+
+                                        {/* ATA */}
+                                        {rack.ata && rack.ata.length > 0 && (
+                                          <Collapsible>
+                                            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                              <div className="flex items-center gap-2">
+                                                <ChevronRight className="h-4 w-4" />
+                                                <Label className="text-xs font-semibold cursor-pointer">ATA ({rack.ata.length})</Label>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="mt-2 space-y-1 bg-white p-2 rounded-md">
+                                              {rack.ata.map((ata) => (
+                                                <div key={ata.id} className="p-2 bg-muted/30 rounded">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <Box className="h-3 w-3" />
+                                                      <span className="text-xs">{ata.brand} {ata.model}</span>
+                                                      {isNewElement(ata) ? (
+                                                        <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                                      ) : (
+                                                        <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                      {isNewElement(ata) && (
+                                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-destructive"
+                                                          onClick={() => deleteNewElement(building.id, floor.id, rack.id, undefined, 'ata', ata.id)}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openProductDialog({ type: 'ata', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: ata.id })}>
+                                                        <Package className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-6 px-2"
+                                                        onClick={() => openServiceDialog({ type: 'ata', buildingId: building.id, floorId: floor.id, rackId: rack.id, elementId: ata.id })}>
+                                                        <Wrench className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {((ata.products && ata.products.length > 0) || ata.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {ata.products && ata.products.length > 0 ? (
+                                                        ata.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : ata.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === ata.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {ata.quantity}</span>
+                                                        </div>
+                                                      ) : null}
+                                                    </div>
+                                                  )}
+                                                  {ata.services && ata.services.length > 0 && (
+                                                    <div className="pl-4 space-y-1">
+                                                      {ata.services.map((svc) => (
+                                                        <div key={svc.id} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-800/40 p-1 rounded">
+                                                          <Wrench className="h-3 w-3 text-green-600" />
+                                                          <span>{services.find(s => s.id === svc.serviceId)?.name || 'Service'}</span>
+                                                          <span className="text-muted-foreground">× {svc.quantity}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        )}
                                       </div>
                                     )}
                                   </div>

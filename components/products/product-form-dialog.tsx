@@ -484,7 +484,7 @@ export default function ProductFormDialog({
     }
 
     // Additional validation for ERP insertion
-    if (!product && insertToERP) {
+    if ((!product && insertToERP) || (product && !product.mtrl && syncToERP)) {
       if (!formData.brandId || !formData.categoryId || !formData.manufacturerId || !formData.unitId) {
         toast.error('Brand, Category, Manufacturer, and Unit are required for ERP insertion');
         return;
@@ -518,9 +518,17 @@ export default function ProductFormDialog({
           // Editing existing product - check ERP sync status
           if (data.erpSync) {
             if (data.erpSync.success) {
-              toast.success(`${productName} saved to ERP`, {
-                description: 'Product updated in database and synced to SoftOne ERP',
-              });
+              if (data.erpSync.inserted) {
+                // Product was added to ERP for the first time
+                toast.success(`${productName} added to ERP`, {
+                  description: `Product updated and added to SoftOne ERP. Code: ${data.erpSync.code}, MTRL: ${data.erpSync.mtrl}`,
+                });
+              } else {
+                // Product was updated in ERP
+                toast.success(`${productName} saved to ERP`, {
+                  description: 'Product updated in database and synced to SoftOne ERP',
+                });
+              }
             } else {
               toast.warning(`${productName} - ERP sync failed`, {
                 description: 'Product updated in database but ERP sync failed',
@@ -919,6 +927,29 @@ export default function ProductFormDialog({
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
                   Automatically generates product code: CATEGORY.MANUFACTURER.XXXXX (e.g., 7.124.00001)
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Add to ERP Checkbox for Edit Mode (only if product doesn't have MTRL) */}
+          {product && !product.mtrl && (
+            <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg border border-green-200">
+              <Checkbox
+                id="syncToERP"
+                checked={syncToERP}
+                onCheckedChange={(checked) => setSyncToERP(checked as boolean)}
+                className="h-5 w-5"
+              />
+              <div className="flex-1">
+                <Label
+                  htmlFor="syncToERP"
+                  className="text-sm font-semibold cursor-pointer"
+                >
+                  ADD TO SOFTONE ERP
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This product is not in ERP yet. Check this to add it to SoftOne ERP system. Automatically generates product code.
                 </p>
               </div>
             </div>

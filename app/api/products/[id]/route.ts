@@ -234,10 +234,12 @@ export async function PUT(
     });
 
     // Sync with SoftOne ERP if the product has an ERP ID (mtrl) and syncToERP is true
+    // OR if product doesn't have MTRL yet and syncToERP is explicitly true (add to ERP)
     let erpSyncResult = null;
     const shouldSyncToERP = body.syncToERP !== false; // Default to true for backward compatibility
     
     if (existingProduct.mtrl && shouldSyncToERP) {
+      // Product already in ERP - update it
       try {
         // Prepare ERP update data
         const erpUpdateData: Record<string, any> = {};
@@ -279,6 +281,53 @@ export async function PUT(
         console.error('Error syncing product to ERP:', erpError);
         // Don't fail the entire update if ERP sync fails
         erpSyncResult = { success: false, error: erpError instanceof Error ? erpError.message : 'ERP sync failed' };
+      }
+    } else if (!existingProduct.mtrl && body.syncToERP === true) {
+      // Product not in ERP yet - add it
+      try {
+        const { insertProductToSoftOne } = await import('@/lib/softone/insert-product');
+        
+        const erpInsertResult = await insertProductToSoftOne({
+          name: updatedProduct.name,
+          code1: updatedProduct.code1 || '',
+          code2: updatedProduct.code2 || '',
+          brandId: updatedProduct.brandId!,
+          categoryId: updatedProduct.categoryId!,
+          manufacturerId: updatedProduct.manufacturerId!,
+          unitId: updatedProduct.unitId!,
+          width: updatedProduct.width ? Number(updatedProduct.width) : undefined,
+          length: updatedProduct.length ? Number(updatedProduct.length) : undefined,
+          height: updatedProduct.height ? Number(updatedProduct.height) : undefined,
+          weight: updatedProduct.weight ? Number(updatedProduct.weight) : undefined,
+          isActive: updatedProduct.isActive,
+          skipDuplicateCheck: true, // Skip duplicate check since we're adding existing product
+        });
+
+        if (erpInsertResult.success) {
+          // Update the product with the generated ERP code and MTRL
+          await prisma.product.update({
+            where: { id },
+            data: {
+              mtrl: erpInsertResult.mtrl?.toString() || null,
+              code: erpInsertResult.generatedCode || updatedProduct.code || null,
+            },
+          });
+
+          erpSyncResult = {
+            success: true,
+            inserted: true,
+            mtrl: erpInsertResult.mtrl,
+            code: erpInsertResult.generatedCode,
+          };
+        } else {
+          erpSyncResult = {
+            success: false,
+            error: erpInsertResult.error || 'Failed to add product to ERP',
+          };
+        }
+      } catch (erpError) {
+        console.error('Error adding product to ERP:', erpError);
+        erpSyncResult = { success: false, error: erpError instanceof Error ? erpError.message : 'ERP insertion failed' };
       }
     }
 
