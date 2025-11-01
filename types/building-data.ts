@@ -33,6 +33,7 @@ export interface CentralRackData {
   voipPbx?: VoipPbxData[];
   headend?: HeadendData[];
   nvr?: NvrData[];
+  ata?: AtaData[];
   connections?: ConnectionData[];
   isFutureProposal?: boolean;
 }
@@ -46,7 +47,10 @@ export interface FloorRackData {
   switches?: SwitchData[];
   routers?: RouterData[];
   servers?: ServerData[];
-  headend?: HeadendData;
+  voipPbx?: VoipPbxData[];
+  headend?: HeadendData[];
+  nvr?: NvrData[];
+  ata?: AtaData[];
   loraWanGateway?: LoRaWANGatewayData;
   connections?: ConnectionData[];
   isFutureProposal?: boolean;
@@ -152,6 +156,18 @@ export interface NvrData {
   model: string;
   channels?: number;
   storageCapacity?: string;
+  productId?: string; // Deprecated - kept for backwards compatibility
+  products?: ProductAssignment[]; // New field for multiple products
+  quantity?: number;
+  services?: ServiceAssociationData[];
+  isFutureProposal?: boolean;
+}
+
+export interface AtaData {
+  id: string;
+  brand: string;
+  model: string;
+  ports?: number;
   productId?: string; // Deprecated - kept for backwards compatibility
   products?: ProductAssignment[]; // New field for multiple products
   quantity?: number;
