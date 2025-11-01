@@ -1002,13 +1002,31 @@ export function EquipmentAssignmentStep({
               if (selectedElement.type === 'termination' && rack.cableTerminations) {
                 const updatedTerminations = rack.cableTerminations.map(term => {
                   if (term.id === selectedElement.elementId) {
-                    const updated = {
+                    // Add to products array instead of replacing single productId
+                    const existingProducts = term.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      // Update existing product quantity
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      // Add new product
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
+                    return {
                       ...term,
                       isFutureProposal: true,
-                      productId: selectedProductId,
-                      quantity: productQuantity,
+                      products: updatedProducts,
                     };
-                    return updated;
                   }
                   return term;
                 });
@@ -1018,11 +1036,30 @@ export function EquipmentAssignmentStep({
               if (selectedElement.type === 'switch' && rack.switches) {
                 const updatedSwitches = rack.switches.map(sw => {
                   if (sw.id === selectedElement.elementId) {
+                    // Add to products array instead of replacing single productId
+                    const existingProducts = sw.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      // Update existing product quantity
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      // Add new product
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
                     return {
                       ...sw,
                       isFutureProposal: true,
-                      productId: selectedProductId,
-                      quantity: productQuantity,
+                      products: updatedProducts,
                     };
                   }
                   return sw;
@@ -1033,11 +1070,30 @@ export function EquipmentAssignmentStep({
               if (selectedElement.type === 'router' && rack.routers) {
                 const updatedRouters = rack.routers.map(router => {
                   if (router.id === selectedElement.elementId) {
+                    // Add to products array instead of replacing single productId
+                    const existingProducts = router.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      // Update existing product quantity
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      // Add new product
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
                     return {
                       ...router,
                       isFutureProposal: true,
-                      productId: selectedProductId,
-                      quantity: productQuantity,
+                      products: updatedProducts,
                     };
                   }
                   return router;
@@ -1048,11 +1104,30 @@ export function EquipmentAssignmentStep({
               if (selectedElement.type === 'connection' && rack.connections) {
                 const updatedConnections = rack.connections.map(conn => {
                   if (conn.id === selectedElement.elementId) {
+                    // Add to products array instead of replacing single productId
+                    const existingProducts = conn.products || [];
+                    const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+                    
+                    let updatedProducts;
+                    if (existingIndex >= 0) {
+                      // Update existing product quantity
+                      updatedProducts = [...existingProducts];
+                      updatedProducts[existingIndex] = {
+                        ...updatedProducts[existingIndex],
+                        quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                      };
+                    } else {
+                      // Add new product
+                      updatedProducts = [
+                        ...existingProducts,
+                        { productId: selectedProductId, quantity: productQuantity },
+                      ];
+                    }
+                    
                     return {
                       ...conn,
                       isFutureProposal: true,
-                      productId: selectedProductId,
-                      quantity: productQuantity,
+                      products: updatedProducts,
                     };
                   }
                   return conn;
@@ -3511,14 +3586,26 @@ export function EquipmentAssignmentStep({
                                                     </div>
                                                   </div>
                                                   
-                                                  {/* Show assigned product */}
-                                                  {termination.productId && (
-                                                    <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
-                                                        <Package className="h-3 w-3 text-blue-600" />
-                                                        <span className="font-medium">{product?.name || 'Product Not Found'}</span>
-                                                        <span className="text-muted-foreground">× {termination.quantity}</span>
-                                                      </div>
+                                                  {/* Show assigned products */}
+                                                  {((termination.products && termination.products.length > 0) || termination.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {termination.products && termination.products.length > 0 ? (
+                                                        termination.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : termination.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{product?.name || 'Product Not Found'}</span>
+                                                          <span className="text-muted-foreground">× {termination.quantity}</span>
+                                                        </div>
+                                                      ) : null}
                                                     </div>
                                                   )}
                                                   {/* Show assigned services */}
@@ -3579,14 +3666,26 @@ export function EquipmentAssignmentStep({
                                         </Button>
                                                     </div>
                                                   </div>
-                                                  {/* Show assigned product */}
-                                                  {sw.productId && (
-                                                    <div className="pl-4 mb-1">
-                                                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
-                                                        <Package className="h-3 w-3 text-blue-600" />
-                                                        <span className="font-medium">{products.find(p => p.id === sw.productId)?.name || 'Product'}</span>
-                                                        <span className="text-muted-foreground">× {sw.quantity}</span>
-                                                      </div>
+                                                  {/* Show assigned products */}
+                                                  {((sw.products && sw.products.length > 0) || sw.productId) && (
+                                                    <div className="pl-4 mb-1 space-y-1">
+                                                      {sw.products && sw.products.length > 0 ? (
+                                                        sw.products.map((productAssignment: any, idx: number) => (
+                                                          <div key={idx} className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                            <Package className="h-3 w-3 text-blue-600" />
+                                                            <span className="font-medium">
+                                                              {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                            </span>
+                                                            <span className="text-muted-foreground">× {productAssignment.quantity}</span>
+                                                          </div>
+                                                        ))
+                                                      ) : sw.productId ? (
+                                                        <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-800/40 p-1 rounded">
+                                                          <Package className="h-3 w-3 text-blue-600" />
+                                                          <span className="font-medium">{products.find(p => p.id === sw.productId)?.name || 'Product'}</span>
+                                                          <span className="text-muted-foreground">× {sw.quantity}</span>
+                                                        </div>
+                                                      ) : null}
                                                     </div>
                                                   )}
                                                   {/* Show assigned services */}

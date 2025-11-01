@@ -384,10 +384,14 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json(
           { 
-            error: `Product already exists with: ${duplicateFields.join(', ')}`,
+            error: `Product already exists with: ${duplicateFields.join(', ')}\n\nExisting Product:\nID: ${existingProduct.id}\nName: ${existingProduct.name}\nERP Code: ${existingProduct.code || 'N/A'}\nEAN: ${existingProduct.code1 || 'N/A'}\nManufacturer Code: ${existingProduct.code2 || 'N/A'}`,
+            isDuplicate: true,
             duplicateProduct: {
               id: existingProduct.id,
               name: existingProduct.name,
+              code: existingProduct.code,
+              code1: existingProduct.code1,
+              code2: existingProduct.code2,
             }
           },
           { status: 400 }
