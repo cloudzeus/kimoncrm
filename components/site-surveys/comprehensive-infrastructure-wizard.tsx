@@ -609,8 +609,10 @@ export function ComprehensiveInfrastructureWizard({
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (currentStep > 1) {
+      // Auto-save before moving to previous step
+      await saveProgress();
       setCurrentStep(currentStep - 1);
     }
   };
@@ -970,6 +972,101 @@ export function ComprehensiveInfrastructureWizard({
     }
   };
 
+  // Helper function to add products from an element
+  const addProductsFromElement = (
+    element: any,
+    allProducts: any[],
+    productPricingMap: Map<string, any>,
+    productsMap: Map<string, any>,
+    defaultCategory: string
+  ) => {
+    // Handle new products array format (multiple products)
+    if (element.products && Array.isArray(element.products)) {
+      element.products.forEach((productAssignment: any) => {
+        const product = allProducts.find(p => p.id === productAssignment.productId);
+        if (product) {
+          const key = productAssignment.productId;
+          if (!productsMap.has(key)) {
+            const customPricing = productPricingMap.get(key);
+            const price = customPricing?.unitPrice || product.price || 0;
+            const margin = customPricing?.margin || 0;
+            
+            productsMap.set(key, {
+              id: product.id,
+              productId: product.id,
+              name: product.name,
+              brand: product.brand || 'N/A',
+              category: product.category || defaultCategory,
+              quantity: 0,
+              price: price,
+              margin: margin,
+              type: 'product',
+            });
+          }
+          productsMap.get(key).quantity += productAssignment.quantity || 1;
+        }
+      });
+    }
+    
+    // Handle legacy single productId format
+    if (element.productId && element.isFutureProposal) {
+      const product = allProducts.find(p => p.id === element.productId);
+      if (product) {
+        const key = element.productId;
+        if (!productsMap.has(key)) {
+          const customPricing = productPricingMap.get(key);
+          const price = customPricing?.unitPrice || product.price || 0;
+          const margin = customPricing?.margin || 0;
+          
+          productsMap.set(key, {
+            id: product.id,
+            productId: product.id,
+            name: product.name,
+            brand: product.brand || 'N/A',
+            category: product.category || defaultCategory,
+            quantity: 0,
+            price: price,
+            margin: margin,
+            type: 'product',
+          });
+        }
+        productsMap.get(key).quantity += element.quantity || 1;
+      }
+    }
+  };
+
+  // Helper function to add services from an element
+  const addServicesFromElement = (
+    element: any,
+    allServices: any[],
+    servicePricingMap: Map<string, any>,
+    servicesMap: Map<string, any>
+  ) => {
+    element.services?.forEach((svc: any) => {
+      const service = allServices.find(s => s.id === svc.serviceId);
+      if (service) {
+        const key = svc.serviceId;
+        if (!servicesMap.has(key)) {
+          const customPricing = servicePricingMap.get(key);
+          const price = customPricing?.unitPrice || service.price || 0;
+          const margin = customPricing?.margin || 0;
+          
+          servicesMap.set(key, {
+            id: service.id,
+            serviceId: service.id,
+            name: service.name,
+            category: service.category || 'Installation',
+            quantity: 0,
+            price: price,
+            margin: margin,
+            type: 'service',
+          });
+        }
+        servicesMap.get(key).quantity += svc.quantity || 1;
+      }
+    });
+  };
+
   // Generate RFP
   const handleGenerateRFP = async () => {
     setGeneratingRFP(true);
@@ -1023,419 +1120,174 @@ export function ComprehensiveInfrastructureWizard({
         if (building.centralRack) {
           // Cable terminations
           building.centralRack.cableTerminations?.forEach(term => {
-            if (term.productId && term.isFutureProposal) {
-              const product = allProducts.find(p => p.id === term.productId);
-              if (product) {
-                const key = term.productId;
-                if (!productsMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = productPricingMap.get(key);
-                  const price = customPricing?.unitPrice || product.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  productsMap.set(key, {
-                    id: product.id,
-                    productId: product.id,
-                    name: product.name || term.cableType,
-                    brand: product.brand || 'N/A',
-                    category: product.category || 'Cable Termination',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'product',
-                  });
-                }
-                productsMap.get(key).quantity += term.quantity || 1;
-              }
+            if (term.isFutureProposal) {
+              addProductsFromElement(term, allProducts, productPricingMap, productsMap, 'Cable Termination');
+              addServicesFromElement(term, allServices, servicePricingMap, servicesMap);
             }
-
-            // Services for terminations
-            term.services?.forEach(svc => {
-              const service = allServices.find(s => s.id === svc.serviceId);
-              if (service) {
-                const key = svc.serviceId;
-                if (!servicesMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = servicePricingMap.get(key);
-                  const price = customPricing?.unitPrice || service.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  servicesMap.set(key, {
-                    id: service.id,
-                    serviceId: service.id,
-                    name: service.name,
-                    category: service.category || 'Installation',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'service',
-                  });
-                }
-                servicesMap.get(key).quantity += svc.quantity || 1;
-              }
-            });
           });
 
           // Switches
           building.centralRack.switches?.forEach(sw => {
-            if (sw.productId && sw.isFutureProposal) {
-              const product = allProducts.find(p => p.id === sw.productId);
-              if (product) {
-                const key = sw.productId;
-                if (!productsMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = productPricingMap.get(key);
-                  const price = customPricing?.unitPrice || product.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  productsMap.set(key, {
-                    id: product.id,
-                    productId: product.id,
-                    name: product.name,
-                    brand: product.brand || 'N/A',
-                    category: product.category || 'Network Switch',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'product',
-                  });
-                }
-                productsMap.get(key).quantity += sw.quantity || 1;
-              }
+            if (sw.isFutureProposal) {
+              addProductsFromElement(sw, allProducts, productPricingMap, productsMap, 'Network Switch');
+              addServicesFromElement(sw, allServices, servicePricingMap, servicesMap);
             }
-
-            // Services for switches
-            sw.services?.forEach(svc => {
-              const service = allServices.find(s => s.id === svc.serviceId);
-              if (service) {
-                const key = svc.serviceId;
-                if (!servicesMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = servicePricingMap.get(key);
-                  const price = customPricing?.unitPrice || service.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  servicesMap.set(key, {
-                    id: service.id,
-                    serviceId: service.id,
-                    name: service.name,
-                    category: service.category || 'Installation',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'service',
-                  });
-                }
-                servicesMap.get(key).quantity += svc.quantity || 1;
-              }
-            });
           });
 
           // Routers
           building.centralRack.routers?.forEach(router => {
-            if (router.productId && router.isFutureProposal) {
-              const product = allProducts.find(p => p.id === router.productId);
-              if (product) {
-                const key = router.productId;
-                if (!productsMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = productPricingMap.get(key);
-                  const price = customPricing?.unitPrice || product.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  productsMap.set(key, {
-                    id: product.id,
-                    productId: product.id,
-                    name: product.name,
-                    brand: product.brand || 'N/A',
-                    category: product.category || 'Router',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'product',
-                  });
-                }
-                productsMap.get(key).quantity += router.quantity || 1;
-              }
+            if (router.isFutureProposal) {
+              addProductsFromElement(router, allProducts, productPricingMap, productsMap, 'Router');
+              addServicesFromElement(router, allServices, servicePricingMap, servicesMap);
             }
-
-            // Services for routers
-            router.services?.forEach(svc => {
-              const service = allServices.find(s => s.id === svc.serviceId);
-              if (service) {
-                const key = svc.serviceId;
-                if (!servicesMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = servicePricingMap.get(key);
-                  const price = customPricing?.unitPrice || service.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  servicesMap.set(key, {
-                    id: service.id,
-                    serviceId: service.id,
-                    name: service.name,
-                    category: service.category || 'Installation',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'service',
-                  });
-                }
-                servicesMap.get(key).quantity += svc.quantity || 1;
-              }
-            });
           });
 
           // Servers
           building.centralRack.servers?.forEach(server => {
-            if (server.productId && server.isFutureProposal) {
-              const product = allProducts.find(p => p.id === server.productId);
-              if (product) {
-                const key = server.productId;
-                if (!productsMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = productPricingMap.get(key);
-                  const price = customPricing?.unitPrice || product.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  productsMap.set(key, {
-                    id: product.id,
-                    productId: product.id,
-                    name: product.name,
-                    brand: product.brand || 'N/A',
-                    category: product.category || 'Server',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'product',
-                  });
-                }
-                productsMap.get(key).quantity += server.quantity || 1;
-              }
+            if (server.isFutureProposal) {
+              addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
+              addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
             }
+          });
 
-            // Services for servers
-            server.services?.forEach(svc => {
-              const service = allServices.find(s => s.id === svc.serviceId);
-              if (service) {
-                const key = svc.serviceId;
-                if (!servicesMap.has(key)) {
-                  // Get custom pricing from localStorage if available
-                  const customPricing = servicePricingMap.get(key);
-                  const price = customPricing?.unitPrice || service.price || 0;
-                  const margin = customPricing?.margin || 0;
-                  
-                  servicesMap.set(key, {
-                    id: service.id,
-                    serviceId: service.id,
-                    name: service.name,
-                    category: service.category || 'Installation',
-                    quantity: 0,
-                    price: price,
-                    margin: margin,
-                    type: 'service',
-                  });
-                }
-                servicesMap.get(key).quantity += svc.quantity || 1;
-              }
-            });
+          // VoIP PBX
+          building.centralRack.voipPbx?.forEach((pbx: any) => {
+            if (pbx.isFutureProposal) {
+              addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
+              addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
+            }
+          });
+
+          // Headend
+          building.centralRack.headend?.forEach((headend: any) => {
+            if (headend.isFutureProposal) {
+              addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
+              addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
+            }
+          });
+
+          // NVR
+          building.centralRack.nvr?.forEach((nvr: any) => {
+            if (nvr.isFutureProposal) {
+              addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
+              addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
+            }
+          });
+
+          // ATA
+          building.centralRack.ata?.forEach((ata: any) => {
+            if (ata.isFutureProposal) {
+              addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
+              addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
+            }
+          });
+
+          // Connections
+          building.centralRack.connections?.forEach((conn: any) => {
+            if (conn.isFutureProposal) {
+              addProductsFromElement(conn, allProducts, productPricingMap, productsMap, 'Connection');
+              addServicesFromElement(conn, allServices, servicePricingMap, servicesMap);
+            }
           });
         }
         
         // From floors
         building.floors?.forEach(floor => {
           floor.racks?.forEach(rack => {
-            // Rack switches
-            rack.switches?.forEach(sw => {
-              if (sw.productId && sw.isFutureProposal) {
-                const product = allProducts.find(p => p.id === sw.productId);
-                if (product) {
-                  const key = sw.productId;
-                  if (!productsMap.has(key)) {
-                    // Get custom pricing from localStorage if available
-                    const customPricing = productPricingMap.get(key);
-                    const price = customPricing?.unitPrice || product.price || 0;
-                    const margin = customPricing?.margin || 0;
-                    
-                    productsMap.set(key, {
-                      id: product.id,
-                      productId: product.id,
-                      name: product.name,
-                      brand: product.brand || 'N/A',
-                      category: product.category || 'Network Switch',
-                      quantity: 0,
-                      price: price,
-                      margin: margin,
-                      type: 'product',
-                    });
-                  }
-                  productsMap.get(key).quantity += sw.quantity || 1;
-                }
+            // Rack cable terminations
+            rack.cableTerminations?.forEach((term: any) => {
+              if (term.isFutureProposal) {
+                addProductsFromElement(term, allProducts, productPricingMap, productsMap, 'Cable Termination');
+                addServicesFromElement(term, allServices, servicePricingMap, servicesMap);
               }
+            });
 
-              sw.services?.forEach(svc => {
-                const service = allServices.find(s => s.id === svc.serviceId);
-                if (service) {
-                  const key = svc.serviceId;
-                  if (!servicesMap.has(key)) {
-                    servicesMap.set(key, {
-                      id: service.id,
-                      serviceId: service.id,
-                      name: service.name,
-                      category: service.category || 'Installation',
-                      quantity: 0,
-                      price: service.price || 0,
-                      margin: 0,
-                      type: 'service',
-                    });
-                  }
-                  servicesMap.get(key).quantity += svc.quantity || 1;
-                }
-              });
+            // Rack switches
+            rack.switches?.forEach((sw: any) => {
+              if (sw.isFutureProposal) {
+                addProductsFromElement(sw, allProducts, productPricingMap, productsMap, 'Network Switch');
+                addServicesFromElement(sw, allServices, servicePricingMap, servicesMap);
+              }
             });
 
             // Rack routers
-            rack.routers?.forEach(router => {
-              if (router.productId && router.isFutureProposal) {
-                const product = allProducts.find(p => p.id === router.productId);
-                if (product) {
-                  const key = router.productId;
-                  if (!productsMap.has(key)) {
-                    // Get custom pricing from localStorage if available
-                    const customPricing = productPricingMap.get(key);
-                    const price = customPricing?.unitPrice || product.price || 0;
-                    const margin = customPricing?.margin || 0;
-                    
-                    productsMap.set(key, {
-                      id: product.id,
-                      productId: product.id,
-                      name: product.name,
-                      brand: product.brand || 'N/A',
-                      category: product.category || 'Router',
-                      quantity: 0,
-                      price: price,
-                      margin: margin,
-                      type: 'product',
-                    });
-                  }
-                  productsMap.get(key).quantity += router.quantity || 1;
-                }
+            rack.routers?.forEach((router: any) => {
+              if (router.isFutureProposal) {
+                addProductsFromElement(router, allProducts, productPricingMap, productsMap, 'Router');
+                addServicesFromElement(router, allServices, servicePricingMap, servicesMap);
               }
-
-              router.services?.forEach(svc => {
-                const service = allServices.find(s => s.id === svc.serviceId);
-                if (service) {
-                  const key = svc.serviceId;
-                  if (!servicesMap.has(key)) {
-                    servicesMap.set(key, {
-                      id: service.id,
-                      serviceId: service.id,
-                      name: service.name,
-                      category: service.category || 'Installation',
-                      quantity: 0,
-                      price: service.price || 0,
-                      margin: 0,
-                      type: 'service',
-                    });
-                  }
-                  servicesMap.get(key).quantity += svc.quantity || 1;
-                }
-              });
             });
 
             // Rack servers
-            rack.servers?.forEach(server => {
-              if (server.productId && server.isFutureProposal) {
-                const product = allProducts.find(p => p.id === server.productId);
-                if (product) {
-                  const key = server.productId;
-                  if (!productsMap.has(key)) {
-                    productsMap.set(key, {
-                      id: product.id,
-                      productId: product.id,
-                      name: product.name,
-                      brand: product.brand || 'N/A',
-                      category: product.category || 'Server',
-                      quantity: 0,
-                      price: product.price || 0,
-                      margin: 0,
-                      type: 'product',
-                    });
-                  }
-                  productsMap.get(key).quantity += server.quantity || 1;
-                }
+            rack.servers?.forEach((server: any) => {
+              if (server.isFutureProposal) {
+                addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
+                addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
               }
+            });
 
-              server.services?.forEach(svc => {
-                const service = allServices.find(s => s.id === svc.serviceId);
-                if (service) {
-                  const key = svc.serviceId;
-                  if (!servicesMap.has(key)) {
-                    servicesMap.set(key, {
-                      id: service.id,
-                      serviceId: service.id,
-                      name: service.name,
-                      category: service.category || 'Installation',
-                      quantity: 0,
-                      price: service.price || 0,
-                      margin: 0,
-                      type: 'service',
-                    });
-                  }
-                  servicesMap.get(key).quantity += svc.quantity || 1;
-                }
-              });
+            // Rack VoIP PBX
+            rack.voipPbx?.forEach((pbx: any) => {
+              if (pbx.isFutureProposal) {
+                addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
+                addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
+              }
+            });
+
+            // Rack Headend
+            rack.headend?.forEach((headend: any) => {
+              if (headend.isFutureProposal) {
+                addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
+                addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
+              }
+            });
+
+            // Rack NVR
+            rack.nvr?.forEach((nvr: any) => {
+              if (nvr.isFutureProposal) {
+                addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
+                addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
+              }
+            });
+
+            // Rack ATA
+            rack.ata?.forEach((ata: any) => {
+              if (ata.isFutureProposal) {
+                addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
+                addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
+              }
+            });
+
+            // Rack Connections
+            rack.connections?.forEach((conn: any) => {
+              if (conn.isFutureProposal) {
+                addProductsFromElement(conn, allProducts, productPricingMap, productsMap, 'Connection');
+                addServicesFromElement(conn, allServices, servicePricingMap, servicesMap);
+              }
             });
           });
 
           // Room devices
           floor.rooms?.forEach(room => {
-            room.devices?.forEach(device => {
-              if (device.productId && device.isFutureProposal) {
-                const product = allProducts.find(p => p.id === device.productId);
-                if (product) {
-                  const key = device.productId;
-                  if (!productsMap.has(key)) {
-                    // Get custom pricing from localStorage if available
-                    const customPricing = productPricingMap.get(key);
-                    const price = customPricing?.unitPrice || product.price || 0;
-                    const margin = customPricing?.margin || 0;
-                    
-                    productsMap.set(key, {
-                      id: product.id,
-                      productId: product.id,
-                      name: product.name,
-                      brand: product.brand || 'N/A',
-                      category: product.category || 'Device',
-                      quantity: 0,
-                      price: price,
-                      margin: margin,
-                      type: 'product',
-                    });
-                  }
-                  productsMap.get(key).quantity += device.quantity || 1;
-                }
+            room.devices?.forEach((device: any) => {
+              if (device.isFutureProposal) {
+                addProductsFromElement(device, allProducts, productPricingMap, productsMap, 'Device');
+                addServicesFromElement(device, allServices, servicePricingMap, servicesMap);
               }
+            });
 
-              device.services?.forEach(svc => {
-                const service = allServices.find(s => s.id === svc.serviceId);
-                if (service) {
-                  const key = svc.serviceId;
-                  if (!servicesMap.has(key)) {
-                    servicesMap.set(key, {
-                      id: service.id,
-                      serviceId: service.id,
-                      name: service.name,
-                      category: service.category || 'Installation',
-                      quantity: 0,
-                      price: service.price || 0,
-                      margin: 0,
-                      type: 'service',
-                    });
-                  }
-                  servicesMap.get(key).quantity += svc.quantity || 1;
-                }
-              });
+            room.outlets?.forEach((outlet: any) => {
+              if (outlet.isFutureProposal) {
+                addProductsFromElement(outlet, allProducts, productPricingMap, productsMap, 'Outlet');
+                addServicesFromElement(outlet, allServices, servicePricingMap, servicesMap);
+              }
+            });
+
+            room.connections?.forEach((conn: any) => {
+              if (conn.isFutureProposal) {
+                addProductsFromElement(conn, allProducts, productPricingMap, productsMap, 'Connection');
+                addServicesFromElement(conn, allServices, servicePricingMap, servicesMap);
+              }
             });
           });
         });
