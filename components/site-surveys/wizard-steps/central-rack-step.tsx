@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { BuildingData } from "@/types/building-data";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Wrench, Sparkles, Calculator, FileText, Download, MoreHorizontal, Image, Edit3, Save, Upload } from "lucide-react";
+import { Package, Wrench, Sparkles, Calculator, FileText, Download, MoreHorizontal, Image, Edit3, Save, Upload, Trash2 } from "lucide-react";
 import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
 import ProductImagesDialog from "@/components/products/product-images-dialog";
 import ProductTranslationsDialog from "@/components/products/product-translations-dialog";
@@ -350,6 +350,262 @@ export function CentralRackStep({
     setTranslationsDialogOpen(true);
   };
 
+  // Function to delete product from all locations
+  const handleDeleteProduct = (productId: string) => {
+    const updatedBuildings = buildings.map(building => {
+      // Remove from central rack
+      const updatedCentralRack = building.centralRack ? {
+        ...building.centralRack,
+        cableTerminations: building.centralRack.cableTerminations?.map(term => ({
+          ...term,
+          products: term.products?.filter(p => p.productId !== productId) || [],
+          // Clear old single productId if it matches
+          productId: term.productId === productId ? undefined : term.productId
+        })),
+        switches: building.centralRack.switches?.map(sw => ({
+          ...sw,
+          products: sw.products?.filter(p => p.productId !== productId) || [],
+          productId: sw.productId === productId ? undefined : sw.productId
+        })),
+        routers: building.centralRack.routers?.map(router => ({
+          ...router,
+          products: router.products?.filter(p => p.productId !== productId) || [],
+          productId: router.productId === productId ? undefined : router.productId
+        })),
+        servers: building.centralRack.servers?.map(server => ({
+          ...server,
+          products: server.products?.filter(p => p.productId !== productId) || [],
+          productId: server.productId === productId ? undefined : server.productId
+        })),
+        voipPbx: building.centralRack.voipPbx?.map(pbx => ({
+          ...pbx,
+          products: pbx.products?.filter(p => p.productId !== productId) || [],
+          productId: pbx.productId === productId ? undefined : pbx.productId
+        })),
+        headend: building.centralRack.headend?.map(headend => ({
+          ...headend,
+          products: headend.products?.filter(p => p.productId !== productId) || [],
+          productId: headend.productId === productId ? undefined : headend.productId
+        })),
+        nvr: building.centralRack.nvr?.map(nvr => ({
+          ...nvr,
+          products: nvr.products?.filter(p => p.productId !== productId) || [],
+          productId: nvr.productId === productId ? undefined : nvr.productId
+        })),
+        ata: building.centralRack.ata?.map(ata => ({
+          ...ata,
+          products: ata.products?.filter(p => p.productId !== productId) || [],
+          productId: ata.productId === productId ? undefined : ata.productId
+        })),
+      } : undefined;
+
+      // Remove from floors
+      const updatedFloors = building.floors.map(floor => ({
+        ...floor,
+        racks: floor.racks?.map(rack => ({
+          ...rack,
+          cableTerminations: rack.cableTerminations?.map(term => ({
+            ...term,
+            products: term.products?.filter(p => p.productId !== productId) || [],
+            productId: term.productId === productId ? undefined : term.productId
+          })),
+          switches: rack.switches?.map(sw => ({
+            ...sw,
+            products: sw.products?.filter(p => p.productId !== productId) || [],
+            productId: sw.productId === productId ? undefined : sw.productId
+          })),
+          routers: rack.routers?.map(router => ({
+            ...router,
+            products: router.products?.filter(p => p.productId !== productId) || [],
+            productId: router.productId === productId ? undefined : router.productId
+          })),
+          servers: rack.servers?.map(server => ({
+            ...server,
+            products: server.products?.filter(p => p.productId !== productId) || [],
+            productId: server.productId === productId ? undefined : server.productId
+          })),
+          voipPbx: rack.voipPbx?.map(pbx => ({
+            ...pbx,
+            products: pbx.products?.filter(p => p.productId !== productId) || [],
+            productId: pbx.productId === productId ? undefined : pbx.productId
+          })),
+          headend: rack.headend?.map(headend => ({
+            ...headend,
+            products: headend.products?.filter(p => p.productId !== productId) || [],
+            productId: headend.productId === productId ? undefined : headend.productId
+          })),
+          nvr: rack.nvr?.map(nvr => ({
+            ...nvr,
+            products: nvr.products?.filter(p => p.productId !== productId) || [],
+            productId: nvr.productId === productId ? undefined : nvr.productId
+          })),
+          ata: rack.ata?.map(ata => ({
+            ...ata,
+            products: ata.products?.filter(p => p.productId !== productId) || [],
+            productId: ata.productId === productId ? undefined : ata.productId
+          })),
+          connections: rack.connections?.map(conn => ({
+            ...conn,
+            products: conn.products?.filter(p => p.productId !== productId) || [],
+            productId: conn.productId === productId ? undefined : conn.productId
+          })),
+        })),
+        rooms: floor.rooms.map(room => ({
+          ...room,
+          devices: room.devices?.map(device => ({
+            ...device,
+            productId: device.productId === productId ? undefined : device.productId
+          })),
+          outlets: room.outlets?.map(outlet => ({
+            ...outlet,
+            productId: outlet.productId === productId ? undefined : outlet.productId
+          })),
+          connections: room.connections?.map(conn => ({
+            ...conn,
+            productId: conn.productId === productId ? undefined : conn.productId
+          })),
+        })),
+      }));
+
+      return {
+        ...building,
+        centralRack: updatedCentralRack,
+        floors: updatedFloors
+      };
+    });
+
+    onUpdate(updatedBuildings);
+    
+    // Also remove pricing data
+    const newPricing = new Map(productPricing);
+    newPricing.delete(productId);
+    setProductPricing(newPricing);
+    
+    toast({
+      title: "Success",
+      description: "Product removed from all locations",
+    });
+  };
+
+  // Function to delete service from all locations
+  const handleDeleteService = (serviceId: string) => {
+    const updatedBuildings = buildings.map(building => {
+      // Remove from central rack
+      const updatedCentralRack = building.centralRack ? {
+        ...building.centralRack,
+        cableTerminations: building.centralRack.cableTerminations?.map(term => ({
+          ...term,
+          services: term.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        switches: building.centralRack.switches?.map(sw => ({
+          ...sw,
+          services: sw.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        routers: building.centralRack.routers?.map(router => ({
+          ...router,
+          services: router.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        servers: building.centralRack.servers?.map(server => ({
+          ...server,
+          services: server.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        voipPbx: building.centralRack.voipPbx?.map(pbx => ({
+          ...pbx,
+          services: pbx.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        headend: building.centralRack.headend?.map(headend => ({
+          ...headend,
+          services: headend.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        nvr: building.centralRack.nvr?.map(nvr => ({
+          ...nvr,
+          services: nvr.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+        ata: building.centralRack.ata?.map(ata => ({
+          ...ata,
+          services: ata.services?.filter(s => s.serviceId !== serviceId) || []
+        })),
+      } : undefined;
+
+      // Remove from floors
+      const updatedFloors = building.floors.map(floor => ({
+        ...floor,
+        racks: floor.racks?.map(rack => ({
+          ...rack,
+          cableTerminations: rack.cableTerminations?.map(term => ({
+            ...term,
+            services: term.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          switches: rack.switches?.map(sw => ({
+            ...sw,
+            services: sw.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          routers: rack.routers?.map(router => ({
+            ...router,
+            services: router.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          servers: rack.servers?.map(server => ({
+            ...server,
+            services: server.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          voipPbx: rack.voipPbx?.map(pbx => ({
+            ...pbx,
+            services: pbx.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          headend: rack.headend?.map(headend => ({
+            ...headend,
+            services: headend.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          nvr: rack.nvr?.map(nvr => ({
+            ...nvr,
+            services: nvr.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          ata: rack.ata?.map(ata => ({
+            ...ata,
+            services: ata.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          connections: rack.connections?.map(conn => ({
+            ...conn,
+            services: conn.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+        })),
+        rooms: floor.rooms.map(room => ({
+          ...room,
+          devices: room.devices?.map(device => ({
+            ...device,
+            services: device.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          outlets: room.outlets?.map(outlet => ({
+            ...outlet,
+            services: outlet.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+          connections: room.connections?.map(conn => ({
+            ...conn,
+            services: conn.services?.filter(s => s.serviceId !== serviceId) || []
+          })),
+        })),
+      }));
+
+      return {
+        ...building,
+        centralRack: updatedCentralRack,
+        floors: updatedFloors
+      };
+    });
+
+    onUpdate(updatedBuildings);
+    
+    // Also remove pricing data
+    const newPricing = new Map(servicePricing);
+    newPricing.delete(serviceId);
+    setServicePricing(newPricing);
+    
+    toast({
+      title: "Success",
+      description: "Service removed from all locations",
+    });
+  };
+
   // Force re-render when productsList changes (for brand updates)
   useEffect(() => {
     // This will trigger a re-render and recalculate productsByBrand
@@ -598,15 +854,18 @@ export function CentralRackStep({
         
         floor.racks?.forEach(rack => {
           rack.cableTerminations?.forEach(term => {
-            if (term.productId) {
-              const key = term.productId;
+            // Support new products array format
+            const productsToProcess = term.products || (term.productId ? [{ productId: term.productId, quantity: term.quantity || 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
-                  id: term.productId,
-                  name: getProductName(term.productId),
-                  code: term.productId,
-                brand: getProductBrand(term.productId),
-                category: getProductCategory(term.productId),
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -615,21 +874,44 @@ export function CentralRackStep({
                 });
               }
               const product = productsMap.get(key)!;
-              product.quantity += (term.quantity || 1) * floorMultiplier;
+              product.quantity += productAssignment.quantity * floorMultiplier;
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
-            }
+            });
+            
+            term.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Cable Termination Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
           });
 
           rack.switches?.forEach(sw => {
-            if (sw.productId) {
-              const key = sw.productId;
+            // Support new products array format
+            const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
-                  id: sw.productId,
-                  name: getProductName(sw.productId),
-                  code: sw.productId,
-                  brand: sw.brand || 'Generic',
-                  category: 'Network Switch',
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -638,9 +920,9 @@ export function CentralRackStep({
                 });
               }
               const product = productsMap.get(key)!;
-              product.quantity += 1 * floorMultiplier;
+              product.quantity += productAssignment.quantity * floorMultiplier;
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
-            }
+            });
             
             sw.services?.forEach(svc => {
               const key = svc.serviceId;
@@ -663,16 +945,19 @@ export function CentralRackStep({
             });
           });
 
-          rack.connections?.forEach(conn => {
-            if (conn.productId) {
-              const key = conn.productId;
+          rack.routers?.forEach(router => {
+            // Support new products array format
+            const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
-                  id: conn.productId,
-                  name: getProductName(conn.productId),
-                  code: conn.productId,
-                brand: getProductBrand(conn.productId),
-                category: getProductCategory(conn.productId),
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
                   quantity: 0,
                   unitPrice: 0,
                   margin: 0,
@@ -681,9 +966,285 @@ export function CentralRackStep({
                 });
               }
               const product = productsMap.get(key)!;
-              product.quantity += (conn.quantity || 1) * floorMultiplier;
+              product.quantity += productAssignment.quantity * floorMultiplier;
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
-            }
+            });
+            
+            router.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Router Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.servers?.forEach(server => {
+            // Support new products array format
+            const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name} - Server${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+            
+            server.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Server Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name} - Server${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.voipPbx?.forEach(pbx => {
+            // Support new products array format
+            const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name} - VoIP PBX${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+            
+            pbx.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'VoIP PBX Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name} - VoIP PBX${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.headend?.forEach(headend => {
+            // Support new products array format
+            const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name} - Headend${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+            
+            headend.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'Headend Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name} - Headend${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.nvr?.forEach(nvr => {
+            // Support new products array format
+            const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name} - NVR${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+            
+            nvr.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'NVR Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name} - NVR${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.ata?.forEach(ata => {
+            // Support new products array format
+            const productsToProcess = ata.products || (ata.productId ? [{ productId: ata.productId, quantity: 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name} - ATA${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+            
+            ata.services?.forEach(svc => {
+              const key = svc.serviceId;
+              if (!servicesMap.has(key)) {
+                servicesMap.set(key, {
+                  id: svc.serviceId,
+                  name: getServiceName(svc.serviceId),
+                  code: svc.serviceId,
+                  category: 'ATA Service',
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const service = servicesMap.get(key)!;
+              service.quantity += (svc.quantity || 1) * floorMultiplier;
+              service.locations.push(`${floor.name} - ${rack.name} - ATA${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
+          });
+
+          rack.connections?.forEach(conn => {
+            // Support new products array format
+            const productsToProcess = conn.products || (conn.productId ? [{ productId: conn.productId, quantity: conn.quantity || 1 }] : []);
+            
+            productsToProcess.forEach(productAssignment => {
+              const key = productAssignment.productId;
+              if (!productsMap.has(key)) {
+                productsMap.set(key, {
+                  id: productAssignment.productId,
+                  name: getProductName(productAssignment.productId),
+                  code: productAssignment.productId,
+                  brand: getProductBrand(productAssignment.productId),
+                  category: getProductCategory(productAssignment.productId),
+                  quantity: 0,
+                  unitPrice: 0,
+                  margin: 0,
+                  totalPrice: 0,
+                  locations: []
+                });
+              }
+              const product = productsMap.get(key)!;
+              product.quantity += productAssignment.quantity * floorMultiplier;
+              product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
+            });
             
             conn.services?.forEach(svc => {
               const key = svc.serviceId;
@@ -1491,6 +2052,13 @@ export function CentralRackStep({
                                     <Sparkles className="mr-2 h-3 w-3" />
                                     Μεταφράσεις
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteProduct(product.id)} 
+                                    className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="mr-2 h-3 w-3" />
+                                    Διαγραφή Προϊόντος
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </td>
@@ -1539,6 +2107,7 @@ export function CentralRackStep({
                     <th className="text-right p-2 font-semibold text-xs">Ποσοστό Κέρδους (%)</th>
                     <th className="text-right p-2 font-semibold text-xs">Συνολική Τιμή (€)</th>
                     <th className="text-left p-2 font-semibold text-xs">Τοποθεσίες</th>
+                    <th className="text-center p-2 font-semibold text-xs">Ενέργειες</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1607,6 +2176,16 @@ export function CentralRackStep({
                           <div className="text-xs text-muted-foreground">
                             {service.locations.join(', ')}
                           </div>
+                        </td>
+                        <td className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteService(service.id)}
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </td>
                       </tr>
                     );
