@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun } from 'docx';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 
 export async function POST(request: NextRequest) {
   try {
