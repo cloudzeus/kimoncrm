@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun } from 'docx';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,13 +14,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch full product details including specifications and images
+    const productIds = products.map(p => p.id);
+    const fullProducts = await prisma.product.findMany({
+      where: {
+        id: { in: productIds }
+      },
+      include: {
+        specifications: {
+          include: {
+            translations: true
+          }
+        },
+        images: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        translations: true
+      }
+    });
+
     // Create all children first
     const allChildren: any[] = [
       // Title
       new Paragraph({
         children: [
           new TextRun({
-            text: `Products Analysis - ${siteSurveyName || 'Site Survey'}`,
+            text: `ΑΝΑΛΥΣΗ ΠΡΟΪΟΝΤΩΝ - ${siteSurveyName || 'Site Survey'}`,
             bold: true,
             size: 32,
           }),
@@ -32,7 +54,7 @@ export async function POST(request: NextRequest) {
       new Paragraph({
         children: [
           new TextRun({
-            text: `Generated on: ${new Date().toLocaleDateString('el-GR')}`,
+            text: `Ημερομηνία: ${new Date().toLocaleDateString('el-GR')}`,
             size: 20,
           }),
         ],
@@ -42,7 +64,10 @@ export async function POST(request: NextRequest) {
     ];
 
     // Add each product
-    products.forEach((product: any, index: number) => {
+    for (let index = 0; index < products.length; index++) {
+      const product = products[index];
+      const fullProduct = fullProducts.find(p => p.id === product.id);
+      
       // Product Header
       allChildren.push(
         new Paragraph({
@@ -58,49 +83,36 @@ export async function POST(request: NextRequest) {
         })
       );
       
-      // Product Codes
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: `ERP Code: ${product.erpCode || 'N/A'} | Manufacturer Code: ${product.manufacturerCode || 'N/A'} | EAN Code: ${product.eanCode || 'N/A'}`,
-              size: 18,
-              italics: true,
-            }),
-          ],
-          spacing: { after: 200 },
-        })
-      );
-      
       // Product Image (if available)
-      if (product.images && product.images.length > 0) {
-        allChildren.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "Product Image:",
-                bold: true,
-                size: 20,
-              }),
-            ],
-            spacing: { before: 200, after: 100 },
-          })
-        );
-        
-        // Add image placeholder with URL
-        const imageUrl = product.images[0]?.url || product.images[0];
-        allChildren.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Image URL: ${imageUrl}`,
-                size: 16,
-                italics: true,
-              }),
-            ],
-            spacing: { after: 200 },
-          })
-        );
+      if (fullProduct?.images && fullProduct.images.length > 0) {
+        try {
+          const imageUrl = fullProduct.images[0].url;
+          
+          // Download image and convert to buffer
+          const imageResponse = await fetch(imageUrl);
+          if (imageResponse.ok) {
+            const imageBuffer = await imageResponse.arrayBuffer();
+            
+            allChildren.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: Buffer.from(imageBuffer),
+                    transformation: {
+                      width: 300,
+                      height: 300,
+                    },
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 200, after: 200 },
+              })
+            );
+          }
+        } catch (error) {
+          console.error('Error embedding image:', error);
+          // Skip image if error
+        }
       }
       
       // Description in Greek
@@ -108,7 +120,7 @@ export async function POST(request: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({
-              text: "Description (Greek):",
+              text: "ΠΕΡΙΓΡΑΦΗ:",
               bold: true,
               size: 20,
             }),
@@ -116,17 +128,14 @@ export async function POST(request: NextRequest) {
           spacing: { before: 200, after: 100 },
         })
       );
+      
       // Get Greek description from translations
-      let greekDescription = 'No description available';
-      if (product.translations && Array.isArray(product.translations)) {
-        const greekTranslation = product.translations.find((t: any) => t.languageCode === 'el');
+      let greekDescription = 'Δεν υπάρχει διαθέσιμη περιγραφή';
+      if (fullProduct?.translations && Array.isArray(fullProduct.translations)) {
+        const greekTranslation = fullProduct.translations.find((t: any) => t.languageCode === 'el');
         if (greekTranslation?.description) {
           greekDescription = greekTranslation.description;
         }
-      } else if (product.translations?.el?.description) {
-        greekDescription = product.translations.el.description;
-      } else if (product.description) {
-        greekDescription = product.description;
       }
       
       allChildren.push(
@@ -146,7 +155,7 @@ export async function POST(request: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({
-              text: "Specifications:",
+              text: "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ:",
               bold: true,
               size: 20,
             }),
@@ -155,52 +164,63 @@ export async function POST(request: NextRequest) {
         })
       );
       
-      // Create specifications table
-      if (product.specifications && typeof product.specifications === 'object' && Object.keys(product.specifications).length > 0) {
+      // Create specifications table from database
+      if (fullProduct?.specifications && fullProduct.specifications.length > 0) {
+        const tableRows = [
+          // Header row
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ text: "ΠΡΟΔΙΑΓΡΑΦΗ", bold: true, size: 18 })],
+                  alignment: AlignmentType.CENTER,
+                })],
+                width: { size: 50, type: WidthType.PERCENTAGE },
+              }),
+              new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ text: "ΤΙΜΗ", bold: true, size: 18 })],
+                  alignment: AlignmentType.CENTER,
+                })],
+                width: { size: 50, type: WidthType.PERCENTAGE },
+              }),
+            ],
+          }),
+        ];
+        
+        // Add specification rows (use Greek translations)
+        fullProduct.specifications.forEach((spec: any) => {
+          const greekTranslation = spec.translations?.find((t: any) => t.languageCode === 'el');
+          const specName = greekTranslation?.specName || spec.specKey || '';
+          const specValue = greekTranslation?.specValue || '';
+          
+          if (specName && specValue) {
+            tableRows.push(
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({
+                      children: [new TextRun({ text: specName, size: 16 })],
+                    })],
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({
+                      children: [new TextRun({ text: specValue, size: 16 })],
+                    })],
+                  }),
+                ],
+              })
+            );
+          }
+        });
+        
         allChildren.push(
           new Table({
             width: {
               size: 100,
               type: WidthType.PERCENTAGE,
             },
-            rows: [
-              // Header row
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({ text: "Specification", bold: true, size: 18 })],
-                      alignment: AlignmentType.CENTER,
-                    })],
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                  }),
-                  new TableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({ text: "Value", bold: true, size: 18 })],
-                      alignment: AlignmentType.CENTER,
-                    })],
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                  }),
-                ],
-              }),
-              // Data rows
-              ...Object.entries(product.specifications).map(([key, value]) =>
-                new TableRow({
-                  children: [
-                    new TableCell({
-                      children: [new Paragraph({
-                        children: [new TextRun({ text: key, size: 16 })],
-                      })],
-                    }),
-                    new TableCell({
-                      children: [new Paragraph({
-                        children: [new TextRun({ text: String(value), size: 16 })],
-                      })],
-                    }),
-                  ],
-                })
-              ),
-            ],
+            rows: tableRows,
           })
         );
       } else {
@@ -208,7 +228,7 @@ export async function POST(request: NextRequest) {
           new Paragraph({
             children: [
               new TextRun({
-                text: "No specifications available",
+                text: "Δεν υπάρχουν διαθέσιμα χαρακτηριστικά",
                 size: 16,
                 italics: true,
               }),
@@ -223,7 +243,7 @@ export async function POST(request: NextRequest) {
         new Paragraph({
           children: [
             new TextRun({
-              text: `Quantity: ${product.quantity || 1}`,
+              text: `ΠΟΣΟΤΗΤΑ: ${product.quantity || 1}`,
               bold: true,
               size: 18,
             }),
@@ -245,7 +265,7 @@ export async function POST(request: NextRequest) {
           spacing: { before: 200, after: 200 },
         })
       );
-    });
+    }
 
     // Create the final document
     const doc = new Document({
