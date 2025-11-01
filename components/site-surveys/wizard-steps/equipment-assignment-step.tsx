@@ -2888,6 +2888,14 @@ export function EquipmentAssignmentStep({
                                                   <div className="text-xs text-muted-foreground">
                                                     Qty: {svc.quantity}
                                                   </div>
+                                                                <Button
+                                                                  size="sm"
+                                                                  variant="ghost"
+                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                  onClick={() => handleDeleteService(building.id, { location: 'central', type: 'termination', elementId: termination.id }, svc.serviceId)}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
                                                 </div>
                                                 <Button
                                                   size="sm"
@@ -2975,6 +2983,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'switch', elementId: sw.id }, productAssignment.productId)}
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : sw.productId ? (
@@ -3005,6 +3021,14 @@ export function EquipmentAssignmentStep({
                                                     <div className="text-xs text-muted-foreground">
                                                       Qty: {svc.quantity}
                                                     </div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3095,6 +3119,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                                    <Button
+                                                                      size="sm"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                    >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : router.productId ? (
@@ -3125,6 +3157,14 @@ export function EquipmentAssignmentStep({
                                                     <div className="text-xs text-muted-foreground">
                                                       Qty: {svc.quantity}
                                                     </div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3215,6 +3255,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                                    <Button
+                                                                      size="sm"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                    >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : server.productId ? (
@@ -3245,6 +3293,14 @@ export function EquipmentAssignmentStep({
                                                     <div className="text-xs text-muted-foreground">
                                                       Qty: {svc.quantity}
                                                     </div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3350,6 +3406,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                                    <Button
+                                                                      size="sm"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                    >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : pbx.productId ? (
@@ -3377,6 +3441,14 @@ export function EquipmentAssignmentStep({
                                                       {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3481,6 +3553,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                                    <Button
+                                                                      size="sm"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                    >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : headend.productId ? (
@@ -3508,6 +3588,14 @@ export function EquipmentAssignmentStep({
                                                       {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3614,6 +3702,14 @@ export function EquipmentAssignmentStep({
                                                         {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                       </div>
                                                     </div>
+                                                                    <Button
+                                                                      size="sm"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                    >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                    </Button>
                                                   </div>
                                                 ))
                                               ) : nvr.productId ? (
@@ -3641,6 +3737,14 @@ export function EquipmentAssignmentStep({
                                                       {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">Qty: {svc.quantity}</div>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                                  >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                  </Button>
                                                   </div>
                                                 </div>
                                               ))}
@@ -3715,6 +3819,14 @@ export function EquipmentAssignmentStep({
                                                     {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                   </div>
                                                 </div>
+                                                                <Button
+                                                                  size="sm"
+                                                                  variant="ghost"
+                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
                                               </div>
                                             ))
                                           ) : (building.centralRack as any).pbx.productId ? (
@@ -3745,6 +3857,14 @@ export function EquipmentAssignmentStep({
                                                 <div className="text-xs text-muted-foreground">
                                                   Qty: {svc.quantity}
                                                 </div>
+                                                              <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                              >
+                                                                <Trash2 className="h-3 w-3" />
+                                                              </Button>
                                               </div>
                                             </div>
                                           ))}
@@ -3816,6 +3936,14 @@ export function EquipmentAssignmentStep({
                                                     {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                   </div>
                                                 </div>
+                                                                <Button
+                                                                  size="sm"
+                                                                  variant="ghost"
+                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
                                               </div>
                                             ))
                                           ) : (building.centralRack as any).ata.productId ? (
@@ -3846,6 +3974,14 @@ export function EquipmentAssignmentStep({
                                                 <div className="text-xs text-muted-foreground">
                                                   Qty: {svc.quantity}
                                                 </div>
+                                                              <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                              >
+                                                                <Trash2 className="h-3 w-3" />
+                                                              </Button>
                                               </div>
                                             </div>
                                           ))}
@@ -3917,6 +4053,14 @@ export function EquipmentAssignmentStep({
                                                     {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                   </div>
                                                 </div>
+                                                                <Button
+                                                                  size="sm"
+                                                                  variant="ghost"
+                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
                                               </div>
                                             ))
                                           ) : (building.centralRack as any).nvr.productId ? (
@@ -3947,6 +4091,14 @@ export function EquipmentAssignmentStep({
                                                 <div className="text-xs text-muted-foreground">
                                                   Qty: {svc.quantity}
                                                 </div>
+                                                              <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
+                                                              >
+                                                                <Trash2 className="h-3 w-3" />
+                                                              </Button>
                                               </div>
                                             </div>
                                           ))}
