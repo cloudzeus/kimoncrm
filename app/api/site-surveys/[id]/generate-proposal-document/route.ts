@@ -43,11 +43,7 @@ export async function POST(
     const siteSurvey = await prisma.siteSurvey.findUnique({
       where: { id: siteSurveyId },
       include: {
-        customer: {
-          include: {
-            company: true,
-          },
-        },
+        customer: true,
         lead: true,
         proposals: {
           orderBy: {
