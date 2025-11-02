@@ -87,6 +87,7 @@ export async function POST(
       where: { id: { in: productIds } },
       include: {
         images: true,
+        translations: true,
         specifications: {
           include: {
             translations: true,
@@ -453,7 +454,8 @@ export async function POST(
       }
 
       // Product Description
-      if (fullProduct?.description) {
+      const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      if (greekTranslation?.description) {
         allChildren.push(
           new Paragraph({
             children: [
@@ -469,7 +471,7 @@ export async function POST(
           new Paragraph({
             children: [
               new TextRun({
-                text: fullProduct.description,
+                text: greekTranslation.description,
                 size: 20,
               }),
             ],
