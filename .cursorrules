@@ -25,9 +25,11 @@
 ### Data Fetching Strategy (CRITICAL)
 - **Server-Side First**: ALWAYS fetch data server-side using async Server Components
 - **Direct Database Access**: Use Prisma queries directly in Server Components - NO API routes for internal data
-- **NO Client-Side Fetching**: Avoid `useEffect` + `fetch` patterns
+- **NO Client-Side Fetching**: Avoid `useEffect` + `fetch` patterns - ONLY use client-side fetching when absolutely necessary (user interactions, real-time updates)
+- **Default to Server-Side**: When refactoring or creating new components, ALWAYS start with server-side data fetching and only move to client-side if there's a compelling reason
 - **Streaming**: Use React Suspense and streaming for better UX with loading states
 - **Use skeleton components** (e.g., shadcn/ui `Skeleton`) in all page components when data is loading
+- **For existing client components with data fetching**: Consider refactoring to Server Components where possible
 
 ### Server Actions
 - Use Server Actions for all mutations (create, update, delete operations)
@@ -127,12 +129,16 @@ function ProductsPage() {
 
 ## Code Quality Rules
 - Use TypeScript strictly with proper typing
+- **ALWAYS verify data types and TypeScript compatibility before generating code**
+- **Check for null/undefined possibilities and use optional chaining (`?.`) or nullish coalescing (`??`) where appropriate**
+- **Validate type conversions (e.g., string to number with `parseInt()`, `parseFloat()`) when needed**
 - Implement proper error handling with try-catch blocks
 - Use async/await over promises
 - Follow ESLint and Prettier configurations
 - Use meaningful variable and function names
 - Implement proper JSDoc comments for complex functions
 - Use consistent file naming conventions (kebab-case for files, PascalCase for components)
+- **Before completing any code generation, verify TypeScript types match expected signatures**
 
 ## File Organization
 - Components in `/components` directory (Server by default)
