@@ -908,7 +908,7 @@ export async function POST(
         url: uploadResult.url,
         filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         size: buffer.byteLength,
-        type: 'SITE_SURVEY',
+        type: 'SITESURVEY',
         entityId: siteSurveyId,
       },
     });
