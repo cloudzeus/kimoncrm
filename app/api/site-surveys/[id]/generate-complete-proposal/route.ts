@@ -880,7 +880,7 @@ export async function POST(
     const buffer = await Packer.toBuffer(doc);
 
     // Save to database with versioning
-    const baseFileName = `Complete-Proposal_${siteSurvey.projectName || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
+    const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
     
     const { nextVersion } = await manageDocumentVersions({
       entityType: 'site-survey',
