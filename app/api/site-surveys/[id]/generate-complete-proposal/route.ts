@@ -77,7 +77,7 @@ export async function POST(
 
     const latestProposal = siteSurvey.proposals?.[0];
     const customerName = siteSurvey.customer?.name || 'N/A';
-    const projectName = siteSurvey.projectName || siteSurvey.siteName || 'Site Survey';
+    const projectName = siteSurvey.title || 'Site Survey';
     const proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
     const assignedUserName = session.user.name || 'N/A';
 

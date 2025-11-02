@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SendProposalDialog } from './send-proposal-dialog';
 import { EditPricingDialog } from './edit-pricing-dialog';
+import { UpdateStatusDialog } from './update-status-dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -40,7 +41,8 @@ import {
   Send,
   DollarSign,
   Download,
-  RefreshCw
+  RefreshCw,
+  CheckCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -85,6 +87,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [pricingDialogOpen, setPricingDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [selectedRows, setSelectedRows] = useState<Proposal[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -448,6 +451,16 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
             <DropdownMenuItem 
               onClick={() => {
                 setSelectedProposal(row);
+                setStatusDialogOpen(true);
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Ενημέρωση Κατάστασης
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem 
+              onClick={() => {
+                setSelectedProposal(row);
                 setPricingDialogOpen(true);
               }}
               disabled={!row.rfp}
@@ -632,6 +645,20 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
               }}
             />
           )}
+          
+          <UpdateStatusDialog
+            open={statusDialogOpen}
+            onOpenChange={setStatusDialogOpen}
+            proposal={{
+              id: selectedProposal.id,
+              status: selectedProposal.status,
+              projectTitle: selectedProposal.projectTitle,
+              leadId: selectedProposal.lead?.id,
+            }}
+            onSuccess={() => {
+              onRefresh?.();
+            }}
+          />
         </>
       )}
     </>
