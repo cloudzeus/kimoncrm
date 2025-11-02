@@ -524,6 +524,126 @@ export function EquipmentAssignmentStep({
     onUpdate(updatedBuildings);
   };
 
+  // Toggle optional status for a product
+  const handleToggleOptional = (buildingId: string, elementInfo: any, productId: string) => {
+    const updatedBuildings = localBuildings.map(building => {
+      if (building.id !== buildingId) return building;
+
+      // Handle central rack elements
+      if (elementInfo.location === 'centralRack') {
+        const deviceType = elementInfo.type;
+        
+        if (building.centralRack && building.centralRack[deviceType]) {
+          const elements = building.centralRack[deviceType];
+          
+          if (Array.isArray(elements)) {
+            const updatedElements = elements.map(element => {
+              if (element.id === elementInfo.elementId && element.products) {
+                const updatedProducts = element.products.map((prod: any) => {
+                  if (prod.productId === productId) {
+                    return { ...prod, isOptional: !prod.isOptional };
+                  }
+                  return prod;
+                });
+                return { ...element, products: updatedProducts };
+              }
+              return element;
+            });
+            
+            return {
+              ...building,
+              centralRack: {
+                ...building.centralRack,
+                [deviceType]: updatedElements
+              }
+            };
+          }
+        }
+      }
+
+      // Handle floor rack elements
+      if (elementInfo.floorId && elementInfo.rackId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== elementInfo.floorId) return floor;
+
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== elementInfo.rackId) return rack;
+
+            const elType = elementInfo.type;
+            if (rack[elType]) {
+              const elements = rack[elType];
+              
+              if (Array.isArray(elements)) {
+                const updatedElements = elements.map(element => {
+                  if (element.id === elementInfo.elementId && element.products) {
+                    const updatedProducts = element.products.map((prod: any) => {
+                      if (prod.productId === productId) {
+                        return { ...prod, isOptional: !prod.isOptional };
+                      }
+                      return prod;
+                    });
+                    return { ...element, products: updatedProducts };
+                  }
+                  return element;
+                });
+                return { ...rack, [elType]: updatedElements };
+              }
+            }
+
+            return rack;
+          });
+
+          return { ...floor, racks: updatedRacks };
+        });
+
+        return { ...building, floors: updatedFloors };
+      }
+
+      // Handle room elements
+      if (elementInfo.floorId && elementInfo.roomId) {
+        const updatedFloors = building.floors.map(floor => {
+          if (floor.id !== elementInfo.floorId) return floor;
+
+          const updatedRooms = floor.rooms.map(room => {
+            if (room.id !== elementInfo.roomId) return room;
+
+            const elType = elementInfo.type;
+            if (room[elType]) {
+              const elements = room[elType];
+              
+              if (Array.isArray(elements)) {
+                const updatedElements = elements.map(element => {
+                  if (element.id === elementInfo.elementId && element.products) {
+                    const updatedProducts = element.products.map((prod: any) => {
+                      if (prod.productId === productId) {
+                        return { ...prod, isOptional: !prod.isOptional };
+                      }
+                      return prod;
+                    });
+                    return { ...element, products: updatedProducts };
+                  }
+                  return element;
+                });
+                return { ...room, [elType]: updatedElements };
+              }
+            }
+
+            return room;
+          });
+
+          return { ...floor, rooms: updatedRooms };
+        });
+
+        return { ...building, floors: updatedFloors };
+      }
+
+      return building;
+    });
+
+    setLocalBuildings(updatedBuildings);
+    onUpdate(updatedBuildings);
+  };
+
   // Pricing helper functions
   const updateProductPricing = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
     const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };

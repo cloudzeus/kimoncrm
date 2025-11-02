@@ -122,33 +122,43 @@ export function CentralRackStep({
     }
   }, [siteSurveyId]);
 
-  // Fetch products, services, brands, and categories
+  // Fetch products, services, brands, categories, AND site survey data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, servicesRes, brandsRes, categoriesRes] = await Promise.all([
+        const [productsRes, servicesRes, brandsRes, categoriesRes, siteSurveyRes] = await Promise.all([
           fetch('/api/products?limit=999999&includeImages=true'),
           fetch('/api/services?limit=999999'),
           fetch('/api/brands?limit=999999'),
-          fetch('/api/master-data/categories?limit=999999')
+          fetch('/api/master-data/categories?limit=999999'),
+          fetch(`/api/site-surveys/${siteSurveyId}`)
         ]);
         
         const productsData = await productsRes.json();
         const servicesData = await servicesRes.json();
         const brandsData = await brandsRes.json();
         const categoriesData = await categoriesRes.json();
+        const siteSurveyData = await siteSurveyRes.json();
         
         if (productsData.success) setProductsList(productsData.data);
         if (servicesData.success) setServicesList(servicesData.data);
         if (brandsData.success) setBrandsList(brandsData.data);
         if (categoriesData.success) setCategoriesList(categoriesData.categories);
+        
+        // Update buildings from fresh database data
+        if (siteSurveyData.success && siteSurveyData.data?.wizardData?.buildings) {
+          console.log('🔄 Refreshing buildings data from database:', {
+            buildingsCount: siteSurveyData.data.wizardData.buildings.length
+          });
+          onUpdate(siteSurveyData.data.wizardData.buildings);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
     
     fetchData();
-  }, []);
+  }, [siteSurveyId, onUpdate]);
 
   // Helper to calculate multiplier for typical floors
   const getFloorMultiplier = (floor: any) => {
@@ -617,12 +627,27 @@ export function CentralRackStep({
   // Force update state for brand changes
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Collect all assigned products and services from Step 2
-  const collectAssignedItems = useCallback(() => {
+  // Helper function to collect items from buildings (can be used with any buildings array)
+  const collectAssignedItemsFromBuildings = (buildingsData: any[]) => {
+    console.log('🔍 [collectAssignedItemsFromBuildings] Starting collection...', {
+      buildingsCount: buildingsData.length,
+      firstBuilding: buildingsData[0] ? {
+        name: buildingsData[0].name,
+        hasCentralRack: !!buildingsData[0].centralRack,
+        centralRack: buildingsData[0].centralRack ? {
+          terminationsCount: buildingsData[0].centralRack.cableTerminations?.length || 0,
+          switchesCount: buildingsData[0].centralRack.switches?.length || 0,
+          routersCount: buildingsData[0].centralRack.routers?.length || 0,
+          sampleTermination: buildingsData[0].centralRack.cableTerminations?.[0],
+          sampleSwitch: buildingsData[0].centralRack.switches?.[0]
+        } : null
+      } : null
+    });
+
     const productsMap = new Map<string, ProductData>();
     const servicesMap = new Map<string, ServiceData>();
 
-    buildings.forEach(building => {
+    buildingsData.forEach(building => {
       // Central rack
       if (building.centralRack) {
         building.centralRack.cableTerminations?.forEach(term => {
@@ -1484,9 +1509,27 @@ export function CentralRackStep({
       products: Array.from(productsMap.values()),
       services: Array.from(servicesMap.values())
     };
-  }, [buildings, getProductBrand, getProductCategory, getProductName, getServiceName, getTotalMultiplier]);
+  };
+
+  // Wrapper that uses current buildings state with useCallback
+  const collectAssignedItems = useCallback(() => {
+    return collectAssignedItemsFromBuildings(buildings);
+  }, [buildings, getProductBrand, getProductCategory, getProductName, getServiceName, getTotalMultiplier, collectAssignedItemsFromBuildings]);
 
   const { products: collectedProducts, services: collectedServices } = collectAssignedItems();
+
+  // DEBUG: Log collected data immediately after collection
+  useEffect(() => {
+    console.log('🔍 [CentralRackStep] Data collected:', {
+      buildingsCount: buildings.length,
+      collectedProductsCount: collectedProducts.length,
+      collectedServicesCount: collectedServices.length,
+      sampleProduct: collectedProducts[0],
+      sampleService: collectedServices[0],
+      allProductIds: collectedProducts.map(p => p.id),
+      allServiceIds: collectedServices.map(s => s.id)
+    });
+  }, [buildings, collectedProducts, collectedServices]);
 
   // Group products by brand
   const productsByBrand = collectedProducts.reduce((acc, product) => {
@@ -1576,14 +1619,31 @@ export function CentralRackStep({
   const handleGenerateBOM = async () => {
     try {
       console.log('🚀 Starting BOM generation...');
-      console.log('📦 Buildings data:', buildings);
-      console.log('📦 Collected products:', collectedProducts);
-      console.log('📦 Collected services:', collectedServices);
-      console.log('📦 Products by brand:', productsByBrand);
+      
+      // Fetch fresh data from database
+      const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      const siteSurveyData = await siteSurveyRes.json();
+      
+      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch site survey data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      console.log('📦 Fresh buildings data from DB:', freshBuildings);
+      
+      // Re-collect with fresh data
+      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
+      console.log('📦 Fresh collected products:', freshProducts);
+      console.log('📦 Fresh collected services:', freshServices);
       
       // Check if we have products OR services
-      const hasProducts = collectedProducts && collectedProducts.length > 0;
-      const hasServices = collectedServices && collectedServices.length > 0;
+      const hasProducts = freshProducts && freshProducts.length > 0;
+      const hasServices = freshServices && freshServices.length > 0;
       
       if (!hasProducts && !hasServices) {
         toast({
@@ -1595,7 +1655,7 @@ export function CentralRackStep({
       }
 
       // Prepare products data with pricing
-      const productsWithPricing = (collectedProducts || []).map((product: any) => {
+      const productsWithPricing = (freshProducts || []).map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const productDetails = getProductDetails(product.id);
         return {
@@ -1609,7 +1669,7 @@ export function CentralRackStep({
       });
 
       // Prepare services data with pricing
-      const servicesWithPricing = (collectedServices || []).map((service: any) => {
+      const servicesWithPricing = (freshServices || []).map((service: any) => {
         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         return {
           ...service,
@@ -1633,7 +1693,8 @@ export function CentralRackStep({
         body: JSON.stringify({
           products: productsWithPricing,
           services: servicesWithPricing,
-          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+          siteSurveyName: buildings[0]?.name || 'Site-Survey',
+          siteSurveyId: siteSurveyId // Add for versioning
         })
       });
 
@@ -1667,16 +1728,153 @@ export function CentralRackStep({
     }
   };
 
+  const handleGenerateProposal = async () => {
+    try {
+      console.log('🚀 Starting Proposal generation and ERP submission...');
+      
+      // Fetch fresh data from database
+      const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      const siteSurveyData = await siteSurveyRes.json();
+      
+      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch site survey data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      console.log('📦 Fresh buildings data from DB:', freshBuildings);
+      
+      // Re-collect with fresh data
+      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
+      console.log('📦 Fresh collected products:', freshProducts);
+      console.log('📦 Fresh collected services:', freshServices);
+      
+      // Check if we have products or services
+      if ((!freshProducts || freshProducts.length === 0) && (!freshServices || freshServices.length === 0)) {
+        toast({
+          title: "No Items",
+          description: "No products or services found. Please add items in Step 2 first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare equipment data with pricing and ERP codes
+      const equipment: any[] = [];
+
+      // Add products
+      freshProducts.forEach((product: any) => {
+        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        const productDetails = getProductDetails(product.id);
+        
+        equipment.push({
+          id: product.id,
+          type: 'product',
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          quantity: product.quantity,
+          price: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice * product.quantity,
+          erpCode: productDetails.mtrl,
+          mtrl: productDetails.mtrl,
+        });
+      });
+
+      // Add services
+      freshServices.forEach((service: any) => {
+        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        const serviceDetails = servicesList.find(s => s.id === service.id);
+        
+        equipment.push({
+          id: service.id,
+          type: 'service',
+          name: service.name,
+          category: service.category,
+          quantity: service.quantity,
+          price: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice * service.quantity,
+          erpCode: serviceDetails?.mtrl,
+          mtrl: serviceDetails?.mtrl,
+        });
+      });
+
+      console.log('📋 Equipment prepared for proposal:', {
+        totalItems: equipment.length,
+        itemsWithERPCodes: equipment.filter(e => e.erpCode).length,
+        itemsWithoutERPCodes: equipment.filter(e => !e.erpCode).length,
+      });
+
+      // Call the API to create proposal in ERP
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-proposal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipment,
+          series: '7001', // Default series for proposals
+          comments: `Proposal for Site Survey - Generated from CRM on ${new Date().toLocaleDateString('el-GR')}`
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to generate proposal');
+      }
+
+      console.log('✅ Proposal created successfully:', data);
+
+      toast({
+        title: "Επιτυχής Δημιουργία Προσφοράς στο ERP",
+        description: `Κωδικός: ${data.proposalNumber || 'N/A'} | FINDOC: ${data.erpData?.findoc || 'N/A'} | Σύνολο: €${data.erpData?.total?.toFixed(2) || '0.00'} (€${data.erpData?.turnover?.toFixed(2) || '0.00'} + ΦΠΑ €${data.erpData?.vatAmount?.toFixed(2) || '0.00'})`,
+        duration: 8000,
+      });
+
+      // Optionally redirect to proposals page
+      // window.location.href = '/proposals';
+
+    } catch (error) {
+      console.error('Error generating proposal:', error);
+      toast({
+        title: "Σφάλμα",
+        description: error instanceof Error ? error.message : "Failed to generate proposal",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleGenerateProductsAnalysis = async () => {
     try {
       console.log('🚀 Starting Products Analysis generation...');
-      console.log('📦 Buildings data:', buildings);
-      console.log('📦 Collected products:', collectedProducts);
-      console.log('📦 Products by brand:', productsByBrand);
-      console.log('📦 Products list:', productsList);
+      
+      // Fetch fresh data from database
+      const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      const siteSurveyData = await siteSurveyRes.json();
+      
+      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch site survey data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      console.log('📦 Fresh buildings data from DB:', freshBuildings);
+      
+      // Re-collect with fresh data
+      const { products: freshProducts } = collectAssignedItemsFromBuildings(freshBuildings);
+      console.log('📦 Fresh collected products:', freshProducts);
       
       // Check if we have products
-      if (!collectedProducts || collectedProducts.length === 0) {
+      if (!freshProducts || freshProducts.length === 0) {
         toast({
           title: "No Products",
           description: "No products found to generate analysis. Please add products in Step 2 first.",
@@ -1685,8 +1883,8 @@ export function CentralRackStep({
         return;
       }
 
-      // Prepare products data for analysis - use collectedProducts directly
-      const productsForAnalysis = (collectedProducts || []).map((product: any) => {
+      // Prepare products data for analysis - use freshProducts directly
+      const productsForAnalysis = (freshProducts || []).map((product: any) => {
         const productDetails = getProductDetails(product.id);
         console.log(`📝 Product ${product.id}:`, {
           product,
@@ -1712,7 +1910,8 @@ export function CentralRackStep({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           products: productsForAnalysis,
-          siteSurveyName: buildings[0]?.name || 'Site-Survey'
+          siteSurveyName: buildings[0]?.name || 'Site-Survey',
+          siteSurveyId: siteSurveyId // Add for versioning
         })
       });
 
@@ -1746,6 +1945,240 @@ export function CentralRackStep({
     }
   };
 
+  const handleGenerateProposalDocument = async () => {
+    try {
+      console.log('📄 Starting comprehensive proposal document generation...');
+      
+      // Fetch fresh data from database
+      const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      const siteSurveyData = await siteSurveyRes.json();
+      
+      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch site survey data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
+      
+      console.log('📦 Fresh collected data:', {
+        products: freshProducts.length,
+        services: freshServices.length
+      });
+      
+      // Check if we have products
+      if (!freshProducts || freshProducts.length === 0) {
+        toast({
+          title: "No Products",
+          description: "No products found. Please add products in Step 2 first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare products with pricing
+      const productsWithPricing = (freshProducts || []).map((product: any) => {
+        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        const productDetails = getProductDetails(product.id);
+        
+        return {
+          id: product.id,
+          name: product.name,
+          brand: productDetails.brand || product.brand,
+          category: productDetails.category || product.category,
+          quantity: product.quantity,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice,
+          isOptional: product.isOptional || false, // Include optional flag
+        };
+      });
+
+      // Prepare services with pricing
+      const servicesWithPricing = (freshServices || []).map((service: any) => {
+        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        
+        return {
+          id: service.id,
+          name: service.name,
+          category: service.category,
+          quantity: service.quantity,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice,
+        };
+      });
+
+      console.log('📋 Prepared data for proposal:', {
+        products: productsWithPricing.length,
+        services: servicesWithPricing.length
+      });
+
+      // Call API to generate comprehensive proposal document
+      // Note: Technical descriptions will be pulled from the latest Proposal record if available
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-proposal-document`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          products: productsWithPricing,
+          services: servicesWithPricing,
+          technicalDescription: '', // Will use data from Proposal record if exists
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate proposal document');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Proposal_${siteSurveyData.data.projectName || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Επιτυχία",
+        description: "Η πλήρης προσφορά δημιουργήθηκε επιτυχώς!",
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Error generating proposal document:', error);
+      toast({
+        title: "Σφάλμα",
+        description: error instanceof Error ? error.message : "Failed to generate proposal document",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGenerateCompleteProposal = async () => {
+    try {
+      console.log('📄 Starting complete proposal generation (new format)...');
+      
+      // Fetch fresh data from database
+      const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      const siteSurveyData = await siteSurveyRes.json();
+      
+      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch site survey data",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
+      
+      console.log('📦 Fresh collected data:', {
+        products: freshProducts.length,
+        services: freshServices.length
+      });
+      
+      // Check if we have products
+      if (!freshProducts || freshProducts.length === 0) {
+        toast({
+          title: "No Products",
+          description: "No products found. Please add products in Step 2 first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare products with pricing
+      const productsWithPricing = (freshProducts || []).map((product: any) => {
+        const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        const productDetails = getProductDetails(product.id);
+        
+        return {
+          id: product.id,
+          name: product.name,
+          brand: productDetails.brand || product.brand,
+          category: productDetails.category || product.category,
+          quantity: product.quantity,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice,
+          isOptional: product.isOptional || false,
+        };
+      });
+
+      // Prepare services with pricing
+      const servicesWithPricing = (freshServices || []).map((service: any) => {
+        const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
+        
+        return {
+          id: service.id,
+          name: service.name,
+          category: service.category,
+          quantity: service.quantity,
+          unitPrice: pricing.unitPrice,
+          margin: pricing.margin,
+          totalPrice: pricing.totalPrice,
+        };
+      });
+
+      console.log('📋 Prepared data for complete proposal:', {
+        products: productsWithPricing.length,
+        services: servicesWithPricing.length
+      });
+
+      // Call API to generate complete proposal document
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-complete-proposal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          products: productsWithPricing,
+          services: servicesWithPricing,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate complete proposal');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Complete-Proposal_${siteSurveyData.data.projectName || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Επιτυχία",
+        description: "Η ολοκληρωμένη προσφορά δημιουργήθηκε επιτυχώς!",
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Error generating complete proposal:', error);
+      toast({
+        title: "Σφάλμα",
+        description: error instanceof Error ? error.message : "Failed to generate complete proposal",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1761,16 +2194,18 @@ export function CentralRackStep({
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className={collectedProducts.length === 0 ? "border-red-500 border-2" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Σύνολο Προϊόντων
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{collectedProducts.length}</div>
+            <div className={`text-xl font-bold ${collectedProducts.length === 0 ? "text-red-600" : ""}`}>
+              {collectedProducts.length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Διαφορετικά προϊόντα
+              {collectedProducts.length === 0 ? "⚠️ Δεν βρέθηκαν προϊόντα!" : "Διαφορετικά προϊόντα"}
             </p>
           </CardContent>
         </Card>
@@ -1820,6 +2255,62 @@ export function CentralRackStep({
         </Card>
       </div>
 
+      {/* Debug Section - Only show if no products collected */}
+      {collectedProducts.length === 0 && (
+        <Card className="border-red-500 border-2 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <span>⚠️ ΠΡΟΣΟΧΗ: Δεν βρέθηκαν προϊόντα!</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-red-600">
+              Η συλλογή δεδομένων δεν βρήκε προϊόντα. Ελέγξτε:
+            </p>
+            <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+              <li>Έχετε προσθέσει προϊόντα στο Βήμα 2;</li>
+              <li>Τα προϊόντα έχουν αποθηκευτεί σωστά;</li>
+              <li>Ανοίξτε το console (F12) και δείτε τα logs</li>
+            </ul>
+            <div className="mt-4">
+              <p className="text-xs font-mono text-gray-600">Buildings count: {buildings.length}</p>
+              <p className="text-xs font-mono text-gray-600">
+                Central rack exists: {buildings[0]?.centralRack ? "Yes" : "No"}
+              </p>
+              {buildings[0]?.centralRack && (
+                <>
+                  <p className="text-xs font-mono text-gray-600">
+                    Terminations: {buildings[0].centralRack.cableTerminations?.length || 0}
+                  </p>
+                  <p className="text-xs font-mono text-gray-600">
+                    Switches: {buildings[0].centralRack.switches?.length || 0}
+                  </p>
+                  {buildings[0].centralRack.cableTerminations?.[0] && (
+                    <div className="mt-2 p-2 bg-gray-100 rounded">
+                      <p className="text-xs font-bold">Sample Termination:</p>
+                      <pre className="text-xs overflow-auto max-h-32">
+                        {JSON.stringify(buildings[0].centralRack.cableTerminations[0], null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                console.log('📋 FULL BUILDINGS DATA:', JSON.stringify(buildings, null, 2));
+                alert('Buildings data logged to console! Press F12 to see it.');
+              }}
+              variant="outline"
+              size="sm"
+              className="mt-4"
+            >
+              Show Full Buildings JSON in Console
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Products by Brand */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -1836,6 +2327,18 @@ export function CentralRackStep({
             <Button onClick={handleGenerateProductsAnalysis} variant="outline" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Products Analysis
+            </Button>
+            <Button onClick={handleGenerateProposal} variant="default" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+              <FileText className="h-4 w-4" />
+              Δημιουργία Προσφοράς ERP
+            </Button>
+            <Button onClick={handleGenerateProposalDocument} variant="default" className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700">
+              <FileText className="h-4 w-4" />
+              Πλήρης Προσφορά (Word)
+            </Button>
+            <Button onClick={handleGenerateCompleteProposal} variant="default" className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
+              <FileText className="h-4 w-4" />
+              Ολοκληρωμένη Προσφορά (New Format)
             </Button>
           </div>
         </div>

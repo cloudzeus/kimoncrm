@@ -72,6 +72,7 @@ export interface RoomData {
 export interface ProductAssignment {
   productId: string;
   quantity: number;
+  isOptional?: boolean; // Flag to mark product as optional (default: false)
 }
 
 export interface CableTerminationData {

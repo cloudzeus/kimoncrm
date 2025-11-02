@@ -2203,7 +2203,7 @@ model RFP {
 model Proposal {
   id                    String          @id @default(cuid())
   proposalNo            String?         @unique
-  rfpId                 String
+  rfpId                 String?         // Made optional - can create from site survey directly
   leadId                String?
   siteSurveyId          String?
   customerId            String
@@ -2227,13 +2227,18 @@ model Proposal {
   // Proposal Status & ERP Integration
   status                ProposalStatus  @default(DRAFT)
   stage                 ProposalStage   @default(CONTENT_GENERATION)
-  erpQuoteNumber        String?         // From SoftOne (FINCODE)
-  erpSeries             Int?            // From SoftOne (SERIES)
-  erpSeriesNum          Int?            // From SoftOne (SERIESNUM)
-  erpFindoc             Int?            // From SoftOne (FINDOC)
+  erpSyncStatus         String?         // "SYNCED", "PENDING", "FAILED"
+  erpProposalNumber     String?         // From SoftOne (FINCODE) - Main proposal code
+  erpQuoteNumber        String?         // From SoftOne (FINCODE) - Alias for compatibility
+  erpSeries             String?         // From SoftOne (SERIES) - Changed to String
+  erpSeriesNum          String?         // From SoftOne (SERIESNUM) - Changed to String
+  erpFindoc             String?         // From SoftOne (FINDOC) - Changed to String
   erpSaldocnum          Int?            // From SoftOne (SALDOCNUM)
-  erpTurnover           Decimal?        @db.Decimal(12, 2)
-  erpVatAmount          Decimal?        @db.Decimal(12, 2)
+  erpTurnover           Decimal?        @db.Decimal(12, 2) // From SoftOne (TURNOVR)
+  erpVatAmount          Decimal?        @db.Decimal(12, 2) // From SoftOne (VATAMNT)
+  erpResponse           Json?           // Full ERP response object stored as JSON
+  equipment             Json?           // All products/services array
+  totals                Json?           // Calculated totals (turnover, vat, grand total)
   
   // Document Files
   wordDocumentUrl       String?         // Generated Word document URL
@@ -2255,7 +2260,7 @@ model Proposal {
   updatedAt             DateTime        @updatedAt
   
   // Relations
-  rfp                   RFP             @relation(fields: [rfpId], references: [id])
+  rfp                   RFP?            @relation(fields: [rfpId], references: [id])
   lead                  Lead?           @relation(fields: [leadId], references: [id])
   siteSurvey            SiteSurvey?     @relation(fields: [siteSurveyId], references: [id])
   customer              Customer        @relation(fields: [customerId], references: [id])

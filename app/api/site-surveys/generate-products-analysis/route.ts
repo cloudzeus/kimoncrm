@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/auth-options';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun } from 'docx';
 import { prisma } from '@/lib/db/prisma';
+import { uploadFileToBunny } from '@/lib/bunny/upload';
+import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { products, siteSurveyName } = body;
+    const { products, siteSurveyName, siteSurveyId } = body;
 
     console.log('📊 Product Analysis API received:', {
       productsCount: products?.length || 0,
@@ -88,9 +97,22 @@ export async function POST(request: NextRequest) {
     ];
 
     // Add each product
+    console.log('📝 Processing products for document generation:', {
+      totalProducts: products.length,
+      fullProductsCount: fullProducts.length
+    });
+    
     for (let index = 0; index < products.length; index++) {
       const product = products[index];
       const fullProduct = fullProducts.find(p => p.id === product.id);
+      
+      console.log(`📝 Processing product ${index + 1}/${products.length}:`, {
+        productId: product.id,
+        productName: product.name,
+        foundInDb: !!fullProduct,
+        hasImages: fullProduct?.images?.length || 0,
+        hasSpecs: fullProduct?.specifications?.length || 0
+      });
       
       // Product Header
       allChildren.push(
@@ -111,6 +133,7 @@ export async function POST(request: NextRequest) {
       if (fullProduct?.images && fullProduct.images.length > 0) {
         try {
           const imageUrl = fullProduct.images[0].url;
+          console.log(`🖼️ Downloading image for product ${product.id}:`, imageUrl);
           
           // Download image and convert to buffer
           const imageResponse = await fetch(imageUrl);
@@ -119,6 +142,8 @@ export async function POST(request: NextRequest) {
             
             // Determine image type from URL
             const imageType = imageUrl.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+            
+            console.log(`✅ Image downloaded successfully: ${imageBuffer.byteLength} bytes, type: ${imageType}`);
             
             allChildren.push(
               new Paragraph({
@@ -136,11 +161,15 @@ export async function POST(request: NextRequest) {
                 spacing: { before: 200, after: 200 },
               })
             );
+          } else {
+            console.error(`❌ Failed to download image: ${imageResponse.status}`);
           }
         } catch (error) {
-          console.error('Error embedding image:', error);
-          // Skip image if error
+          console.error(`❌ Error embedding image for product ${product.id}:`, error);
+          // Skip image if error - DON'T break the loop
         }
+      } else {
+        console.log(`ℹ️ No images available for product ${product.id}`);
       }
       
       // Description in Greek
@@ -293,7 +322,14 @@ export async function POST(request: NextRequest) {
           spacing: { before: 200, after: 200 },
         })
       );
+      
+      console.log(`✅ Completed processing product ${index + 1}/${products.length}`);
     }
+
+    console.log('✅ All products processed. Creating document...', {
+      totalProductsProcessed: products.length,
+      totalChildrenInDocument: allChildren.length
+    });
 
     // Create the final document
     const doc = new Document({
@@ -306,7 +342,71 @@ export async function POST(request: NextRequest) {
     // Generate buffer
     const buffer = await Packer.toBuffer(doc);
 
-    // Return file
+    console.log('✅ Document generated successfully:', {
+      filename: `Products-Analysis-${siteSurveyName || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.docx`,
+      bufferSize: buffer.byteLength,
+      productsInDocument: products.length
+    });
+
+    // If siteSurveyId is provided, save to database with versioning
+    if (siteSurveyId) {
+      try {
+        const baseFileName = `Products-Analysis-${siteSurveyName || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}`;
+        
+        // Manage versions (max 10)
+        const { nextVersion } = await manageDocumentVersions({
+          entityType: 'site-survey',
+          entityId: siteSurveyId,
+          documentType: 'products-analysis',
+          baseFileName,
+          fileExtension: 'docx',
+        });
+
+        // Generate versioned filename
+        const versionedFilename = generateVersionedFilename(baseFileName, nextVersion, 'docx');
+
+        console.log('📤 Uploading Products Analysis to BunnyCDN:', versionedFilename);
+
+        // Upload to BunnyCDN
+        const uploadResult = await uploadFileToBunny({
+          buffer: Buffer.from(buffer),
+          filename: versionedFilename,
+          folder: `site-surveys/${siteSurveyId}`,
+        });
+
+        console.log('✅ Products Analysis uploaded:', uploadResult.url);
+
+        // Save file record to database
+        const fileRecord = await prisma.file.create({
+          data: {
+            filename: versionedFilename,
+            url: uploadResult.url,
+            mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            size: buffer.byteLength,
+            entityType: 'site-survey',
+            entityId: siteSurveyId,
+            uploadedById: session.user.id,
+          },
+        });
+
+        console.log('✅ Products Analysis file record created:', fileRecord.id);
+
+        // Return the file as download
+        return new NextResponse(buffer as any, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition': `attachment; filename="${versionedFilename}"`,
+            'Content-Length': buffer.byteLength.toString(),
+          },
+        });
+      } catch (uploadError) {
+        console.error('⚠️  Failed to upload/save Products Analysis, returning file directly:', uploadError);
+        // Fall through to direct return
+      }
+    }
+
+    // Fallback: Return file directly without saving (for backwards compatibility)
     const filename = `Products-Analysis-${siteSurveyName || 'Site-Survey'}-${new Date().toISOString().split('T')[0]}.docx`;
     
     return new NextResponse(buffer as any, {

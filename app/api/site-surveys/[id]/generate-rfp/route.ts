@@ -24,7 +24,16 @@ export async function POST(
     const body = await request.json();
     const { equipment, generalNotes } = body;
 
+    console.log('📊 RFP Generation API - Received data:', {
+      siteSurveyId,
+      equipmentCount: equipment?.length || 0,
+      hasEquipment: !!equipment,
+      isArray: Array.isArray(equipment),
+      generalNotes: generalNotes?.substring(0, 100) || 'none'
+    });
+
     if (!equipment || !Array.isArray(equipment) || equipment.length === 0) {
+      console.error('❌ RFP API: No equipment data provided');
       return NextResponse.json(
         { error: "No equipment data provided" },
         { status: 400 }
@@ -87,6 +96,13 @@ export async function POST(
     // Separate products and services
     const products = equipment.filter((item: any) => item.type === 'product');
     const services = equipment.filter((item: any) => item.type === 'service');
+
+    console.log('📦 RFP API - Separated equipment:', {
+      productsCount: products.length,
+      servicesCount: services.length,
+      sampleProduct: products[0],
+      sampleService: services[0]
+    });
 
     // Calculate totals
     const productsSubtotal = products.reduce((sum: number, p: any) => sum + (p.price * p.quantity), 0);
@@ -283,11 +299,13 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error("Error in generate-rfp:", error);
+    console.error("❌ Error in generate-rfp:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { 
         error: "Failed to generate RFP",
         details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
