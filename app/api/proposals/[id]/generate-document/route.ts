@@ -97,7 +97,7 @@ export async function POST(
       servicesDesc: proposal.servicesDesc || undefined,
       scopeOfWork: proposal.scopeOfWork || undefined,
       erpQuoteNumber: proposal.erpQuoteNumber || undefined,
-      erpSeriesNum: proposal.erpSeriesNum || undefined,
+      erpSeriesNum: proposal.erpSeriesNum ? parseInt(proposal.erpSeriesNum, 10) : undefined,
       products,
       services,
       companyName: companyDetails.companyName,
