@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import prisma from '@/lib/db/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
 import {
@@ -35,7 +35,7 @@ import {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -43,7 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: siteSurveyId } = params;
+    const { id: siteSurveyId } = await params;
     const body = await request.json();
     const { products = [], services = [] } = body;
 

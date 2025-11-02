@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import ExcelJS from 'exceljs';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
-import prisma from '@/lib/db/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
 
 export async function POST(request: NextRequest) {

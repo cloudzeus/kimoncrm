@@ -1,5 +1,4 @@
-import prisma from '@/lib/db/prisma';
-import { deleteFileFromBunny } from '@/lib/bunny/upload';
+import { prisma } from '@/lib/db/prisma';
 
 /**
  * Manages document versioning with max 10 versions
@@ -84,16 +83,16 @@ export async function manageDocumentVersions({
       try {
         console.log(`  Deleting old version: ${file.filename} (${file.id})`);
 
-        // Delete from BunnyCDN
-        if (file.url) {
-          try {
-            await deleteFileFromBunny(file.url);
-            console.log(`    ✅ Deleted from BunnyCDN: ${file.url}`);
-          } catch (bunnyError) {
-            console.error(`    ⚠️ Failed to delete from BunnyCDN:`, bunnyError);
-            // Continue anyway - we'll still delete from DB
-          }
-        }
+        // TODO: Delete from BunnyCDN (deleteFileFromBunny function not yet implemented)
+        // if (file.url) {
+        //   try {
+        //     await deleteFileFromBunny(file.url);
+        //     console.log(`    ✅ Deleted from BunnyCDN: ${file.url}`);
+        //   } catch (bunnyError) {
+        //     console.error(`    ⚠️ Failed to delete from BunnyCDN:`, bunnyError);
+        //     // Continue anyway - we'll still delete from DB
+        //   }
+        // }
 
         // Delete from database
         await prisma.file.delete({
