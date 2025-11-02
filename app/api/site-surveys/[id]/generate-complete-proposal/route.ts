@@ -65,13 +65,6 @@ export async function POST(
           },
           take: 1,
         },
-        assignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
 
