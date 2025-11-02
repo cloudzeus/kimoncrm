@@ -42,7 +42,7 @@ export async function POST(
     }
 
     // Get equipment from RFP
-    const requirements = (proposal.rfp.requirements as any) || {};
+    const requirements = (proposal.rfp?.requirements as any) || {};
     const equipment = requirements.equipment || [];
 
     // Separate products and services
