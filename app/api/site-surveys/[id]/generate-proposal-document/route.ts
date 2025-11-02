@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/auth-options';
+import { auth } from '@/auth';
 import prisma from '@/lib/db/prisma';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
@@ -24,7 +23,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

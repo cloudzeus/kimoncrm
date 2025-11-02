@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -2960,6 +2961,14 @@ export function EquipmentAssignmentStep({
                                                     <div className="text-xs text-muted-foreground">
                                                       {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
                                                     </div>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <Checkbox
+                                                      id={`optional-${termination.id}-${productAssignment.productId}`}
+                                                      checked={productAssignment.isOptional || false}
+                                                      onCheckedChange={() => handleToggleOptional(building.id, { location: 'centralRack', type: 'termination', elementId: termination.id }, productAssignment.productId)}
+                                                    />
+                                                    <Label htmlFor={`optional-${termination.id}-${productAssignment.productId}`} className="text-xs cursor-pointer">Optional</Label>
                                                   </div>
                                                   <Button
                                                     size="sm"
