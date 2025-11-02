@@ -76,10 +76,10 @@ export async function POST(
     }
 
     const latestProposal = siteSurvey.proposals?.[0];
-    const customerName = siteSurvey.customer?.company?.name || siteSurvey.customer?.name || 'N/A';
+    const customerName = siteSurvey.customer?.name || 'N/A';
     const projectName = siteSurvey.projectName || siteSurvey.siteName || 'Site Survey';
     const proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
-    const assignedUserName = siteSurvey.assignedUser?.name || session.user.name || 'N/A';
+    const assignedUserName = session.user.name || 'N/A';
 
     // Fetch full product details
     const productIds = products.map((p: any) => p.id);
