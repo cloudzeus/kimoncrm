@@ -904,13 +904,12 @@ export async function POST(
 
     await prisma.file.create({
       data: {
-        filename: versionedFilename,
+        name: versionedFilename,
         url: uploadResult.url,
-        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         size: buffer.byteLength,
-        entityType: 'site-survey',
+        type: 'SITE_SURVEY',
         entityId: siteSurveyId,
-        uploadedById: session.user.id,
       },
     });
 
