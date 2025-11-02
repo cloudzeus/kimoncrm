@@ -894,11 +894,11 @@ export async function POST(
 
     console.log('📤 Uploading complete proposal to BunnyCDN:', versionedFilename);
 
-    const uploadResult = await uploadFileToBunny({
-      buffer: Buffer.from(buffer),
-      filename: versionedFilename,
-      folder: `site-surveys/${siteSurveyId}`,
-    });
+    const uploadResult = await uploadFileToBunny(
+      Buffer.from(buffer),
+      versionedFilename,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
 
     console.log('✅ Complete proposal uploaded:', uploadResult.url);
 
