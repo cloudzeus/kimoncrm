@@ -63,8 +63,9 @@ export interface CentralRackData {
   switches: SwitchData[];
   routers: RouterData[];
   pbx?: PBXData;
-  ata?: ATAData;
-  nvr?: NVRData;
+  ata?: ATAData[];
+  nvr?: NVRData[];
+  headend?: HeadendData[];
   servers: ServerData[];
   phoneLines: PhoneLineData[];
   connections: ConnectionData[];
@@ -303,10 +304,10 @@ export interface FloorRackData {
   connections: ConnectionData[];
   switches: SwitchData[];
   routers?: RouterData[];
-  ata?: ATAData;
-  nvr?: NVRData;
+  ata?: ATAData[];
+  nvr?: NVRData[];
+  headend?: HeadendData[];
   servers?: ServerData[];
-  headend?: HeadendData;
   loraWanGateway?: LoRaWANGatewayData;
 }
 

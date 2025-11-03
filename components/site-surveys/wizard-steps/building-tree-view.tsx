@@ -978,10 +978,10 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       brand: '',
       model: '',
       ports: 0,
-      connection: '',
+      products: [],
       services: [],
     };
-    updateCentralRack({ ata: newATA });
+    updateCentralRack({ ata: [...(building.centralRack.ata || []), newATA] });
     toggleCentralRackSection('ata'); // Auto-expand ATA section
   };
 
@@ -992,10 +992,11 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       brand: '',
       model: '',
       channels: 0,
-      storage: '',
+      storageCapacity: '',
+      products: [],
       services: [],
     };
-    updateCentralRack({ nvr: newNVR });
+    updateCentralRack({ nvr: [...(building.centralRack.nvr || []), newNVR] });
     toggleCentralRackSection('nvr'); // Auto-expand NVR section
   };
 
@@ -1005,10 +1006,10 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
       id: `headend-${Date.now()}`,
       brand: '',
       model: '',
-      channels: 0,
+      products: [],
       services: [],
     };
-    updateCentralRack({ headend: newHeadend });
+    updateCentralRack({ headend: [...(building.centralRack.headend || []), newHeadend] });
     toggleCentralRackSection('headend'); // Auto-expand Headend section
   };
 
@@ -1036,19 +1037,22 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
     updateCentralRack({ pbx: undefined });
   };
 
-  const deleteATA = () => {
+  const deleteATA = (ataId: string) => {
     if (!building.centralRack) return;
-    updateCentralRack({ ata: undefined });
+    const updatedATA = building.centralRack.ata?.filter(a => a.id !== ataId) || [];
+    updateCentralRack({ ata: updatedATA });
   };
 
-  const deleteNVR = () => {
+  const deleteNVR = (nvrId: string) => {
     if (!building.centralRack) return;
-    updateCentralRack({ nvr: undefined });
+    const updatedNVR = building.centralRack.nvr?.filter(n => n.id !== nvrId) || [];
+    updateCentralRack({ nvr: updatedNVR });
   };
 
-  const deleteHeadend = () => {
+  const deleteHeadend = (headendId: string) => {
     if (!building.centralRack) return;
-    updateCentralRack({ headend: undefined });
+    const updatedHeadend = building.centralRack.headend?.filter(h => h.id !== headendId) || [];
+    updateCentralRack({ headend: updatedHeadend });
   };
 
   const deleteConnection = (connectionId: string) => {
