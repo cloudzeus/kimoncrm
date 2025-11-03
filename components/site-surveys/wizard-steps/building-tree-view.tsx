@@ -1741,6 +1741,18 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                             
                             return (
                           <div className="pl-4 space-y-3">
+                            {/* Delete Button */}
+                            <div className="flex justify-end mb-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => deletePBX()}
+                                title="Delete PBX System"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                             {/* PBX Basic Info */}
                             <div className="grid grid-cols-2 gap-3">
                               <div>
@@ -3353,10 +3365,19 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2">
-                          <div className="text-xs text-muted-foreground pl-4">
+                          <div className="text-xs text-muted-foreground pl-4 space-y-1">
                             {building.centralRack.connections.map(conn => (
-                              <div key={conn.id} className="p-2 bg-muted/30 rounded mb-1">
-                                {conn.fromDevice} → {conn.toDevice} ({conn.connectionType})
+                              <div key={conn.id} className="p-2 bg-muted/30 rounded flex items-center justify-between">
+                                <span>{conn.fromDevice} → {conn.toDevice} ({conn.connectionType})</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteConnection(conn.id)}
+                                  title="Delete Connection"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
                             ))}
                           </div>
