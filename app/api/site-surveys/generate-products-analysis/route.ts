@@ -367,24 +367,23 @@ export async function POST(request: NextRequest) {
         console.log('📤 Uploading Products Analysis to BunnyCDN:', versionedFilename);
 
         // Upload to BunnyCDN
-        const uploadResult = await uploadFileToBunny({
-          buffer: Buffer.from(buffer),
-          filename: versionedFilename,
-          folder: `site-surveys/${siteSurveyId}`,
-        });
+        const uploadResult = await uploadFileToBunny(
+          Buffer.from(buffer),
+          `site-surveys/${siteSurveyId}/${versionedFilename}`,
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
 
         console.log('✅ Products Analysis uploaded:', uploadResult.url);
 
         // Save file record to database
         const fileRecord = await prisma.file.create({
           data: {
-            filename: versionedFilename,
+            name: versionedFilename,
             url: uploadResult.url,
-            mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             size: buffer.byteLength,
-            entityType: 'site-survey',
+            type: 'SITESURVEY',
             entityId: siteSurveyId,
-            uploadedById: session.user.id,
           },
         });
 
