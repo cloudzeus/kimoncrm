@@ -675,7 +675,7 @@ export function CentralRackStep({
             product.locations.push('Central Rack');
           });
           
-          term.services?.forEach(svc => {
+          term.services?.forEach((svc: any) => {
             const key = svc.serviceId;
             if (!servicesMap.has(key)) {
               servicesMap.set(key, {
@@ -696,7 +696,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.switches?.forEach(sw => {
+        building.centralRack.switches?.forEach((sw: any) => {
           // Support new products array format
           const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: sw.quantity || 1 }] : []);
           
@@ -721,7 +721,7 @@ export function CentralRackStep({
             product.locations.push('Central Rack');
           });
           
-          sw.services?.forEach(svc => {
+          sw.services?.forEach((svc: any) => {
             const key = svc.serviceId;
             if (!servicesMap.has(key)) {
               servicesMap.set(key, {
@@ -903,7 +903,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            term.services?.forEach(svc => {
+            term.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -924,7 +924,7 @@ export function CentralRackStep({
             });
           });
 
-          rack.switches?.forEach(sw => {
+          rack.switches?.forEach((sw: any) => {
             // Support new products array format
             const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
             
@@ -949,7 +949,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            sw.services?.forEach(svc => {
+            sw.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
