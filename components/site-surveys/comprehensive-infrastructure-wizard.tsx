@@ -1657,14 +1657,21 @@ export function ComprehensiveInfrastructureWizard({
                   className="rounded-none bg-pink-600 hover:bg-pink-700 text-white"
                   size="sm"
                   onClick={async () => {
-                    // Check if RFP exists
-                    if (!siteSurveyData?.lead?.rfps || siteSurveyData?.lead?.rfps?.length === 0) {
-                      toast.error("RFP Required", {
-                        description: "Please generate an RFP first by clicking the 'RFP' button above. The RFP is required to create a comprehensive proposal.",
-                      });
-                      return;
+                    // Check if RFP exists by fetching fresh data
+                    try {
+                      const rfpCheck = await fetch(`/api/site-surveys/${siteSurveyId}`);
+                      const rfpData = await rfpCheck.json();
+                      
+                      if (!rfpData.success || !rfpData.data?.lead?.rfps || rfpData.data.lead.rfps.length === 0) {
+                        toast.error("RFP Required", {
+                          description: "Please generate an RFP first by clicking the 'RFP' button above. The RFP is required to create a comprehensive proposal.",
+                        });
+                        return;
+                      }
+                      setShowProposalDialog(true);
+                    } catch (error) {
+                      toast.error("Error checking RFP status");
                     }
-                    setShowProposalDialog(true);
                   }}
                   disabled={generatingRFP}
                 >
