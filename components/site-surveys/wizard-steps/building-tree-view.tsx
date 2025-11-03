@@ -1993,6 +1993,96 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                     </div>
                   )}
 
+                  {/* ATA Devices */}
+                  {building.centralRack?.ata && building.centralRack.ata.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Collapsible 
+                        open={expandedCentralRackSections.has('ata')}
+                        onOpenChange={() => toggleCentralRackSection('ata')}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
+                            <div className="flex items-center gap-2">
+                              {expandedCentralRackSections.has('ata') ? (
+                                <ChevronDown className="h-3 w-3" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3" />
+                              )}
+                              <Phone className="h-3 w-3" />
+                              <span className="text-xs font-semibold">ATA Devices ({building.centralRack.ata.length})</span>
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2">
+                          <div className="pl-4 space-y-3">
+                            {building.centralRack.ata.map((ata, ataIdx) => (
+                              <Card key={ata.id} className="p-3 bg-muted/30">
+                                {/* Delete Button */}
+                                <div className="flex justify-end mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => deleteATA(ata.id)}
+                                    title="Delete ATA"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                {/* ATA Basic Info */}
+                                <div className="grid grid-cols-3 gap-3 mb-3">
+                                  <div>
+                                    <Label className="text-xs">Brand</Label>
+                                    <Input
+                                      value={ata.brand || ''}
+                                      onChange={(e) => {
+                                        const updated = building.centralRack!.ata!.map((a, i) =>
+                                          i === ataIdx ? { ...a, brand: e.target.value } : a
+                                        );
+                                        updateCentralRack({ ata: updated });
+                                      }}
+                                      placeholder="e.g., Grandstream, Cisco"
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Model</Label>
+                                    <Input
+                                      value={ata.model || ''}
+                                      onChange={(e) => {
+                                        const updated = building.centralRack!.ata!.map((a, i) =>
+                                          i === ataIdx ? { ...a, model: e.target.value } : a
+                                        );
+                                        updateCentralRack({ ata: updated });
+                                      }}
+                                      placeholder="Model number"
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Ports</Label>
+                                    <Input
+                                      type="number"
+                                      value={ata.ports || ''}
+                                      onChange={(e) => {
+                                        const updated = building.centralRack!.ata!.map((a, i) =>
+                                          i === ataIdx ? { ...a, ports: parseInt(e.target.value) || 0 } : a
+                                        );
+                                        updateCentralRack({ ata: updated });
+                                      }}
+                                      placeholder="Number of ports"
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                  )}
+
                   {/* Switches */}
                   {building.centralRack?.switches && building.centralRack.switches.length > 0 && (
                     <div className="mt-4 pt-4 border-t">
