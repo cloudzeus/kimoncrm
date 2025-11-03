@@ -1792,16 +1792,29 @@ export function CentralRackStep({
         return;
       }
       
-      const freshBuildings = siteSurveyData.data.wizardData.buildings;
-      console.log('📦 Fresh buildings data from DB:', freshBuildings);
+      // Use products from BOM display (same as Step 3)
+      const freshProducts: any[] = [];
+      const freshServices: any[] = [];
       
-      // Re-collect with fresh data
-      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
-      console.log('📦 Fresh collected products:', freshProducts);
-      console.log('📦 Fresh collected services:', freshServices);
+      Object.entries(productsByBrand || {}).forEach(([brand, brandProducts]) => {
+        if (Array.isArray(brandProducts)) {
+          brandProducts.forEach((prod: any) => {
+            freshProducts.push(prod);
+          });
+        }
+      });
+      
+      collectedServices.forEach((service: any) => {
+        freshServices.push(service);
+      });
+      
+      console.log('📦 Using products from BOM:', {
+        products: freshProducts.length,
+        services: freshServices.length
+      });
       
       // Check if we have products or services
-      if ((!freshProducts || freshProducts.length === 0) && (!freshServices || freshServices.length === 0)) {
+      if (freshProducts.length === 0 && freshServices.length === 0) {
         toast({
           title: "No Items",
           description: "No products or services found. Please add items in Step 2 first.",
@@ -1813,29 +1826,32 @@ export function CentralRackStep({
       // Prepare equipment data with pricing and ERP codes
       const equipment: any[] = [];
 
-      // Add products with SODTYPE and VAT
+      // Add products with SODTYPE and VAT (prices default to 0 if not set)
       freshProducts.forEach((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-        const productDetails = getProductDetails(product.id);
+        const productDetails = productsList.find(p => p.id === product.id) || {};
         
         equipment.push({
           id: product.id,
           type: 'product',
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          quantity: product.quantity,
-          price: pricing.unitPrice,
-          margin: pricing.margin,
-          totalPrice: pricing.totalPrice * product.quantity,
-          erpCode: productDetails.mtrl,
-          mtrl: productDetails.mtrl,
+          name: product.name || productDetails.name || 'Unknown Product',
+          brand: product.brand || productDetails.brand?.name || '',
+          category: product.category || productDetails.category?.name || '',
+          quantity: product.quantity || 1,
+          price: pricing.unitPrice || 0,
+          margin: pricing.margin || 0,
+          totalPrice: (pricing.totalPrice || 0) * (product.quantity || 1),
+          erpCode: productDetails.mtrl || productDetails.code || '',
+          mtrl: productDetails.mtrl || productDetails.code || '',
           vat: 1410, // VAT code for 24% (Greece standard)
           sodtype: '52', // Product type in ERP
+          images: productDetails.images || [],
+          specifications: productDetails.specifications || [],
+          translations: productDetails.translations || [],
         });
       });
 
-      // Add services with SODTYPE and VAT
+      // Add services with SODTYPE and VAT (prices default to 0 if not set)
       freshServices.forEach((service: any) => {
         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const serviceDetails = servicesList.find(s => s.id === service.id);
@@ -1843,14 +1859,14 @@ export function CentralRackStep({
         equipment.push({
           id: service.id,
           type: 'service',
-          name: service.name,
-          category: service.category,
-          quantity: service.quantity,
-          price: pricing.unitPrice,
-          margin: pricing.margin,
-          totalPrice: pricing.totalPrice * service.quantity,
-          erpCode: serviceDetails?.mtrl,
-          mtrl: serviceDetails?.mtrl,
+          name: service.name || serviceDetails?.name || 'Unknown Service',
+          category: service.category || serviceDetails?.category || '',
+          quantity: service.quantity || 1,
+          price: pricing.unitPrice || 0,
+          margin: pricing.margin || 0,
+          totalPrice: (pricing.totalPrice || 0) * (service.quantity || 1),
+          erpCode: serviceDetails?.mtrl || serviceDetails?.code || '',
+          mtrl: serviceDetails?.mtrl || serviceDetails?.code || '',
           vat: 1410, // VAT code for 24% (Greece standard)
           sodtype: '51', // Service type in ERP
         });
@@ -1904,11 +1920,10 @@ export function CentralRackStep({
     try {
       console.log('🚀 Starting Products Analysis generation...');
       
-      // STEP 1: AUTO-SAVE current data before generating
-      console.log('💾 Auto-saving data before generating Products Analysis...');
+      // AUTO-SAVE first
       await handleSaveProgress();
       
-      // STEP 2: Fetch fresh data from database
+      // Fetch fresh buildings data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
       const siteSurveyData = await siteSurveyRes.json();
       
@@ -1922,141 +1937,113 @@ export function CentralRackStep({
       }
       
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
-      console.log('📦 Fresh buildings data from DB:', freshBuildings);
+      console.log('📦 Fresh buildings from DB:', freshBuildings);
       
-      // STEP 3: Collect ONLY products from NEW devices (isFutureProposal: true)
-      const newProductsMap = new Map<string, any>();
+      // Collect ALL products from buildings (NEW devices with isFutureProposal: true)
+      const allProductsFromBOM: any[] = [];
+      const productsMap = new Map();
       
       freshBuildings.forEach((building: any) => {
-        if (building.centralRack) {
-          // Process all element types in central rack
-          const processElements = (elements: any[], elementTypeName: string) => {
-            if (!Array.isArray(elements)) return;
+        const collectProducts = (elements: any[], location: string) => {
+          if (!Array.isArray(elements)) return;
+          elements.forEach((element: any) => {
+            // COLLECT ALL PRODUCTS - Don't filter by isFutureProposal!
+            const products = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1 }] : []);
             
-            elements.forEach((element: any) => {
-              // ONLY include if it's marked as future proposal (NEW device)
-              if (!element.isFutureProposal) return;
-              
-              const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
-              
-              productsToProcess.forEach((productAssignment: any) => {
-                const key = productAssignment.productId;
-                if (!newProductsMap.has(key)) {
-                  newProductsMap.set(key, {
-                    id: productAssignment.productId,
-                    quantity: productAssignment.quantity,
-                    isOptional: productAssignment.isOptional || false,
-                    locations: [`Central Rack - ${elementTypeName}`]
-                  });
-                } else {
-                  const existing = newProductsMap.get(key);
-                  existing.quantity += productAssignment.quantity;
-                  existing.locations.push(`Central Rack - ${elementTypeName}`);
-                }
-              });
+            if (products.length === 0) return; // Skip if no products
+            
+            products.forEach((prod: any) => {
+              const key = prod.productId;
+              console.log(`  ✅ Found product: ${key}, quantity: ${prod.quantity}`);
+              if (!productsMap.has(key)) {
+                productsMap.set(key, { id: key, quantity: prod.quantity || 1, locations: [location] });
+              } else {
+                const existing = productsMap.get(key);
+                existing.quantity += (prod.quantity || 1);
+                existing.locations.push(location);
+              }
             });
-          };
-          
-          processElements(building.centralRack.cableTerminations, 'Cable Terminations');
-          processElements(building.centralRack.switches, 'Switches');
-          processElements(building.centralRack.routers, 'Routers');
-          processElements(building.centralRack.servers, 'Servers');
-          processElements(building.centralRack.voipPbx, 'VoIP PBX');
-          processElements(building.centralRack.headend, 'Headend');
-          processElements(building.centralRack.nvr, 'NVR');
-          processElements(building.centralRack.ata, 'ATA');
-          processElements(building.centralRack.connections, 'Connections');
+          });
+        };
+        
+        if (building.centralRack) {
+          collectProducts(building.centralRack.cableTerminations || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.switches || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.routers || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.servers || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.voipPbx || [], `${building.name} - Central Rack - VoIP PBX`);
+          collectProducts(building.centralRack.headend || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.nvr || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.ata || [], `${building.name} - Central Rack`);
         }
         
-        // Process floor racks similarly
         building.floors?.forEach((floor: any) => {
           floor.racks?.forEach((rack: any) => {
-            const processElements = (elements: any[], elementTypeName: string) => {
-              if (!Array.isArray(elements)) return;
-              
-              elements.forEach((element: any) => {
-                // ONLY include if it's marked as future proposal (NEW device)
-                if (!element.isFutureProposal) return;
-                
-                const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
-                
-                productsToProcess.forEach((productAssignment: any) => {
-                  const key = productAssignment.productId;
-                  if (!newProductsMap.has(key)) {
-                    newProductsMap.set(key, {
-                      id: productAssignment.productId,
-                      quantity: productAssignment.quantity,
-                      isOptional: productAssignment.isOptional || false,
-                      locations: [`${floor.name} - ${rack.name} - ${elementTypeName}`]
-                    });
-                  } else {
-                    const existing = newProductsMap.get(key);
-                    existing.quantity += productAssignment.quantity;
-                    existing.locations.push(`${floor.name} - ${rack.name} - ${elementTypeName}`);
-                  }
-                });
-              });
-            };
-            
-            processElements(rack.cableTerminations, 'Cable Terminations');
-            processElements(rack.switches, 'Switches');
-            processElements(rack.routers, 'Routers');
-            processElements(rack.servers, 'Servers');
-            processElements(rack.voipPbx, 'VoIP PBX');
-            processElements(rack.headend, 'Headend');
-            processElements(rack.nvr, 'NVR');
-            processElements(rack.ata, 'ATA');
-            processElements(rack.connections, 'Connections');
+            collectProducts(rack.switches || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.routers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.servers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.voipPbx || [], `${building.name} - ${floor.name} - ${rack.name}`);
           });
         });
       });
       
-      const allProducts = Array.from(newProductsMap.values());
-      console.log('📦 NEW Products collected (isFutureProposal: true only):', {
-        count: allProducts.length,
-        products: allProducts
+      // Convert to array and enrich with product details
+      Array.from(productsMap.values()).forEach((prod: any) => {
+        const fullProduct = productsList.find(p => p.id === prod.id);
+        console.log(`📦 Product: ${prod.id}`, {
+          name: fullProduct?.name,
+          quantity: prod.quantity,
+          images: fullProduct?.images?.length || 0,
+          specs: fullProduct?.specifications?.length || 0
+        });
+        
+        allProductsFromBOM.push({
+          id: prod.id,
+          name: fullProduct?.name || 'Unknown',
+          code: fullProduct?.code || '',
+          brand: fullProduct?.brand?.name || '',
+          category: fullProduct?.category?.name || '',
+          quantity: prod.quantity,
+          images: fullProduct?.images || [],
+          specifications: fullProduct?.specifications || [],
+          translations: fullProduct?.translations || [],
+          locations: prod.locations,
+        });
       });
       
-      // Check if we have NEW products
-      if (!allProducts || allProducts.length === 0) {
+      console.log('📦 Products collected:', {
+        count: allProductsFromBOM.length,
+        products: allProductsFromBOM
+      });
+      
+      if (allProductsFromBOM.length === 0) {
         toast({
-          title: "No New Products",
-          description: "No new products found to analyze. Make sure devices are marked as 'Future Proposal' mode in Step 1.",
+          title: "No Products",
+          description: "No products found. Add products to equipment in Step 2 first.",
           variant: "destructive",
         });
         return;
       }
 
-      // Prepare products data for analysis
-      const productsForAnalysis = allProducts.map((product: any) => {
-        const productDetails = getProductDetails(product.id);
-        console.log(`📝 Product ${product.id}:`, {
-          product,
-          productDetails,
-          hasImages: productDetails.images && productDetails.images.length > 0,
-          hasSpecs: productDetails.specifications && Object.keys(productDetails.specifications || {}).length > 0
-        });
-        return {
-          ...productDetails,
-          id: product.id,
-          quantity: product.quantity,
-          isOptional: product.isOptional,
-          locations: product.locations
-        };
-      });
-
       console.log('🔍 Products Analysis Data being sent:', {
-        productsCount: productsForAnalysis.length,
-        allProducts: productsForAnalysis
+        productsCount: allProductsFromBOM.length,
+        allProducts: allProductsFromBOM.map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          quantity: p.quantity, 
+          images: p.images?.length, 
+          specs: p.specifications?.length,
+          translations: p.translations?.length 
+        }))
       });
 
       const response = await fetch('/api/site-surveys/generate-products-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          products: productsForAnalysis,
+          products: allProductsFromBOM,
           siteSurveyName: buildings[0]?.name || 'Site-Survey',
-          siteSurveyId: siteSurveyId // Add for versioning
+          siteSurveyId: siteSurveyId
         })
       });
 
@@ -2076,8 +2063,8 @@ export function CentralRackStep({
       document.body.removeChild(a);
 
       toast({
-        title: "Success",
-        description: "Products Analysis document generated successfully!",
+        title: "Success!",
+        description: `Products Analysis generated with ${allProductsFromBOM.length} products!`,
       });
 
     } catch (error) {
@@ -2129,36 +2116,39 @@ export function CentralRackStep({
         return;
       }
 
-      // Prepare products with pricing
+      // Prepare products with pricing (prices optional - default to 0 if not set)
       const productsWithPricing = (freshProducts || []).map((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
-        const productDetails = getProductDetails(product.id);
+        const productDetails = productsList.find(p => p.id === product.id) || {};
         
         return {
           id: product.id,
-          name: product.name,
-          brand: productDetails.brand || product.brand,
-          category: productDetails.category || product.category,
-          quantity: product.quantity,
-          unitPrice: pricing.unitPrice,
-          margin: pricing.margin,
-          totalPrice: pricing.totalPrice,
-          isOptional: product.isOptional || false, // Include optional flag
+          name: product.name || productDetails.name || 'Unknown Product',
+          brand: productDetails.brand?.name || product.brand || '',
+          category: productDetails.category?.name || product.category || '',
+          quantity: product.quantity || 1,
+          unitPrice: pricing.unitPrice || 0,
+          margin: pricing.margin || 0,
+          totalPrice: pricing.totalPrice || 0,
+          isOptional: product.isOptional || false,
+          images: productDetails.images || [],
+          specifications: productDetails.specifications || [],
+          translations: productDetails.translations || [],
         };
       });
 
-      // Prepare services with pricing
+      // Prepare services with pricing (prices optional - default to 0 if not set)
       const servicesWithPricing = (freshServices || []).map((service: any) => {
         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         
         return {
           id: service.id,
-          name: service.name,
-          category: service.category,
-          quantity: service.quantity,
-          unitPrice: pricing.unitPrice,
-          margin: pricing.margin,
-          totalPrice: pricing.totalPrice,
+          name: service.name || 'Unknown Service',
+          category: service.category || '',
+          quantity: service.quantity || 1,
+          unitPrice: pricing.unitPrice || 0,
+          margin: pricing.margin || 0,
+          totalPrice: pricing.totalPrice || 0,
         };
       });
 
@@ -2477,7 +2467,13 @@ export function CentralRackStep({
               <FileText className="h-4 w-4" />
               Ανάλυση Νέων Προϊόντων
             </Button>
-            <Button onClick={handleGenerateProposal} variant="default" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+            <Button 
+              onClick={handleGenerateProposal} 
+              variant="default" 
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              disabled={Object.keys(productsByBrand || {}).length === 0}
+              title={Object.keys(productsByBrand || {}).length === 0 ? "Add products in Step 2 first" : "Generate Proposal - prices optional"}
+            >
               <FileText className="h-4 w-4" />
               Προσφορά ERP
             </Button>
@@ -2551,7 +2547,7 @@ export function CentralRackStep({
                     {(brandProducts || []).map((product) => {
                       const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                       return (
-                        <tr key={product.id} className="border-b hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <tr key={product.id} className="border-b hover:bg-gray-50">
                           {visibleColumns.product && (
                             <td className="p-2">
                               <div className="flex items-center gap-2">
@@ -2566,7 +2562,7 @@ export function CentralRackStep({
                                   }}
                                 />
                                 ) : null}
-                                <div className={`w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center ${productsList.find(p => p.id === product.id)?.images?.[0]?.url ? 'hidden' : ''}`}>
+                                <div className={`w-8 h-8 bg-blue-100 dark:bg-blue-200 rounded-full flex items-center justify-center ${productsList.find(p => p.id === product.id)?.images?.[0]?.url ? 'hidden' : ''}`}>
                                   <Package className="h-4 w-4 text-blue-600" />
                                 </div>
                                 <div>
@@ -2787,7 +2783,7 @@ export function CentralRackStep({
                   {collectedServices.map((service) => {
                     const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                     return (
-                      <tr key={service.id} className="border-b hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <tr key={service.id} className="border-b hover:bg-gray-50">
                         <td className="p-2">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
