@@ -971,6 +971,92 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
     });
   };
 
+  const addATA = () => {
+    if (!building.centralRack) return;
+    const newATA = {
+      id: `ata-${Date.now()}`,
+      brand: '',
+      model: '',
+      ports: 0,
+      connection: '',
+      services: [],
+    };
+    updateCentralRack({ ata: newATA });
+    toggleCentralRackSection('ata'); // Auto-expand ATA section
+  };
+
+  const addNVR = () => {
+    if (!building.centralRack) return;
+    const newNVR = {
+      id: `nvr-${Date.now()}`,
+      brand: '',
+      model: '',
+      channels: 0,
+      storage: '',
+      services: [],
+    };
+    updateCentralRack({ nvr: newNVR });
+    toggleCentralRackSection('nvr'); // Auto-expand NVR section
+  };
+
+  const addHeadend = () => {
+    if (!building.centralRack) return;
+    const newHeadend = {
+      id: `headend-${Date.now()}`,
+      brand: '',
+      model: '',
+      channels: 0,
+      services: [],
+    };
+    updateCentralRack({ headend: newHeadend });
+    toggleCentralRackSection('headend'); // Auto-expand Headend section
+  };
+
+  // Delete functions for central rack equipment
+  const deleteSwitch = (switchId: string) => {
+    if (!building.centralRack) return;
+    const updatedSwitches = building.centralRack.switches.filter(sw => sw.id !== switchId);
+    updateCentralRack({ switches: updatedSwitches });
+  };
+
+  const deleteRouter = (routerId: string) => {
+    if (!building.centralRack) return;
+    const updatedRouters = building.centralRack.routers.filter(r => r.id !== routerId);
+    updateCentralRack({ routers: updatedRouters });
+  };
+
+  const deleteServer = (serverId: string) => {
+    if (!building.centralRack) return;
+    const updatedServers = building.centralRack.servers.filter(s => s.id !== serverId);
+    updateCentralRack({ servers: updatedServers });
+  };
+
+  const deletePBX = () => {
+    if (!building.centralRack) return;
+    updateCentralRack({ pbx: undefined });
+  };
+
+  const deleteATA = () => {
+    if (!building.centralRack) return;
+    updateCentralRack({ ata: undefined });
+  };
+
+  const deleteNVR = () => {
+    if (!building.centralRack) return;
+    updateCentralRack({ nvr: undefined });
+  };
+
+  const deleteHeadend = () => {
+    if (!building.centralRack) return;
+    updateCentralRack({ headend: undefined });
+  };
+
+  const deleteConnection = (connectionId: string) => {
+    if (!building.centralRack) return;
+    const updatedConnections = building.centralRack.connections.filter(c => c.id !== connectionId);
+    updateCentralRack({ connections: updatedConnections });
+  };
+
   // Update cable termination
   const updateCableTermination = (terminationId: string, updates: Partial<CableTerminationData>) => {
     if (!building.centralRack) return;
@@ -1220,9 +1306,21 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                         <Phone className="h-4 w-4 mr-2" />
                         PBX System
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); addATA(); }}>
+                        <Phone className="h-4 w-4 mr-2" />
+                        ATA Device
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); addServer(); }}>
                         <Server className="h-4 w-4 mr-2" />
                         Server
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); addNVR(); }}>
+                        <Camera className="h-4 w-4 mr-2" />
+                        NVR System
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); addHeadend(); }}>
+                        <Monitor className="h-4 w-4 mr-2" />
+                        Headend System
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); addConnection(); }}>
                         <Cable className="h-4 w-4 mr-2" />
@@ -1908,6 +2006,18 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                           <div className="pl-4 space-y-3">
                             {centralRack.switches.map((sw, swIdx) => (
                               <Card key={sw.id} className="p-3 bg-muted/30">
+                                {/* Delete Button */}
+                                <div className="flex justify-end mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => deleteSwitch(sw.id)}
+                                    title="Delete Switch"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                                 {/* Switch Basic Info */}
                                 <div className="grid grid-cols-3 gap-3 mb-3">
                                   <div>
@@ -2630,6 +2740,18 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                           <div className="pl-4 space-y-3">
                             {centralRack.routers.map((router, routerIdx) => (
                               <Card key={router.id} className="p-3 bg-muted/30">
+                                {/* Delete Button */}
+                                <div className="flex justify-end mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => deleteRouter(router.id)}
+                                    title="Delete Router"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                                 {/* Router Basic Info */}
                                 <div className="grid grid-cols-2 gap-3 mb-3">
                                   <div>
@@ -3267,6 +3389,18 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                           <div className="pl-4 space-y-3">
                             {building.centralRack.servers.map((server, serverIdx) => (
                               <Card key={server.id} className="p-3">
+                                {/* Delete Button */}
+                                <div className="flex justify-end mb-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => deleteServer(server.id)}
+                                    title="Delete Server"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                                 {/* Server Basic Info */}
                                 <div className="grid grid-cols-12 gap-3 mb-3">
                                   <div className="col-span-4">
