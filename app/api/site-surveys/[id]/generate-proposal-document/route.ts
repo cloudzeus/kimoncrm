@@ -76,6 +76,7 @@ export async function POST(
           },
           orderBy: { order: 'asc' },
         },
+        translations: true,
         brand: true,
         category: true,
       },
@@ -92,7 +93,7 @@ export async function POST(
     // 1. COVER PAGE
     // ========================================
     const customerName = siteSurvey.customer?.name || 'N/A';
-    const projectName = siteSurvey.title || siteSurvey.siteName || 'Site Survey';
+    const projectName = siteSurvey.title || 'Site Survey';
 
     allChildren.push(
       new Paragraph({
@@ -288,8 +289,8 @@ export async function POST(
       }
 
       // Add each category as a separate table
-      for (const [category, categoryProducts] of Object.entries(productsByCategory) as [string, any[]]) {
-        if (categoryProducts.length === 0) continue;
+      for (const [category, categoryProducts] of Object.entries(productsByCategory)) {
+        if (!Array.isArray(categoryProducts) || categoryProducts.length === 0) continue;
 
         // Category Title
         tables.push(
@@ -926,12 +927,13 @@ export async function POST(
       }
 
       // Product Description
-      if (fullProduct?.description) {
+      const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      if (greekTranslation?.description) {
         allChildren.push(
           new Paragraph({
             children: [
               new TextRun({
-                text: fullProduct.description,
+                text: greekTranslation.description,
                 size: 22,
               }),
             ],
@@ -1047,7 +1049,7 @@ export async function POST(
     const buffer = await Packer.toBuffer(doc);
 
     // Save to database with versioning
-    const baseFileName = `Proposal_${siteSurvey.projectName || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
+    const baseFileName = `Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
     
     // Manage versions (max 10)
     const { nextVersion } = await manageDocumentVersions({
@@ -1064,11 +1066,11 @@ export async function POST(
     console.log('📤 Uploading Proposal Document to BunnyCDN:', versionedFilename);
 
     // Upload to BunnyCDN
-    const uploadResult = await uploadFileToBunny({
-      buffer: Buffer.from(buffer),
-      filename: versionedFilename,
-      folder: `site-surveys/${siteSurveyId}`,
-    });
+    const uploadResult = await uploadFileToBunny(
+      Buffer.from(buffer),
+      `site-surveys/${siteSurveyId}/${versionedFilename}`,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
 
     console.log('✅ Proposal Document uploaded:', uploadResult.url);
 
