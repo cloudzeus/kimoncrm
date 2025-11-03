@@ -1077,20 +1077,19 @@ export async function POST(
     // Save file record to database
     const fileRecord = await prisma.file.create({
       data: {
-        filename: versionedFilename,
+        name: versionedFilename,
         url: uploadResult.url,
-        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         size: buffer.byteLength,
-        entityType: 'site-survey',
+        type: 'SITESURVEY',
         entityId: siteSurveyId,
-        uploadedById: session.user.id,
       },
     });
 
     console.log('✅ Proposal Document file record created:', fileRecord.id);
 
     // Return the document as a downloadable file
-    return new NextResponse(buffer, {
+    return new NextResponse(Buffer.from(buffer), {
       status: 200,
       headers: {
         'Content-Type':
