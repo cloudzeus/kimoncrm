@@ -297,8 +297,64 @@ export async function DELETE(
 
     const { id } = await params;
 
-    await prisma.lead.delete({
+    // Check for related records that would prevent deletion
+    const relatedData = await prisma.lead.findUnique({
       where: { id },
+      select: {
+        quotes: { select: { id: true } },
+        rfps: { select: { id: true } },
+        projects: { select: { id: true } },
+        proposals: { select: { id: true } },
+        opportunities: { select: { id: true } },
+      },
+    });
+
+    if (!relatedData) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    // If there are important related records, prevent deletion
+    const hasImportantRecords = 
+      relatedData.quotes.length > 0 ||
+      relatedData.rfps.length > 0 ||
+      relatedData.projects.length > 0 ||
+      relatedData.proposals.length > 0 ||
+      relatedData.opportunities.length > 0;
+
+    if (hasImportantRecords) {
+      return NextResponse.json(
+        { 
+          error: "Cannot delete lead with related quotes, RFPs, projects, proposals, or opportunities. Please delete or unlink them first.",
+          details: {
+            quotes: relatedData.quotes.length,
+            rfps: relatedData.rfps.length,
+            projects: relatedData.projects.length,
+            proposals: relatedData.proposals.length,
+            opportunities: relatedData.opportunities.length,
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    // Use transaction to clean up related records that allow null leadId
+    await prisma.$transaction(async (tx) => {
+      // Unlink site survey if exists (leadId is nullable)
+      await tx.siteSurvey.updateMany({
+        where: { leadId: id },
+        data: { leadId: null },
+      });
+
+      // Unlink email threads (leadId is nullable)
+      await tx.emailThread.updateMany({
+        where: { leadId: id },
+        data: { leadId: null },
+      });
+
+      // Delete the lead (cascade will handle LeadContacts, LeadTasks, LeadNotes, LeadParticipants, LeadStatusChanges)
+      await tx.lead.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({ success: true });
