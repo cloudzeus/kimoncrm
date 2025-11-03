@@ -647,7 +647,7 @@ export function CentralRackStep({
     const productsMap = new Map<string, ProductData>();
     const servicesMap = new Map<string, ServiceData>();
 
-    buildingsData.forEach(building => {
+    buildingsData.forEach((building: any) => {
       // Central rack
       if (building.centralRack) {
         building.centralRack.cableTerminations?.forEach((term: any) => {
@@ -874,10 +874,10 @@ export function CentralRackStep({
       }
 
       // Floors
-      building.floors.forEach(floor => {
+      building.floors.forEach((floor: any) => {
         const floorMultiplier = getFloorMultiplier(floor);
         
-        floor.racks?.forEach(rack => {
+        floor.racks?.forEach((rack: any) => {
           rack.cableTerminations?.forEach((term: any) => {
             // Support new products array format
             const productsToProcess = term.products || (term.productId ? [{ productId: term.productId, quantity: term.quantity || 1 }] : []);
