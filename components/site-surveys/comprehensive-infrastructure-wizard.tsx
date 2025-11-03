@@ -1143,44 +1143,54 @@ export function ComprehensiveInfrastructureWizard({
           });
 
           // Servers
-          building.centralRack.servers?.forEach(server => {
-            if (server.isFutureProposal) {
-              addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
-              addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
-            }
-          });
+          if (Array.isArray(building.centralRack.servers)) {
+            building.centralRack.servers.forEach(server => {
+              if (server.isFutureProposal) {
+                addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
+                addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
+              }
+            });
+          }
 
           // VoIP PBX
-          building.centralRack.voipPbx?.forEach((pbx: any) => {
-            if (pbx.isFutureProposal) {
-              addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
-              addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
-            }
-          });
+          if (Array.isArray(building.centralRack.voipPbx)) {
+            building.centralRack.voipPbx.forEach((pbx: any) => {
+              if (pbx.isFutureProposal) {
+                addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
+                addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
+              }
+            });
+          }
 
           // Headend
-          building.centralRack.headend?.forEach((headend: any) => {
-            if (headend.isFutureProposal) {
-              addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
-              addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
-            }
-          });
+          if (Array.isArray(building.centralRack.headend)) {
+            building.centralRack.headend.forEach((headend: any) => {
+              if (headend.isFutureProposal) {
+                addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
+                addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
+              }
+            });
+          }
 
           // NVR
-          building.centralRack.nvr?.forEach((nvr: any) => {
-            if (nvr.isFutureProposal) {
-              addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
-              addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
-            }
-          });
+          if (Array.isArray(building.centralRack.nvr)) {
+            building.centralRack.nvr.forEach((nvr: any) => {
+              if (nvr.isFutureProposal) {
+                addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
+                addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
+              }
+            });
+          }
 
           // ATA
-          building.centralRack.ata?.forEach((ata: any) => {
-            if (ata.isFutureProposal) {
-              addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
-              addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
-            }
-          });
+          if (Array.isArray(building.centralRack.ata)) {
+            building.centralRack.ata.forEach((ata: any) => {
+              if (ata.isFutureProposal) {
+                addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
+                addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
+              }
+            });
+          }
 
           // Connections
           building.centralRack.connections?.forEach((conn: any) => {
@@ -1219,44 +1229,54 @@ export function ComprehensiveInfrastructureWizard({
             });
 
             // Rack servers
-            rack.servers?.forEach((server: any) => {
-              if (server.isFutureProposal) {
-                addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
-                addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
-              }
-            });
+            if (Array.isArray(rack.servers)) {
+              rack.servers.forEach((server: any) => {
+                if (server.isFutureProposal) {
+                  addProductsFromElement(server, allProducts, productPricingMap, productsMap, 'Server');
+                  addServicesFromElement(server, allServices, servicePricingMap, servicesMap);
+                }
+              });
+            }
 
             // Rack VoIP PBX
-            rack.voipPbx?.forEach((pbx: any) => {
-              if (pbx.isFutureProposal) {
-                addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
-                addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
-              }
-            });
+            if (Array.isArray(rack.voipPbx)) {
+              rack.voipPbx.forEach((pbx: any) => {
+                if (pbx.isFutureProposal) {
+                  addProductsFromElement(pbx, allProducts, productPricingMap, productsMap, 'VoIP PBX');
+                  addServicesFromElement(pbx, allServices, servicePricingMap, servicesMap);
+                }
+              });
+            }
 
             // Rack Headend
-            rack.headend?.forEach((headend: any) => {
-              if (headend.isFutureProposal) {
-                addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
-                addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
-              }
-            });
+            if (Array.isArray(rack.headend)) {
+              rack.headend.forEach((headend: any) => {
+                if (headend.isFutureProposal) {
+                  addProductsFromElement(headend, allProducts, productPricingMap, productsMap, 'Headend');
+                  addServicesFromElement(headend, allServices, servicePricingMap, servicesMap);
+                }
+              });
+            }
 
             // Rack NVR
-            rack.nvr?.forEach((nvr: any) => {
-              if (nvr.isFutureProposal) {
-                addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
-                addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
-              }
-            });
+            if (Array.isArray(rack.nvr)) {
+              rack.nvr.forEach((nvr: any) => {
+                if (nvr.isFutureProposal) {
+                  addProductsFromElement(nvr, allProducts, productPricingMap, productsMap, 'NVR');
+                  addServicesFromElement(nvr, allServices, servicePricingMap, servicesMap);
+                }
+              });
+            }
 
             // Rack ATA
-            rack.ata?.forEach((ata: any) => {
-              if (ata.isFutureProposal) {
-                addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
-                addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
-              }
-            });
+            if (Array.isArray(rack.ata)) {
+              rack.ata.forEach((ata: any) => {
+                if (ata.isFutureProposal) {
+                  addProductsFromElement(ata, allProducts, productPricingMap, productsMap, 'ATA');
+                  addServicesFromElement(ata, allServices, servicePricingMap, servicesMap);
+                }
+              });
+            }
 
             // Rack Connections
             rack.connections?.forEach((conn: any) => {
