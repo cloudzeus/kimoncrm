@@ -1924,16 +1924,104 @@ export function CentralRackStep({
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
       console.log('📦 Fresh buildings data from DB:', freshBuildings);
       
-      // STEP 3: Re-collect ALL products (not just future proposal)
-      const { products: allProducts } = collectAssignedItemsFromBuildings(freshBuildings);
+      // STEP 3: Collect ONLY products from NEW devices (isFutureProposal: true)
+      const newProductsMap = new Map<string, any>();
       
-      console.log('📦 ALL Products collected for analysis:', allProducts);
+      freshBuildings.forEach((building: any) => {
+        if (building.centralRack) {
+          // Process all element types in central rack
+          const processElements = (elements: any[], elementTypeName: string) => {
+            if (!Array.isArray(elements)) return;
+            
+            elements.forEach((element: any) => {
+              // ONLY include if it's marked as future proposal (NEW device)
+              if (!element.isFutureProposal) return;
+              
+              const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
+              
+              productsToProcess.forEach((productAssignment: any) => {
+                const key = productAssignment.productId;
+                if (!newProductsMap.has(key)) {
+                  newProductsMap.set(key, {
+                    id: productAssignment.productId,
+                    quantity: productAssignment.quantity,
+                    isOptional: productAssignment.isOptional || false,
+                    locations: [`Central Rack - ${elementTypeName}`]
+                  });
+                } else {
+                  const existing = newProductsMap.get(key);
+                  existing.quantity += productAssignment.quantity;
+                  existing.locations.push(`Central Rack - ${elementTypeName}`);
+                }
+              });
+            });
+          };
+          
+          processElements(building.centralRack.cableTerminations, 'Cable Terminations');
+          processElements(building.centralRack.switches, 'Switches');
+          processElements(building.centralRack.routers, 'Routers');
+          processElements(building.centralRack.servers, 'Servers');
+          processElements(building.centralRack.voipPbx, 'VoIP PBX');
+          processElements(building.centralRack.headend, 'Headend');
+          processElements(building.centralRack.nvr, 'NVR');
+          processElements(building.centralRack.ata, 'ATA');
+          processElements(building.centralRack.connections, 'Connections');
+        }
+        
+        // Process floor racks similarly
+        building.floors?.forEach((floor: any) => {
+          floor.racks?.forEach((rack: any) => {
+            const processElements = (elements: any[], elementTypeName: string) => {
+              if (!Array.isArray(elements)) return;
+              
+              elements.forEach((element: any) => {
+                // ONLY include if it's marked as future proposal (NEW device)
+                if (!element.isFutureProposal) return;
+                
+                const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
+                
+                productsToProcess.forEach((productAssignment: any) => {
+                  const key = productAssignment.productId;
+                  if (!newProductsMap.has(key)) {
+                    newProductsMap.set(key, {
+                      id: productAssignment.productId,
+                      quantity: productAssignment.quantity,
+                      isOptional: productAssignment.isOptional || false,
+                      locations: [`${floor.name} - ${rack.name} - ${elementTypeName}`]
+                    });
+                  } else {
+                    const existing = newProductsMap.get(key);
+                    existing.quantity += productAssignment.quantity;
+                    existing.locations.push(`${floor.name} - ${rack.name} - ${elementTypeName}`);
+                  }
+                });
+              });
+            };
+            
+            processElements(rack.cableTerminations, 'Cable Terminations');
+            processElements(rack.switches, 'Switches');
+            processElements(rack.routers, 'Routers');
+            processElements(rack.servers, 'Servers');
+            processElements(rack.voipPbx, 'VoIP PBX');
+            processElements(rack.headend, 'Headend');
+            processElements(rack.nvr, 'NVR');
+            processElements(rack.ata, 'ATA');
+            processElements(rack.connections, 'Connections');
+          });
+        });
+      });
       
-      // Check if we have products
+      const allProducts = Array.from(newProductsMap.values());
+      console.log('📦 NEW Products collected (isFutureProposal: true only):', {
+        count: allProducts.length,
+        products: allProducts
+      });
+      
+      // Check if we have NEW products
       if (!allProducts || allProducts.length === 0) {
         toast({
-          title: "No Products",
-          description: "No products found to analyze. Please add products in Step 2 first.",
+          title: "No New Products",
+          description: "No new products found to analyze. Make sure devices are marked as 'Future Proposal' mode in Step 1.",
           variant: "destructive",
         });
         return;
@@ -1953,7 +2041,7 @@ export function CentralRackStep({
           id: product.id,
           quantity: product.quantity,
           isOptional: product.isOptional,
-          location: product.location
+          locations: product.locations
         };
       });
 
