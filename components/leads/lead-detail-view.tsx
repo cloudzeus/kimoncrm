@@ -66,6 +66,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,11 +78,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { EnhancedLeadEmailsTab } from "./enhanced-lead-emails-tab";
 import { EnhancedLeadTasksKanban } from "./enhanced-lead-tasks-kanban";
 import { LeadNotesTimeline } from "./lead-notes-timeline";
 import { LeadParticipantsManager } from "./lead-participants-manager";
 import { ProposalGenerationModal } from "../proposals/proposal-generation-modal";
+import { LeadEmailComposeDialog } from "./lead-email-compose-dialog";
 
 interface LeadDetailViewProps {
   lead: any;
@@ -110,6 +113,8 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const [fileDescription, setFileDescription] = useState("");
   const [editingFile, setEditingFile] = useState<any>(null);
   const [editFileDescription, setEditFileDescription] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [deletingFiles, setDeletingFiles] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(lead.status);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
@@ -130,6 +135,10 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
 
   // Proposal generation dialog state
   const [showProposalDialog, setShowProposalDialog] = useState(false);
+
+  // Email compose dialog state
+  const [showEmailComposeDialog, setShowEmailComposeDialog] = useState(false);
+  const [prefilledContact, setPrefilledContact] = useState<any>(null);
 
   // Task statistics state
   const [taskStats, setTaskStats] = useState({ notStarted: 0, inProgress: 0, completed: 0 });
@@ -422,11 +431,68 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
       if (res.ok) {
         toast.success("File deleted successfully");
         fetchFiles();
+        // Remove from selected files if it was selected
+        setSelectedFiles(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(fileId);
+          return newSet;
+        });
       } else {
         throw new Error("Delete failed");
       }
     } catch (error) {
       toast.error("Failed to delete file");
+    }
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllFiles = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
+    }
+  };
+
+  const handleDeleteSelectedFiles = async () => {
+    if (selectedFiles.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.size} file(s)?`)) return;
+
+    setDeletingFiles(true);
+    try {
+      const deletePromises = Array.from(selectedFiles).map(fileId =>
+        fetch(`/api/files/${fileId}`, { method: "DELETE" })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const successCount = results.filter(r => r.ok).length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast.success(`${successCount} file(s) deleted successfully`);
+      }
+      if (failCount > 0) {
+        toast.error(`${failCount} file(s) failed to delete`);
+      }
+
+      fetchFiles();
+      setSelectedFiles(new Set());
+    } catch (error) {
+      toast.error("Failed to delete files");
+    } finally {
+      setDeletingFiles(false);
     }
   };
 
@@ -838,11 +904,38 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
 
             <TabsContent value="files" className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold">Files</h3>
-                <Button onClick={() => setShowUploadDialog(true)} size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload File
-                </Button>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-semibold">Files</h3>
+                  {files.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="selectAllFiles"
+                        checked={selectedFiles.size === files.length && files.length > 0}
+                        onCheckedChange={toggleAllFiles}
+                      />
+                      <Label htmlFor="selectAllFiles" className="text-sm cursor-pointer">
+                        Select All ({selectedFiles.size}/{files.length})
+                      </Label>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {selectedFiles.size > 0 && (
+                    <Button 
+                      onClick={handleDeleteSelectedFiles} 
+                      size="sm"
+                      variant="destructive"
+                      disabled={deletingFiles}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected ({selectedFiles.size})
+                    </Button>
+                  )}
+                  <Button onClick={() => setShowUploadDialog(true)} size="sm">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload File
+                  </Button>
+                </div>
               </div>
               
               {files.length === 0 ? (
@@ -850,10 +943,20 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
               ) : (
                 <div className="grid gap-2">
                   {files.map((file: any) => (
-                    <Card key={file.id} className={file.source !== 'Lead Files' ? 'border-l-4 border-l-blue-500' : ''}>
+                    <Card 
+                      key={file.id} 
+                      className={cn(
+                        file.source !== 'Lead Files' ? 'border-l-4 border-l-blue-500' : '',
+                        selectedFiles.has(file.id) && "bg-blue-50 border-blue-200"
+                      )}
+                    >
                       <CardContent className="flex items-center justify-between py-4">
                         <div className="flex items-center gap-3 flex-1">
-                          <File className="h-5 w-5 text-muted-foreground" />
+                          <Checkbox
+                            checked={selectedFiles.has(file.id)}
+                            onCheckedChange={() => toggleFileSelection(file.id)}
+                          />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <div className="font-medium">{file.name}</div>
@@ -982,6 +1085,19 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                           </div>
                         </div>
                         <div className="flex gap-2">
+                          {contact.email && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setPrefilledContact(contact);
+                                setShowEmailComposeDialog(true);
+                              }}
+                              title="Send email to this contact"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          )}
                           {!contact.linkedContact && (
                             <Button
                               variant="outline"
@@ -1300,6 +1416,21 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Email Compose Dialog */}
+      <LeadEmailComposeDialog
+        open={showEmailComposeDialog}
+        onOpenChange={setShowEmailComposeDialog}
+        leadId={lead.id}
+        leadNumber={lead.leadNumber || ""}
+        leadTitle={lead.title}
+        prefilledContact={prefilledContact}
+        customerId={lead.customerId}
+        customerName={lead.customer?.name}
+        onEmailSent={() => {
+          setPrefilledContact(null);
+        }}
+      />
     </div>
   );
 }

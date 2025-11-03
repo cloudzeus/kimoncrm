@@ -424,27 +424,32 @@ export function AdminDashboardClient({ userId, statistics, allData, userData }: 
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
-                                <Badge className={cn("text-xs", TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS])}>
+                                <Badge className={cn("text-[9px]", TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS])}>
                                   {task.status.replace("_", " ")}
                                 </Badge>
                                 {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "COMPLETED" && (
-                                  <Badge variant="destructive" className="text-xs">OVERDUE</Badge>
+                                  <Badge variant="destructive" className="text-[9px]">OVERDUE</Badge>
                                 )}
                               </div>
-                              <h4 className="font-semibold truncate">{task.title}</h4>
+                              <h4 className="font-semibold text-sm truncate">{task.title}</h4>
                               {task.lead && (
-                                <p className="text-sm text-muted-foreground truncate">
+                                <p className="text-xs text-muted-foreground truncate mt-1">
                                   Lead: {task.lead.title}
                                 </p>
                               )}
                               {task.assignedTo && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
                                   <User className="h-3 w-3" />
                                   {task.assignedTo.name || task.assignedTo.email}
                                 </p>
                               )}
                               {task.dueDate && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <p className={cn(
+                                  "text-xs flex items-center gap-1 mt-1 font-medium",
+                                  new Date(task.dueDate) < new Date() && task.status !== "COMPLETED"
+                                    ? "text-red-600"
+                                    : "text-emerald-600"
+                                )}>
                                   <Calendar className="h-3 w-3" />
                                   {format(new Date(task.dueDate), "MMM dd, yyyy")}
                                 </p>
@@ -495,27 +500,32 @@ export function AdminDashboardClient({ userId, statistics, allData, userData }: 
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
-                                <Badge className={cn("text-xs", TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS])}>
+                                <Badge className={cn("text-[9px]", TASK_STATUS_COLORS[task.status as keyof typeof TASK_STATUS_COLORS])}>
                                   {task.status}
                                 </Badge>
                                 {task.dueAt && new Date(task.dueAt) < new Date() && task.status !== "Done" && (
-                                  <Badge variant="destructive" className="text-xs">OVERDUE</Badge>
+                                  <Badge variant="destructive" className="text-[9px]">OVERDUE</Badge>
                                 )}
                               </div>
-                              <h4 className="font-semibold truncate">{task.title}</h4>
+                              <h4 className="font-semibold text-sm truncate">{task.title}</h4>
                               {task.project && (
-                                <p className="text-sm text-muted-foreground truncate">
+                                <p className="text-xs text-muted-foreground truncate mt-1">
                                   Project: {task.project.name}
                                 </p>
                               )}
                               {task.assignee && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
                                   <User className="h-3 w-3" />
                                   {task.assignee.name || task.assignee.email}
                                 </p>
                               )}
                               {task.dueAt && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <p className={cn(
+                                  "text-xs flex items-center gap-1 mt-1 font-medium",
+                                  new Date(task.dueAt) < new Date() && task.status !== "Done"
+                                    ? "text-red-600"
+                                    : "text-emerald-600"
+                                )}>
                                   <Calendar className="h-3 w-3" />
                                   {format(new Date(task.dueAt), "MMM dd, yyyy")}
                                 </p>

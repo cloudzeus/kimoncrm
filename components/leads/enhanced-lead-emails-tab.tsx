@@ -15,8 +15,11 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Users
+  Users,
+  Send,
+  RefreshCw,
 } from "lucide-react";
+import { LeadEmailComposeDialog } from "./lead-email-compose-dialog";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -71,6 +74,8 @@ export function EnhancedLeadEmailsTab({
   const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [composeDialogOpen, setComposeDialogOpen] = useState(false);
+  const [leadTitle, setLeadTitle] = useState("");
 
   const fetchEmails = async () => {
     setLoading(true);
@@ -81,6 +86,9 @@ export function EnhancedLeadEmailsTab({
       console.log("Email search response:", data);
       setEmailThreads(data.threads || []);
       setSearchCriteria(data.searchCriteria);
+      if (data.leadTitle) {
+        setLeadTitle(data.leadTitle);
+      }
     } catch (error) {
       console.error("Error fetching emails:", error);
       toast.error("Failed to fetch emails");
@@ -152,6 +160,33 @@ export function EnhancedLeadEmailsTab({
 
   return (
     <div className="space-y-4">
+      {/* Header with Compose Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">EMAIL COMMUNICATIONS</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setComposeDialogOpen(true)}
+            className="gap-2"
+          >
+            <Send className="h-4 w-4" />
+            COMPOSE EMAIL
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchEmails}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </div>
+
       {/* Search Info */}
       {searchCriteria && (
         <Card className="p-4">
@@ -347,6 +382,16 @@ export function EnhancedLeadEmailsTab({
           })}
         </div>
       )}
+
+      {/* Compose Email Dialog */}
+      <LeadEmailComposeDialog
+        open={composeDialogOpen}
+        onOpenChange={setComposeDialogOpen}
+        leadId={leadId}
+        leadNumber={leadNumber}
+        leadTitle={leadTitle}
+        onEmailSent={fetchEmails}
+      />
 
       {/* Email View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>

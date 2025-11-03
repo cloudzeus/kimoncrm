@@ -86,6 +86,7 @@ export async function GET(
 
     return NextResponse.json({ 
       threads: emailThreads,
+      leadTitle: lead.title,
       searchCriteria: {
         leadNumber: lead.leadNumber,
         emailAddresses: Array.from(emailAddresses),
