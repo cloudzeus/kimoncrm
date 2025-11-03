@@ -742,7 +742,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.routers?.forEach(router => {
+        building.centralRack.routers?.forEach((router: any) => {
           // Support new products array format
           const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: router.quantity || 1 }] : []);
           
@@ -768,7 +768,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.servers?.forEach(server => {
+        building.centralRack.servers?.forEach((server: any) => {
           // Support new products array format
           const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: server.quantity || 1 }] : []);
           
@@ -794,7 +794,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.voipPbx?.forEach(pbx => {
+        building.centralRack.voipPbx?.forEach((pbx: any) => {
           // Support new products array format
           const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: pbx.quantity || 1 }] : []);
           
@@ -820,7 +820,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.headend?.forEach(headend => {
+        building.centralRack.headend?.forEach((headend: any) => {
           // Support new products array format
           const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: headend.quantity || 1 }] : []);
           
@@ -846,7 +846,7 @@ export function CentralRackStep({
           });
         });
 
-        building.centralRack.nvr?.forEach(nvr => {
+        building.centralRack.nvr?.forEach((nvr: any) => {
           // Support new products array format
           const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: nvr.quantity || 1 }] : []);
           
@@ -970,7 +970,7 @@ export function CentralRackStep({
             });
           });
 
-          rack.routers?.forEach(router => {
+          rack.routers?.forEach((router: any) => {
             // Support new products array format
             const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: 1 }] : []);
             
@@ -1017,7 +1017,7 @@ export function CentralRackStep({
           });
 
           if (Array.isArray(rack.servers)) {
-            rack.servers.forEach(server => {
+            rack.servers.forEach((server: any) => {
             // Support new products array format
             const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: 1 }] : []);
             
@@ -1065,7 +1065,7 @@ export function CentralRackStep({
           }
 
           if (Array.isArray(rack.voipPbx)) {
-            rack.voipPbx.forEach(pbx => {
+            rack.voipPbx.forEach((pbx: any) => {
             // Support new products array format
             const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
             
@@ -1113,7 +1113,7 @@ export function CentralRackStep({
           }
 
           if (Array.isArray(rack.headend)) {
-            rack.headend.forEach(headend => {
+            rack.headend.forEach((headend: any) => {
             // Support new products array format
             const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: 1 }] : []);
             
@@ -1161,7 +1161,7 @@ export function CentralRackStep({
           }
 
           if (Array.isArray(rack.nvr)) {
-            rack.nvr.forEach(nvr => {
+            rack.nvr.forEach((nvr: any) => {
             // Support new products array format
             const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: 1 }] : []);
             
@@ -1209,7 +1209,7 @@ export function CentralRackStep({
           }
 
           if (Array.isArray(rack.ata)) {
-            rack.ata.forEach(ata => {
+            rack.ata.forEach((ata: any) => {
             // Support new products array format
             const productsToProcess = ata.products || (ata.productId ? [{ productId: ata.productId, quantity: 1 }] : []);
             
@@ -1256,7 +1256,7 @@ export function CentralRackStep({
             });
           }
 
-          rack.connections?.forEach(conn => {
+          rack.connections?.forEach((conn: any) => {
             // Support new products array format
             const productsToProcess = conn.products || (conn.productId ? [{ productId: conn.productId, quantity: conn.quantity || 1 }] : []);
             
@@ -1303,11 +1303,11 @@ export function CentralRackStep({
           });
         });
 
-        floor.rooms.forEach(room => {
+        floor.rooms.forEach((room: any) => {
           const roomMultiplier = getRoomMultiplier(room);
           const totalMultiplier = getTotalMultiplier(floor, room);
           
-          room.devices?.forEach(device => {
+          room.devices?.forEach((device: any) => {
             if (device.productId) {
               const key = device.productId;
               if (!productsMap.has(key)) {
@@ -1372,7 +1372,7 @@ export function CentralRackStep({
             });
           });
 
-          room.outlets?.forEach(outlet => {
+          room.outlets?.forEach((outlet: any) => {
             if (outlet.productId) {
               const key = outlet.productId;
               if (!productsMap.has(key)) {
@@ -1437,7 +1437,7 @@ export function CentralRackStep({
             });
           });
 
-          room.connections?.forEach(conn => {
+          room.connections?.forEach((conn: any) => {
             if (conn.productId) {
               const key = conn.productId;
               if (!productsMap.has(key)) {
