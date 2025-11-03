@@ -438,6 +438,11 @@ export function EquipmentAssignmentStep({
 
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
+    
+    // Auto-save after deletion
+    setTimeout(() => {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }, 500);
   };
 
   const handleDeleteService = (buildingId: string, elementInfo: any, serviceId: string) => {
@@ -523,6 +528,11 @@ export function EquipmentAssignmentStep({
 
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
+    
+    // Auto-save after deletion
+    setTimeout(() => {
+      autoSaveInfrastructure(siteSurveyId, updatedBuildings);
+    }, 500);
   };
 
   // Toggle optional status for a product

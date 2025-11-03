@@ -14,7 +14,17 @@ export async function GET(request: NextRequest) {
     const roles = searchParams.getAll('roles');
     const departments = searchParams.getAll('departments');
     
-    // Handle comma-separated values
+    // Handle comma-separated values for roles
+    const parsedRoles: string[] = [];
+    roles.forEach(role => {
+      if (role.includes(',')) {
+        parsedRoles.push(...role.split(',').map(r => r.trim()));
+      } else {
+        parsedRoles.push(role);
+      }
+    });
+    
+    // Handle comma-separated values for departments
     const parsedDepartments: string[] = [];
     departments.forEach(dept => {
       if (dept.includes(',')) {
@@ -29,8 +39,8 @@ export async function GET(request: NextRequest) {
       isActive: true,
     };
 
-    if (roles.length > 0) {
-      where.role = { in: roles };
+    if (parsedRoles.length > 0) {
+      where.role = { in: parsedRoles };
     }
 
     if (parsedDepartments.length > 0) {
