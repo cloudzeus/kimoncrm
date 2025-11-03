@@ -1924,78 +1924,16 @@ export function CentralRackStep({
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
       console.log('📦 Fresh buildings data from DB:', freshBuildings);
       
-      // STEP 3: Collect products and filter ONLY NEW (isFutureProposal: true)
-      const allProducts: any[] = [];
+      // STEP 3: Re-collect ALL products (not just future proposal)
+      const { products: allProducts } = collectAssignedItemsFromBuildings(freshBuildings);
       
-      freshBuildings.forEach((building: any) => {
-        if (building.centralRack) {
-          // Process all element types in central rack
-          const elementTypes = [
-            'cableTerminations', 'switches', 'routers', 'servers', 
-            'voipPbx', 'headend', 'nvr', 'ata', 'connections'
-          ];
-          
-          elementTypes.forEach(elementType => {
-            const elements = building.centralRack[elementType];
-            if (!Array.isArray(elements)) return;
-            
-            elements.forEach((element: any) => {
-              // ONLY include if it's a future proposal (NEW)
-              if (!element.isFutureProposal) return;
-              
-              const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
-              
-              productsToProcess.forEach((productAssignment: any) => {
-                allProducts.push({
-                  id: productAssignment.productId,
-                  quantity: productAssignment.quantity,
-                  isOptional: productAssignment.isOptional || false,
-                  location: `Central Rack - ${elementType}`
-                });
-              });
-            });
-          });
-        }
-        
-        // Process floor racks similarly
-        building.floors?.forEach((floor: any) => {
-          floor.racks?.forEach((rack: any) => {
-            const elementTypes = [
-              'cableTerminations', 'switches', 'routers', 'servers',
-              'voipPbx', 'headend', 'nvr', 'ata', 'connections'
-            ];
-            
-            elementTypes.forEach(elementType => {
-              const elements = rack[elementType];
-              if (!Array.isArray(elements)) return;
-              
-              elements.forEach((element: any) => {
-                // ONLY include if it's a future proposal (NEW)
-                if (!element.isFutureProposal) return;
-                
-                const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
-                
-                productsToProcess.forEach((productAssignment: any) => {
-                  allProducts.push({
-                    id: productAssignment.productId,
-                    quantity: productAssignment.quantity,
-                    isOptional: productAssignment.isOptional || false,
-                    location: `${floor.name} - ${rack.name}`
-                  });
-                });
-              });
-            });
-          });
-        });
-      });
+      console.log('📦 ALL Products collected for analysis:', allProducts);
       
-      console.log('📦 NEW Products collected (isFutureProposal only):', allProducts);
-      
-      // Check if we have NEW products
+      // Check if we have products
       if (!allProducts || allProducts.length === 0) {
         toast({
-          title: "No New Products",
-          description: "No new products found to analyze. Products must be marked as 'Future Proposal' in Step 1.",
+          title: "No Products",
+          description: "No products found to analyze. Please add products in Step 2 first.",
           variant: "destructive",
         });
         return;
