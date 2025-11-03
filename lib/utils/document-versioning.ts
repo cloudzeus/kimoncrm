@@ -40,9 +40,9 @@ export async function manageDocumentVersions({
 
   const existingFiles = await prisma.file.findMany({
     where: {
-      entityType,
+      type: entityType as any,
       entityId,
-      filename: {
+      name: {
         contains: filenamePattern,
       },
     },
@@ -56,7 +56,7 @@ export async function manageDocumentVersions({
   // Extract version numbers from filenames
   const versions = existingFiles
     .map((file) => {
-      const match = file.filename.match(/_v(\d+)\./);
+      const match = file.name.match(/_v(\d+)\./);
       return match ? parseInt(match[1], 10) : 0;
     })
     .filter((v) => v > 0)
@@ -81,7 +81,7 @@ export async function manageDocumentVersions({
 
     for (const file of filesToDelete) {
       try {
-        console.log(`  Deleting old version: ${file.filename} (${file.id})`);
+        console.log(`  Deleting old version: ${file.name} (${file.id})`);
 
         // TODO: Delete from BunnyCDN (deleteFileFromBunny function not yet implemented)
         // if (file.url) {
