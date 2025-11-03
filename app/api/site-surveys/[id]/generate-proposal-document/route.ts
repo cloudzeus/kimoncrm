@@ -91,8 +91,7 @@ export async function POST(
     // ========================================
     // 1. COVER PAGE
     // ========================================
-    const customerName =
-      siteSurvey.customer?.company?.name || siteSurvey.customer?.name || 'N/A';
+    const customerName = siteSurvey.customer?.name || 'N/A';
     const projectName = siteSurvey.projectName || siteSurvey.siteName || 'Site Survey';
 
     allChildren.push(
