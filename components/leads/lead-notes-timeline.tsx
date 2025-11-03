@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, Paperclip, ChevronDown, ChevronRight, Send, X, Upload, Users, Check } from "lucide-react";
+import { MessageSquare, Paperclip, ChevronDown, ChevronRight, Send, X, Upload, Users, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -125,6 +125,36 @@ export function LeadNotesTimeline({
 
   const deselectAllUsers = () => {
     setNotifyUsers(new Set());
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/leads/${leadId}/notes/${noteId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete note');
+      }
+
+      toast({
+        title: "Note Deleted",
+        description: "The note has been deleted successfully.",
+      });
+
+      onNoteAdded(); // Refresh the notes list
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete note. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const uploadFiles = async (): Promise<string[]> => {
@@ -325,82 +355,93 @@ export function LeadNotesTimeline({
     );
   };
 
-  const renderNote = (note: Note, isReply: boolean = false) => {
+  const renderNote = (note: Note, isReply: boolean = false, depth: number = 0) => {
     const isExpanded = expandedNotes.has(note.id);
     const hasReplies = note.replies && note.replies.length > 0;
 
     return (
-      <div key={note.id} className={`${isReply ? "ml-12 mt-3" : ""}`}>
-        <div className="flex gap-3">
+      <div key={note.id} className={`${isReply ? "ml-6 mt-2" : ""}`}>
+        <div className="flex gap-2">
           {/* Avatar with connecting line */}
           <div className="flex flex-col items-center relative">
-            <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+            <Avatar className={`${isReply ? "h-7 w-7" : "h-9 w-9"} border-2 border-white shadow-sm`}>
               <AvatarImage src={getAvatarUrl(note.user)} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-bold">
                 {getUserInitials(note.user.name)}
               </AvatarFallback>
             </Avatar>
-            {!isReply && hasReplies && (
-              <div className="w-0.5 flex-1 bg-gradient-to-b from-gray-300 to-transparent mt-2" />
+            {hasReplies && (
+              <div className="w-0.5 flex-1 bg-gradient-to-b from-gray-300 to-transparent mt-1" />
             )}
           </div>
 
           {/* Note Content */}
-          <div className="flex-1 pb-6">
-            <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
-              <div className="p-4">
+          <div className="flex-1 pb-2">
+            <Card className={`shadow-sm hover:shadow-md transition-shadow border-l-4 ${isReply ? "border-l-purple-400" : "border-l-blue-500"}`}>
+              <div className="p-3">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
                     <p className="font-bold text-sm text-gray-900">{note.user.name || "Unknown User"}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <span>{formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
+                    <p className="text-xs text-gray-500">
+                      {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}
                     </p>
                   </div>
-                  {hasReplies && !isReply && (
+                  <div className="flex items-center gap-1">
+                    {hasReplies && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleExpand(note.id)}
+                        className="h-6 px-2"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        <span className="ml-1 text-xs font-semibold">
+                          {note.replies?.length}
+                        </span>
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toggleExpand(note.id)}
-                      className="h-8 -mt-1"
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      title="Delete note"
                     >
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <span className="ml-1 text-xs font-semibold">
-                        {note.replies?.length} {note.replies?.length === 1 ? "reply" : "replies"}
-                      </span>
+                      <Trash2 className="h-3 w-3" />
                     </Button>
-                  )}
+                  </div>
                 </div>
 
                 {/* Content */}
-                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-3">
+                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-2">
                   {note.content}
                 </div>
 
                 {/* Attachments */}
                 {note.attachments && note.attachments.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1 font-semibold uppercase">
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1 font-semibold">
                       <Paperclip className="h-3 w-3" />
                       {note.attachments.length} Attachment{note.attachments.length !== 1 ? "s" : ""}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {note.attachments.map((attachment) => (
                         <a
                           key={attachment.id}
                           href={attachment.file.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-purple-100 transition-colors group"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded hover:from-blue-100 hover:to-purple-100 transition-colors group text-xs"
                         >
-                          <Paperclip className="h-3 w-3 text-blue-600 group-hover:text-blue-700" />
-                          <span className="text-xs font-medium text-gray-700">{attachment.file.name}</span>
+                          <Paperclip className="h-3 w-3 text-blue-600" />
+                          <span className="font-medium text-gray-700">{attachment.file.name}</span>
                           {attachment.file.size && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-gray-500">
                               ({(attachment.file.size / 1024).toFixed(1)} KB)
                             </span>
                           )}
@@ -410,27 +451,25 @@ export function LeadNotesTimeline({
                   </div>
                 )}
 
-                {/* Reply Button */}
-                {!isReply && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReplyingTo(note.id)}
-                      className="h-8 text-xs hover:bg-blue-50"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Reply
-                    </Button>
-                  </div>
-                )}
+                {/* Reply Button - Now available for ALL notes including replies */}
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReplyingTo(note.id)}
+                    className="h-7 text-xs hover:bg-blue-50"
+                  >
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Reply
+                  </Button>
+                </div>
               </div>
             </Card>
 
             {/* Reply Form */}
             {replyingTo === note.id && (
-              <Card className="mt-3 shadow-md border-l-4 border-l-purple-500">
-                <div className="p-4">
+              <Card className="mt-2 shadow-sm border-l-4 border-l-purple-500">
+                <div className="p-3">
                   <div className="flex justify-between items-center mb-3">
                     <p className="text-sm font-bold text-gray-900">Reply to {note.user.name}</p>
                     <Button
@@ -451,7 +490,7 @@ export function LeadNotesTimeline({
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="Write your reply..."
-                    className="min-h-[100px] mb-3"
+                    className="min-h-[60px] mb-2"
                   />
                   
                   <div className="mb-3">
@@ -519,8 +558,8 @@ export function LeadNotesTimeline({
 
             {/* Replies */}
             {isExpanded && hasReplies && (
-              <div className="mt-3">
-                {note.replies?.map((reply) => renderNote(reply, true))}
+              <div className="mt-2">
+                {note.replies?.map((reply) => renderNote(reply, true, depth + 1))}
               </div>
             )}
           </div>
@@ -530,19 +569,19 @@ export function LeadNotesTimeline({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* New Note Form */}
-      <Card className="shadow-lg border-l-4 border-l-green-500">
-        <div className="p-6">
-          <h3 className="text-sm font-bold mb-4 uppercase text-gray-900 flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-green-600" />
+      <Card className="shadow-md border-l-4 border-l-green-500">
+        <div className="p-4">
+          <h3 className="text-sm font-bold mb-3 uppercase text-gray-900 flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-green-600" />
             Add New Note
           </h3>
           <Textarea
             value={newNoteContent}
             onChange={(e) => setNewNoteContent(e.target.value)}
             placeholder="Write a note..."
-            className="min-h-[120px] mb-3 text-sm"
+            className="min-h-[80px] mb-2 text-sm"
           />
           
           <div className="mb-3">
