@@ -209,6 +209,7 @@ export function CentralRackStep({
       erpCode: product?.code || 'N/A',
       manufacturerCode: product?.code2 || 'N/A',  // EAN code is usually code2
       eanCode: product?.code1 || 'N/A',          // Manufacturer code is usually code1
+      mtrl: (product as any)?.mtrl || 'N/A',     // ERP MTRL code
       images: product?.images || [],
       specifications: product?.specifications || null,
       translations: product?.translations || null,
