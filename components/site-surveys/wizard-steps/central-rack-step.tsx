@@ -650,11 +650,11 @@ export function CentralRackStep({
     buildingsData.forEach(building => {
       // Central rack
       if (building.centralRack) {
-        building.centralRack.cableTerminations?.forEach(term => {
+        building.centralRack.cableTerminations?.forEach((term: any) => {
           // Support new products array format
           const productsToProcess = term.products || (term.productId ? [{ productId: term.productId, quantity: term.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -700,7 +700,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: sw.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -746,7 +746,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: router.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -772,7 +772,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: server.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -798,7 +798,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: pbx.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -824,7 +824,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: headend.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -850,7 +850,7 @@ export function CentralRackStep({
           // Support new products array format
           const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: nvr.quantity || 1 }] : []);
           
-          productsToProcess.forEach(productAssignment => {
+          productsToProcess.forEach((productAssignment: any) => {
             const key = productAssignment.productId;
             if (!productsMap.has(key)) {
               productsMap.set(key, {
@@ -878,11 +878,11 @@ export function CentralRackStep({
         const floorMultiplier = getFloorMultiplier(floor);
         
         floor.racks?.forEach(rack => {
-          rack.cableTerminations?.forEach(term => {
+          rack.cableTerminations?.forEach((term: any) => {
             // Support new products array format
             const productsToProcess = term.products || (term.productId ? [{ productId: term.productId, quantity: term.quantity || 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -928,7 +928,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -974,7 +974,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = router.products || (router.productId ? [{ productId: router.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1021,7 +1021,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = server.products || (server.productId ? [{ productId: server.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1069,7 +1069,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1117,7 +1117,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = headend.products || (headend.productId ? [{ productId: headend.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1165,7 +1165,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = nvr.products || (nvr.productId ? [{ productId: nvr.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1213,7 +1213,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = ata.products || (ata.productId ? [{ productId: ata.productId, quantity: 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
@@ -1260,7 +1260,7 @@ export function CentralRackStep({
             // Support new products array format
             const productsToProcess = conn.products || (conn.productId ? [{ productId: conn.productId, quantity: conn.quantity || 1 }] : []);
             
-            productsToProcess.forEach(productAssignment => {
+            productsToProcess.forEach((productAssignment: any) => {
               const key = productAssignment.productId;
               if (!productsMap.has(key)) {
                 productsMap.set(key, {
