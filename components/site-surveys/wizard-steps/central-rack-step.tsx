@@ -995,7 +995,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            router.services?.forEach(svc => {
+            router.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1042,7 +1042,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name} - Server${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            server.services?.forEach(svc => {
+            server.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1090,7 +1090,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name} - VoIP PBX${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            pbx.services?.forEach(svc => {
+            pbx.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1138,7 +1138,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name} - Headend${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            headend.services?.forEach(svc => {
+            headend.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1186,7 +1186,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name} - NVR${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            nvr.services?.forEach(svc => {
+            nvr.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1234,7 +1234,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name} - ATA${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            ata.services?.forEach(svc => {
+            ata.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1281,7 +1281,7 @@ export function CentralRackStep({
               product.locations.push(`${floor.name} - ${rack.name}${floorMultiplier > 1 ? ` (×${floorMultiplier})` : ''}`);
             });
             
-            conn.services?.forEach(svc => {
+            conn.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1340,7 +1340,7 @@ export function CentralRackStep({
               product.locations.push(locationText);
             }
             
-            device.services?.forEach(svc => {
+            device.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1405,7 +1405,7 @@ export function CentralRackStep({
               product.locations.push(locationText);
             }
             
-            outlet.services?.forEach(svc => {
+            outlet.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
@@ -1470,7 +1470,7 @@ export function CentralRackStep({
               product.locations.push(locationText);
             }
             
-            conn.services?.forEach(svc => {
+            conn.services?.forEach((svc: any) => {
               const key = svc.serviceId;
               if (!servicesMap.has(key)) {
                 servicesMap.set(key, {
