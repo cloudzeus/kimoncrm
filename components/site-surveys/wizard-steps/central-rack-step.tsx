@@ -187,6 +187,40 @@ export function CentralRackStep({
     return product?.brand?.name || product?.brand || 'Generic';
   };
 
+  // Save progress function
+  const handleSaveProgress = async () => {
+    try {
+      console.log('💾 Saving wizard progress...');
+      
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wizardData: {
+            buildings,
+            productPricing: Object.fromEntries(productPricing),
+            servicePricing: Object.fromEntries(servicePricing),
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save progress');
+      }
+
+      console.log('✅ Progress saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast({
+        title: "Save Error",
+        description: "Failed to save progress. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   // Helper to get product category
   const getProductCategory = (productId: string) => {
     const product = productsList.find(p => p.id === productId);
@@ -1577,6 +1611,10 @@ export function CentralRackStep({
 
   const handleGenerateInfrastructureExcel = async () => {
     try {
+      // AUTO-SAVE before generating
+      console.log('💾 Auto-saving data before generating Infrastructure Excel...');
+      await handleSaveProgress();
+      
       const response = await fetch('/api/site-surveys/generate-infrastructure-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1621,7 +1659,11 @@ export function CentralRackStep({
     try {
       console.log('🚀 Starting BOM generation...');
       
-      // Fetch fresh data from database
+      // STEP 1: AUTO-SAVE current data before generating
+      console.log('💾 Auto-saving data before generating BOM...');
+      await handleSaveProgress();
+      
+      // STEP 2: Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
       const siteSurveyData = await siteSurveyRes.json();
       
@@ -1733,7 +1775,11 @@ export function CentralRackStep({
     try {
       console.log('🚀 Starting Proposal generation and ERP submission...');
       
-      // Fetch fresh data from database
+      // STEP 1: AUTO-SAVE current data before generating
+      console.log('💾 Auto-saving data before generating Proposal...');
+      await handleSaveProgress();
+      
+      // STEP 2: Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
       const siteSurveyData = await siteSurveyRes.json();
       
@@ -1767,7 +1813,7 @@ export function CentralRackStep({
       // Prepare equipment data with pricing and ERP codes
       const equipment: any[] = [];
 
-      // Add products
+      // Add products with SODTYPE and VAT
       freshProducts.forEach((product: any) => {
         const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const productDetails = getProductDetails(product.id);
@@ -1784,10 +1830,12 @@ export function CentralRackStep({
           totalPrice: pricing.totalPrice * product.quantity,
           erpCode: productDetails.mtrl,
           mtrl: productDetails.mtrl,
+          vat: 1410, // VAT code for 24% (Greece standard)
+          sodtype: '52', // Product type in ERP
         });
       });
 
-      // Add services
+      // Add services with SODTYPE and VAT
       freshServices.forEach((service: any) => {
         const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
         const serviceDetails = servicesList.find(s => s.id === service.id);
@@ -1803,6 +1851,8 @@ export function CentralRackStep({
           totalPrice: pricing.totalPrice * service.quantity,
           erpCode: serviceDetails?.mtrl,
           mtrl: serviceDetails?.mtrl,
+          vat: 1410, // VAT code for 24% (Greece standard)
+          sodtype: '51', // Service type in ERP
         });
       });
 
@@ -1854,7 +1904,11 @@ export function CentralRackStep({
     try {
       console.log('🚀 Starting Products Analysis generation...');
       
-      // Fetch fresh data from database
+      // STEP 1: AUTO-SAVE current data before generating
+      console.log('💾 Auto-saving data before generating Products Analysis...');
+      await handleSaveProgress();
+      
+      // STEP 2: Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
       const siteSurveyData = await siteSurveyRes.json();
       
@@ -1870,22 +1924,85 @@ export function CentralRackStep({
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
       console.log('📦 Fresh buildings data from DB:', freshBuildings);
       
-      // Re-collect with fresh data
-      const { products: freshProducts } = collectAssignedItemsFromBuildings(freshBuildings);
-      console.log('📦 Fresh collected products:', freshProducts);
+      // STEP 3: Collect products and filter ONLY NEW (isFutureProposal: true)
+      const allProducts: any[] = [];
       
-      // Check if we have products
-      if (!freshProducts || freshProducts.length === 0) {
+      freshBuildings.forEach((building: any) => {
+        if (building.centralRack) {
+          // Process all element types in central rack
+          const elementTypes = [
+            'cableTerminations', 'switches', 'routers', 'servers', 
+            'voipPbx', 'headend', 'nvr', 'ata', 'connections'
+          ];
+          
+          elementTypes.forEach(elementType => {
+            const elements = building.centralRack[elementType];
+            if (!Array.isArray(elements)) return;
+            
+            elements.forEach((element: any) => {
+              // ONLY include if it's a future proposal (NEW)
+              if (!element.isFutureProposal) return;
+              
+              const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
+              
+              productsToProcess.forEach((productAssignment: any) => {
+                allProducts.push({
+                  id: productAssignment.productId,
+                  quantity: productAssignment.quantity,
+                  isOptional: productAssignment.isOptional || false,
+                  location: `Central Rack - ${elementType}`
+                });
+              });
+            });
+          });
+        }
+        
+        // Process floor racks similarly
+        building.floors?.forEach((floor: any) => {
+          floor.racks?.forEach((rack: any) => {
+            const elementTypes = [
+              'cableTerminations', 'switches', 'routers', 'servers',
+              'voipPbx', 'headend', 'nvr', 'ata', 'connections'
+            ];
+            
+            elementTypes.forEach(elementType => {
+              const elements = rack[elementType];
+              if (!Array.isArray(elements)) return;
+              
+              elements.forEach((element: any) => {
+                // ONLY include if it's a future proposal (NEW)
+                if (!element.isFutureProposal) return;
+                
+                const productsToProcess = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1, isOptional: element.isOptional }] : []);
+                
+                productsToProcess.forEach((productAssignment: any) => {
+                  allProducts.push({
+                    id: productAssignment.productId,
+                    quantity: productAssignment.quantity,
+                    isOptional: productAssignment.isOptional || false,
+                    location: `${floor.name} - ${rack.name}`
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+      
+      console.log('📦 NEW Products collected (isFutureProposal only):', allProducts);
+      
+      // Check if we have NEW products
+      if (!allProducts || allProducts.length === 0) {
         toast({
-          title: "No Products",
-          description: "No products found to generate analysis. Please add products in Step 2 first.",
+          title: "No New Products",
+          description: "No new products found to analyze. Products must be marked as 'Future Proposal' in Step 1.",
           variant: "destructive",
         });
         return;
       }
 
-      // Prepare products data for analysis - use freshProducts directly
-      const productsForAnalysis = (freshProducts || []).map((product: any) => {
+      // Prepare products data for analysis
+      const productsForAnalysis = allProducts.map((product: any) => {
         const productDetails = getProductDetails(product.id);
         console.log(`📝 Product ${product.id}:`, {
           product,
@@ -1896,8 +2013,9 @@ export function CentralRackStep({
         return {
           ...productDetails,
           id: product.id,
-          quantity: product.quantity
-          // productDetails already contains name, brand, category, etc.
+          quantity: product.quantity,
+          isOptional: product.isOptional,
+          location: product.location
         };
       });
 
@@ -1949,6 +2067,10 @@ export function CentralRackStep({
   const handleGenerateProposalDocument = async () => {
     try {
       console.log('📄 Starting comprehensive proposal document generation...');
+      
+      // AUTO-SAVE before generating
+      console.log('💾 Auto-saving data before generating Proposal Document...');
+      await handleSaveProgress();
       
       // Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2067,6 +2189,10 @@ export function CentralRackStep({
   const handleGenerateCompleteProposal = async () => {
     try {
       console.log('📄 Starting complete proposal generation (new format)...');
+      
+      // AUTO-SAVE before generating
+      console.log('💾 Auto-saving data before generating Complete Proposal...');
+      await handleSaveProgress();
       
       // Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2317,29 +2443,17 @@ export function CentralRackStep({
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold">Προϊόντα ανά Μάρκα</h3>
           <div className="flex gap-2">
-            <Button onClick={handleGenerateInfrastructureExcel} variant="outline" className="flex items-center gap-2">
+            <Button onClick={handleGenerateBOM} variant="outline" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Υποδομή Excel
-            </Button>
-            <Button onClick={handleGenerateBOM} className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Δημιουργία BOM
+              BOM (Excel)
             </Button>
             <Button onClick={handleGenerateProductsAnalysis} variant="outline" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Products Analysis
+              Ανάλυση Νέων Προϊόντων
             </Button>
             <Button onClick={handleGenerateProposal} variant="default" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
               <FileText className="h-4 w-4" />
-              Δημιουργία Προσφοράς ERP
-            </Button>
-            <Button onClick={handleGenerateProposalDocument} variant="default" className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700">
-              <FileText className="h-4 w-4" />
-              Πλήρης Προσφορά (Word)
-            </Button>
-            <Button onClick={handleGenerateCompleteProposal} variant="default" className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
-              <FileText className="h-4 w-4" />
-              Ολοκληρωμένη Προσφορά (New Format)
+              Προσφορά ERP
             </Button>
           </div>
         </div>
@@ -2411,7 +2525,7 @@ export function CentralRackStep({
                     {(brandProducts || []).map((product) => {
                       const pricing = productPricing.get(product.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                       return (
-                        <tr key={product.id} className="border-b hover:bg-gray-300 dark:hover:bg-gray-800">
+                        <tr key={product.id} className="border-b hover:bg-gray-200 dark:hover:bg-gray-700">
                           {visibleColumns.product && (
                             <td className="p-2">
                               <div className="flex items-center gap-2">
@@ -2647,7 +2761,7 @@ export function CentralRackStep({
                   {collectedServices.map((service) => {
                     const pricing = servicePricing.get(service.id) || { unitPrice: 0, margin: 0, totalPrice: 0 };
                     return (
-                      <tr key={service.id} className="border-b hover:bg-gray-300 dark:hover:bg-gray-800">
+                      <tr key={service.id} className="border-b hover:bg-gray-200 dark:hover:bg-gray-700">
                         <td className="p-2">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
