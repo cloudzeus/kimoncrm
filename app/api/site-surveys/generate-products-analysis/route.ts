@@ -171,22 +171,8 @@ export async function POST(request: NextRequest) {
         console.log(`ℹ️ No images available for product ${product.id}`);
       }
       
-      // Description in Greek
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "ΠΕΡΙΓΡΑΦΗ:",
-              bold: true,
-              size: 20,
-            }),
-          ],
-          spacing: { before: 200, after: 100 },
-        })
-      );
-      
-      // Get Greek description from translations
-      let greekDescription = 'Δεν υπάρχει διαθέσιμη περιγραφή';
+      // Description in Greek (only if available)
+      let greekDescription = '';
       if (fullProduct?.translations && Array.isArray(fullProduct.translations)) {
         const greekTranslation = fullProduct.translations.find((t: any) => t.languageCode === 'el');
         if (greekTranslation?.description) {
@@ -194,34 +180,52 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: greekDescription,
-              size: 18,
-            }),
-          ],
-          spacing: { after: 200 },
-        })
-      );
+      // Only add description section if Greek translation exists
+      if (greekDescription) {
+        allChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "ΠΕΡΙΓΡΑΦΗ:",
+                bold: true,
+                size: 20,
+              }),
+            ],
+            spacing: { before: 200, after: 100 },
+          })
+        );
+        
+        allChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: greekDescription,
+                size: 18,
+              }),
+            ],
+            spacing: { after: 200 },
+          })
+        );
+      }
       
-      // Specifications Table
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ:",
-              bold: true,
-              size: 20,
-            }),
-          ],
-          spacing: { before: 200, after: 100 },
-        })
-      );
+      // Specifications Table (only if Greek translation has specs)
+      if (greekDescription && fullProduct?.specifications && fullProduct.specifications.length > 0) {
+        allChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ:",
+                bold: true,
+                size: 20,
+              }),
+            ],
+            spacing: { before: 200, after: 100 },
+          })
+        );
+      }
       
-      // Create specifications table from database
-      if (fullProduct?.specifications && fullProduct.specifications.length > 0) {
+      // Create specifications table from database (only if we added the header)
+      if (greekDescription && fullProduct?.specifications && fullProduct.specifications.length > 0) {
         const tableRows = [
           // Header row
           new TableRow({
