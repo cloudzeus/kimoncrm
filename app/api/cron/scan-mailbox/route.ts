@@ -47,14 +47,40 @@ export async function POST(request: NextRequest) {
     let totalErrors = 0;
     const results: any[] = [];
 
-    // Scan each account
+    // Scan each account (prioritize Microsoft/Office 365)
     for (const account of accounts) {
       try {
         console.log(`📬 [MAILBOX SCAN] ----------------------------------------`);
         console.log(`📬 [MAILBOX SCAN] Scanning mailbox for ${account.user.email} (${account.provider})`);
         
+        // Skip non-Microsoft accounts if they have issues
+        if (account.provider === "google" && (!account.refresh_token || account.refresh_token === "")) {
+          console.log(`📬 [MAILBOX SCAN] ⚠️ Skipping ${account.user.email} - Invalid Google token. Please reconnect account.`);
+          results.push({
+            email: account.user.email,
+            provider: account.provider,
+            skipped: true,
+            reason: "Invalid token - please reconnect account",
+          });
+          continue;
+        }
+        
         // Refresh token if needed
-        const refreshedAccount = await refreshTokenIfNeeded(account);
+        let refreshedAccount;
+        try {
+          refreshedAccount = await refreshTokenIfNeeded(account);
+        } catch (tokenError: any) {
+          console.error(`📬 [MAILBOX SCAN] ⚠️ Token refresh failed for ${account.user.email}: ${tokenError.message}`);
+          console.error(`📬 [MAILBOX SCAN] Skipping this account. User needs to reconnect their email.`);
+          
+          results.push({
+            email: account.user.email,
+            provider: account.provider,
+            error: `Token refresh failed: ${tokenError.message}`,
+          });
+          totalErrors++;
+          continue;
+        }
         
         const result = await scanAccountMailbox(refreshedAccount);
         totalProcessed += result.processed;
