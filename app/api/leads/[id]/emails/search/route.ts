@@ -59,10 +59,10 @@ export async function GET(
     // 1. Direct lead ID match
     searchConditions.push({ leadId: id });
 
-    // 2. Lead number in subject (case-insensitive)
+    // 2. Lead number in subject
     if (lead.leadNumber) {
       searchConditions.push({
-        subject: { contains: lead.leadNumber, mode: "insensitive" },
+        subject: { contains: lead.leadNumber },
       });
     }
 
