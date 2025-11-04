@@ -20,6 +20,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -35,7 +43,12 @@ import {
   Link2,
   FileDown,
   Loader2,
+  MoreVertical,
+  FileImage,
+  MapPin,
+  Upload,
 } from "lucide-react";
+import { ImageUploadButton } from "@/components/site-surveys/image-upload-button";
 
 interface Building {
   name: string;
@@ -44,6 +57,8 @@ interface Building {
   notes?: string;
   floors: Floor[];
   centralRacks: Rack[];
+  images?: string[];
+  blueprints?: string[];
 }
 
 interface Floor {
@@ -52,6 +67,8 @@ interface Floor {
   notes?: string;
   racks: Rack[];
   rooms: Room[];
+  images?: string[];
+  blueprints?: string[];
 }
 
 interface Rack {
@@ -60,6 +77,7 @@ interface Rack {
   units?: number;
   location?: string;
   notes?: string;
+  images?: string[];
 }
 
 interface Room {
@@ -105,6 +123,11 @@ export function InfrastructureStep({
 
   // File generation state
   const [generatingFile, setGeneratingFile] = useState(false);
+  
+  // Image upload dialogs
+  const [buildingImageDialog, setBuildingImageDialog] = useState<{ buildingIndex: number; type: 'image' | 'blueprint' } | null>(null);
+  const [centralRackImageDialog, setCentralRackImageDialog] = useState<{ buildingIndex: number; rackIndex: number } | null>(null);
+  const [floorImageDialog, setFloorImageDialog] = useState<{ buildingIndex: number; floorIndex: number; type: 'image' | 'blueprint' } | null>(null);
 
   // Form states
   const [editingBuilding, setEditingBuilding] = useState<number | null>(null);
@@ -560,12 +583,34 @@ export function InfrastructureStep({
                     <Badge variant="secondary">
                       {building.centralRacks.length} Central Rack{building.centralRacks.length !== 1 ? 's' : ''}
                     </Badge>
-                    <Button size="sm" variant="ghost" onClick={() => openBuildingDialog(bIdx)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteBuilding(bIdx)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="ghost">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Building Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => openBuildingDialog(bIdx)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setBuildingImageDialog({ buildingIndex: bIdx, type: 'image' })}>
+                          <FileImage className="h-4 w-4 mr-2" />
+                          Upload Images
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setBuildingImageDialog({ buildingIndex: bIdx, type: 'blueprint' })}>
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Upload Blueprints
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => deleteBuilding(bIdx)} className="text-red-600">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Building
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardHeader>
@@ -590,12 +635,28 @@ export function InfrastructureStep({
                           <div key={rIdx} className="flex items-center justify-between p-2 bg-accent rounded">
                             <span className="text-sm">{rack.name} {rack.code && `(${rack.code})`}</span>
                             <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" onClick={() => openRackDialog(bIdx, 'central', undefined, rIdx)}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => deleteRack(bIdx, 'central', undefined, rIdx)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="ghost">
+                                    <MoreVertical className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openRackDialog(bIdx, 'central', undefined, rIdx)}>
+                                    <Edit className="h-3 w-3 mr-2" />
+                                    Edit Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setCentralRackImageDialog({ buildingIndex: bIdx, rackIndex: rIdx })}>
+                                    <FileImage className="h-3 w-3 mr-2" />
+                                    Upload Images
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => deleteRack(bIdx, 'central', undefined, rIdx)} className="text-red-600">
+                                    <Trash2 className="h-3 w-3 mr-2" />
+                                    Delete Rack
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
                         ))}
@@ -1050,6 +1111,120 @@ export function InfrastructureStep({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Building Image Upload Dialog */}
+      {buildingImageDialog && (
+        <Dialog open={true} onOpenChange={() => setBuildingImageDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Upload Building {buildingImageDialog.type === 'image' ? 'Images' : 'Blueprints'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload {buildingImageDialog.type === 'image' ? 'photos of the site or equipment' : 'floor plans or architectural blueprints'} for {localBuildings[buildingImageDialog.buildingIndex]?.name}
+              </p>
+              <ImageUploadButton
+                entityType="building"
+                entityId={`building-${buildingImageDialog.buildingIndex}-${buildingImageDialog.type}`}
+                onUploadSuccess={(url) => {
+                  const newBuildings = [...localBuildings];
+                  if (buildingImageDialog.type === 'image') {
+                    newBuildings[buildingImageDialog.buildingIndex] = {
+                      ...newBuildings[buildingImageDialog.buildingIndex],
+                      images: [...(newBuildings[buildingImageDialog.buildingIndex].images || []), url],
+                    };
+                  } else {
+                    newBuildings[buildingImageDialog.buildingIndex] = {
+                      ...newBuildings[buildingImageDialog.buildingIndex],
+                      blueprints: [...(newBuildings[buildingImageDialog.buildingIndex].blueprints || []), url],
+                    };
+                  }
+                  updateParent(newBuildings, localConnections);
+                  toast.success(`${buildingImageDialog.type === 'image' ? 'Image' : 'Blueprint'} uploaded successfully`);
+                }}
+                label={`Choose ${buildingImageDialog.type === 'image' ? 'Image' : 'Blueprint'}`}
+                variant="outline"
+                size="default"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Central Rack Image Upload Dialog */}
+      {centralRackImageDialog && (
+        <Dialog open={true} onOpenChange={() => setCentralRackImageDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Central Rack Images</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload photos of the central rack equipment
+              </p>
+              <ImageUploadButton
+                entityType="rack"
+                entityId={`central-rack-${centralRackImageDialog.buildingIndex}-${centralRackImageDialog.rackIndex}`}
+                onUploadSuccess={(url) => {
+                  const newBuildings = [...localBuildings];
+                  newBuildings[centralRackImageDialog.buildingIndex].centralRacks[centralRackImageDialog.rackIndex] = {
+                    ...newBuildings[centralRackImageDialog.buildingIndex].centralRacks[centralRackImageDialog.rackIndex],
+                    images: [...(newBuildings[centralRackImageDialog.buildingIndex].centralRacks[centralRackImageDialog.rackIndex].images || []), url],
+                  };
+                  updateParent(newBuildings, localConnections);
+                  toast.success("Image uploaded successfully");
+                }}
+                label="Choose Image"
+                variant="outline"
+                size="default"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Floor Image Upload Dialog */}
+      {floorImageDialog && (
+        <Dialog open={true} onOpenChange={() => setFloorImageDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Upload Floor {floorImageDialog.type === 'image' ? 'Images' : 'Blueprints'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload {floorImageDialog.type === 'image' ? 'photos' : 'floor plan'} for {localBuildings[floorImageDialog.buildingIndex]?.floors[floorImageDialog.floorIndex]?.name}
+              </p>
+              <ImageUploadButton
+                entityType="floor"
+                entityId={`floor-${floorImageDialog.buildingIndex}-${floorImageDialog.floorIndex}-${floorImageDialog.type}`}
+                onUploadSuccess={(url) => {
+                  const newBuildings = [...localBuildings];
+                  if (floorImageDialog.type === 'image') {
+                    newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex] = {
+                      ...newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex],
+                      images: [...(newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex].images || []), url],
+                    };
+                  } else {
+                    newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex] = {
+                      ...newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex],
+                      blueprints: [...(newBuildings[floorImageDialog.buildingIndex].floors[floorImageDialog.floorIndex].blueprints || []), url],
+                    };
+                  }
+                  updateParent(newBuildings, localConnections);
+                  toast.success(`${floorImageDialog.type === 'image' ? 'Image' : 'Blueprint'} uploaded successfully`);
+                }}
+                label={`Choose ${floorImageDialog.type === 'image' ? 'Image' : 'Blueprint'}`}
+                variant="outline"
+                size="default"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

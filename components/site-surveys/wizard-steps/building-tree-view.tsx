@@ -49,9 +49,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BuildingData, FloorData, CentralRackData, CableTerminationData, TrunkLineData, RouterInterfaceData, RouterConnectionData, SwitchPortData, SwitchConnectionData, VirtualMachineData } from "../comprehensive-infrastructure-wizard";
 import { generateBuildingExcelReport } from "@/lib/excel/building-report-excel";
 import { ImageUploadButton } from "@/components/site-surveys/image-upload-button";
+import { toast } from "sonner";
 
 interface BuildingTreeViewProps {
   building: BuildingData;
@@ -90,6 +97,10 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
   
   // Excel export state
   const [isExportingExcel, setIsExportingExcel] = useState(false);
+  
+  // Image upload dialog state
+  const [showImageDialog, setShowImageDialog] = useState(false);
+  const [showBlueprintDialog, setShowBlueprintDialog] = useState(false);
   
   // Excel export function
   const handleExportExcel = async () => {
@@ -1195,7 +1206,7 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Add images functionality
+                    setShowImageDialog(true);
                   }}
                 >
                   <FileImage className="h-4 w-4 mr-2" />
@@ -1204,7 +1215,7 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Add blueprints functionality
+                    setShowBlueprintDialog(true);
                   }}
                 >
                   <MapPin className="h-4 w-4 mr-2" />
@@ -5508,6 +5519,74 @@ export function BuildingTreeView({ building, onUpdate, onDelete }: BuildingTreeV
           </Collapsible>
         </CardContent>
       )}
+      
+      {/* Image Upload Dialog */}
+      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Building Images</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload images for {building.name} (site photos, existing equipment, etc.)
+            </p>
+            <ImageUploadButton
+              entityType="building"
+              entityId={building.id || `building-${building.name}`}
+              onUploadSuccess={(url) => {
+                const updatedBuilding = {
+                  ...building,
+                  images: [...(building.images || []), url],
+                };
+                onUpdate(updatedBuilding);
+                toast.success("Image uploaded successfully");
+              }}
+              label="Choose Image"
+              variant="outline"
+              size="default"
+            />
+            {building.images && building.images.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Current images: {building.images.length}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Blueprint Upload Dialog */}
+      <Dialog open={showBlueprintDialog} onOpenChange={setShowBlueprintDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Building Blueprints</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload blueprints or floor plans for {building.name}
+            </p>
+            <ImageUploadButton
+              entityType="building-blueprint"
+              entityId={building.id || `building-${building.name}`}
+              onUploadSuccess={(url) => {
+                const updatedBuilding = {
+                  ...building,
+                  blueprints: [...(building.blueprints || []), url],
+                };
+                onUpdate(updatedBuilding);
+                toast.success("Blueprint uploaded successfully");
+              }}
+              label="Choose Blueprint"
+              variant="outline"
+              size="default"
+            />
+            {building.blueprints && building.blueprints.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Current blueprints: {building.blueprints.length}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
