@@ -2894,6 +2894,9 @@ export function EquipmentAssignmentStep({
                                     <DropdownMenuItem onClick={() => addNewNvrToRack(building.id)}>
                                       <Camera className="h-4 w-4 mr-2" />NVR
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addNewAtaToRack(building.id, undefined, 'central')}>
+                                      <Box className="h-4 w-4 mr-2" />ATA / Gateway
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => addNewConnectionToRack(building.id, undefined, 'central')}>
                                       <Cable className="h-4 w-4 mr-2" />Connection
