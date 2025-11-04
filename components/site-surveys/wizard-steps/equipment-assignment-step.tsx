@@ -4022,237 +4022,275 @@ export function EquipmentAssignmentStep({
                               )}
 
                               {/* ATA */}
-                              {(building.centralRack as any).ata && (
-                                <div className="mt-4">
-                                  <Label className="text-xs font-semibold mb-2 block">ATA (Analog Telephone Adapter)</Label>
-                                  <div className="p-3 bg-white dark:bg-slate-300 rounded border">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4" />
-                                        <span className="text-sm">{(building.centralRack as any).ata.brand} {(building.centralRack as any).ata.model}</span>
-                                        {isNewElement((building.centralRack as any).ata) ? (
-                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                        ) : (
-                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                              {building.centralRack.ata && building.centralRack.ata.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">ATA / Gateway ({building.centralRack.ata.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.ata.map((ata) => (
+                                      <div key={ata.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Box className="h-4 w-4" />
+                                            <span className="text-sm">{ata.brand} {ata.model} {ata.ports && `(${ata.ports} ports)`}</span>
+                                            {isNewElement(ata) ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {isNewElement(ata) && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => deleteNewElement(building.id, undefined, undefined, undefined, 'ata', ata.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'ata',
+                                                buildingId: building.id,
+                                                elementId: ata.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'ata',
+                                                buildingId: building.id,
+                                                elementId: ata.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {/* Show assigned products */}
+                                        {((ata.products && ata.products.length > 0) || ata.productId) && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {ata.products && ata.products.length > 0 ? (
+                                                ata.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'ata', elementId: ata.id }, productAssignment.productId)}
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                ))
+                                              ) : ata.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === ata.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Show assigned services */}
+                                        {ata.services && ata.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {ata.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      Qty: {svc.quantity}
+                                                    </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeleteService(building.id, { location: 'central', type: 'ata', elementId: ata.id }, svc.serviceId)}
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
                                         )}
                                       </div>
-                                      <div className="flex gap-1">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 text-xs"
-                                          onClick={() => openProductDialog({
-                                            type: 'ata',
-                                            buildingId: building.id,
-                                            elementId: (building.centralRack as any).ata.id,
-                                          })}
-                                        >
-                                          <Package className="h-3 w-3 mr-1" />
-                                          Assign Product
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 text-xs"
-                                          onClick={() => openServiceDialog({
-                                            type: 'ata',
-                                            buildingId: building.id,
-                                            elementId: (building.centralRack as any).ata.id,
-                                          })}
-                                        >
-                                          <Wrench className="h-3 w-3 mr-1" />
-                                          Add Service
-                                        </Button>
-                                      </div>
-                                    </div>
-                                    {/* Show assigned products */}
-                                    {(((building.centralRack as any).ata.products && (building.centralRack as any).ata.products.length > 0) || (building.centralRack as any).ata.productId) && (
-                                      <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Assigned Products:</Label>
-                                        <div className="space-y-1 mt-1">
-                                          {(building.centralRack as any).ata.products && (building.centralRack as any).ata.products.length > 0 ? (
-                                            (building.centralRack as any).ata.products.map((productAssignment: any, idx: number) => (
-                                              <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                                <Package className="h-4 w-4 text-blue-600" />
-                                                <div className="flex-1">
-                                                  <div className="text-sm font-medium">
-                                                    {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
-                                                  </div>
-                                                  <div className="text-xs text-muted-foreground">
-                                                    {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
-                                                  </div>
-                                                </div>
-                                                                <Button
-                                                                  size="sm"
-                                                                  variant="ghost"
-                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
-                                                                >
-                                                                  <Trash2 className="h-3 w-3" />
-                                                                </Button>
-                                              </div>
-                                            ))
-                                          ) : (building.centralRack as any).ata.productId ? (
-                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === (building.centralRack as any).ata.productId)?.name || 'Product Not Found'}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {/* Show assigned services */}
-                                    {(building.centralRack as any).ata.services && (building.centralRack as any).ata.services.length > 0 && (
-                                      <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Associated Services:</Label>
-                                        <div className="space-y-1 mt-1">
-                                          {(building.centralRack as any).ata.services.map((svc: any) => (
-                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
-                                              <Wrench className="h-3 w-3 text-green-600" />
-                                              <div className="flex-1">
-                                                <div className="text-xs font-medium">
-                                                  {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                  Qty: {svc.quantity}
-                                                </div>
-                                                              <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
-                                                              >
-                                                                <Trash2 className="h-3 w-3" />
-                                                              </Button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
                               )}
 
                               {/* NVR */}
-                              {(building.centralRack as any).nvr && (
-                                <div className="mt-4">
-                                  <Label className="text-xs font-semibold mb-2 block">NVR (Network Video Recorder)</Label>
-                                  <div className="p-3 bg-white dark:bg-slate-300 rounded border">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <Monitor className="h-4 w-4" />
-                                        <span className="text-sm">Channels: {(building.centralRack as any).nvr.channels}</span>
-                                        {isNewElement((building.centralRack as any).nvr) ? (
-                                          <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
-                                        ) : (
-                                          <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                              {building.centralRack.nvr && building.centralRack.nvr.length > 0 && (
+                                <Collapsible className="mt-4">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <ChevronRight className="h-4 w-4" />
+                                      <Label className="text-xs font-semibold cursor-pointer">NVR ({building.centralRack.nvr.length})</Label>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="mt-2 space-y-1">
+                                    {building.centralRack.nvr.map((nvr) => (
+                                      <div key={nvr.id} className="p-3 bg-white dark:bg-slate-300 rounded border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <Camera className="h-4 w-4" />
+                                            <span className="text-sm">{nvr.brand} {nvr.model} {nvr.channels && `(${nvr.channels} channels)`}</span>
+                                            {isNewElement(nvr) ? (
+                                              <Badge variant="default" className="text-xs bg-blue-600">⚡ NEW</Badge>
+                                            ) : (
+                                              <Badge variant="secondary" className="text-xs">📦 OLD</Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-1">
+                                            {isNewElement(nvr) && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-destructive"
+                                                onClick={() => deleteNewElement(building.id, undefined, undefined, undefined, 'nvr', nvr.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openProductDialog({
+                                                type: 'nvr',
+                                                buildingId: building.id,
+                                                elementId: nvr.id,
+                                              })}
+                                            >
+                                              <Package className="h-3 w-3 mr-1" />
+                                              Assign Product
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-xs"
+                                              onClick={() => openServiceDialog({
+                                                type: 'nvr',
+                                                buildingId: building.id,
+                                                elementId: nvr.id,
+                                              })}
+                                            >
+                                              <Wrench className="h-3 w-3 mr-1" />
+                                              Add Service
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {/* Show assigned products */}
+                                        {((nvr.products && nvr.products.length > 0) || nvr.productId) && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Assigned Products:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {nvr.products && nvr.products.length > 0 ? (
+                                                nvr.products.map((productAssignment, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <div className="flex-1">
+                                                      <div className="text-sm font-medium">
+                                                        {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
+                                                      </div>
+                                                      <div className="text-xs text-muted-foreground">
+                                                        {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
+                                                      </div>
+                                                    </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'nvr', elementId: nvr.id }, productAssignment.productId)}
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                ))
+                                              ) : nvr.productId ? (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
+                                                  <Package className="h-4 w-4 text-blue-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-sm font-medium">
+                                                      {products.find(p => p.id === nvr.productId)?.name || 'Product Not Found'}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {/* Show assigned services */}
+                                        {nvr.services && nvr.services.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t">
+                                            <Label className="text-xs font-semibold">Associated Services:</Label>
+                                            <div className="space-y-1 mt-1">
+                                              {nvr.services.map((svc) => (
+                                                <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
+                                                  <Wrench className="h-3 w-3 text-green-600" />
+                                                  <div className="flex-1">
+                                                    <div className="text-xs font-medium">
+                                                      {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                      Qty: {svc.quantity}
+                                                    </div>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeleteService(building.id, { location: 'central', type: 'nvr', elementId: nvr.id }, svc.serviceId)}
+                                                    >
+                                                      <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
                                         )}
                                       </div>
-                                      <div className="flex gap-1">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 text-xs"
-                                          onClick={() => openProductDialog({
-                                            type: 'nvr',
-                                            buildingId: building.id,
-                                            elementId: (building.centralRack as any).nvr.id,
-                                          })}
-                                        >
-                                          <Package className="h-3 w-3 mr-1" />
-                                          Assign Product
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 text-xs"
-                                          onClick={() => openServiceDialog({
-                                            type: 'nvr',
-                                            buildingId: building.id,
-                                            elementId: (building.centralRack as any).nvr.id,
-                                          })}
-                                        >
-                                          <Wrench className="h-3 w-3 mr-1" />
-                                          Add Service
-                                        </Button>
-                                      </div>
-                                    </div>
-                                    {/* Show assigned products */}
-                                    {(((building.centralRack as any).nvr.products && (building.centralRack as any).nvr.products.length > 0) || (building.centralRack as any).nvr.productId) && (
-                                      <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Assigned Products:</Label>
-                                        <div className="space-y-1 mt-1">
-                                          {(building.centralRack as any).nvr.products && (building.centralRack as any).nvr.products.length > 0 ? (
-                                            (building.centralRack as any).nvr.products.map((productAssignment: any, idx: number) => (
-                                              <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                                <Package className="h-4 w-4 text-blue-600" />
-                                                <div className="flex-1">
-                                                  <div className="text-sm font-medium">
-                                                    {products.find(p => p.id === productAssignment.productId)?.name || productAssignment.productId}
-                                                  </div>
-                                                  <div className="text-xs text-muted-foreground">
-                                                    {products.find(p => p.id === productAssignment.productId)?.code} × {productAssignment.quantity}
-                                                  </div>
-                                                </div>
-                                                                <Button
-                                                                  size="sm"
-                                                                  variant="ghost"
-                                                                  className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                  onClick={() => handleDeleteProduct(building.id, { location: 'central', type: 'unknown', elementId: element.id }, productAssignment.productId)}
-                                                                >
-                                                                  <Trash2 className="h-3 w-3" />
-                                                                </Button>
-                                              </div>
-                                            ))
-                                          ) : (building.centralRack as any).nvr.productId ? (
-                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-800/40 rounded">
-                                              <Package className="h-4 w-4 text-blue-600" />
-                                              <div className="flex-1">
-                                                <div className="text-sm font-medium">
-                                                  {products.find(p => p.id === (building.centralRack as any).nvr.productId)?.name || 'Product Not Found'}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {/* Show assigned services */}
-                                    {(building.centralRack as any).nvr.services && (building.centralRack as any).nvr.services.length > 0 && (
-                                      <div className="mt-2 pt-2 border-t">
-                                        <Label className="text-xs font-semibold">Associated Services:</Label>
-                                        <div className="space-y-1 mt-1">
-                                          {(building.centralRack as any).nvr.services.map((svc: any) => (
-                                            <div key={svc.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-800/40 rounded">
-                                              <Wrench className="h-3 w-3 text-green-600" />
-                                              <div className="flex-1">
-                                                <div className="text-xs font-medium">
-                                                  {services.find(s => s.id === svc.serviceId)?.name || 'Service'}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                  Qty: {svc.quantity}
-                                                </div>
-                                                              <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => handleDeleteService(building.id, { location: 'central', type: 'unknown', elementId: element.id }, svc.serviceId)}
-                                                              >
-                                                                <Trash2 className="h-3 w-3" />
-                                                              </Button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                    ))}
+                                  </CollapsibleContent>
+                                </Collapsible>
                               )}
                             </CardContent>
                           </Card>
