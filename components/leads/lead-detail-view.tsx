@@ -188,13 +188,19 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const fetchAllContacts = async () => {
     try {
       setLoadingContacts(true);
-      const response = await fetch(`/api/contacts?limit=999999`);
+      const response = await fetch(`/api/contacts?limit=10000`);
       if (response.ok) {
         const data = await response.json();
-        console.log("Fetched all contacts:", data.contacts?.length || 0, "contacts");
+        console.log("Fetched contacts:", {
+          total: data.contacts?.length || 0,
+          pagination: data.pagination,
+          firstFew: data.contacts?.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name }))
+        });
         setAllContacts(data.contacts || []);
       } else {
         console.error("Failed to fetch contacts:", response.status);
+        const errorData = await response.json();
+        console.error("Error details:", errorData);
         toast.error("Failed to load contacts");
       }
     } catch (error) {
@@ -847,7 +853,10 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
             <CardTitle className="text-sm">Description</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm whitespace-pre-wrap">{lead.description}</div>
+            <div 
+              className="text-sm prose prose-sm max-w-none dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: lead.description }}
+            />
           </CardContent>
         </Card>
       )}
@@ -1424,6 +1433,11 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                     <div className="p-8 text-center text-muted-foreground">
                       Loading contacts...
                     </div>
+                  ) : allContacts.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <p>No contacts available in the system.</p>
+                      <p className="text-xs mt-2">Switch to "Create New" tab to add a contact.</p>
+                    </div>
                   ) : allContacts.filter(c => 
                     !contactSearchTerm || 
                     c.name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
@@ -1432,7 +1446,8 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                     c.workPhone?.includes(contactSearchTerm)
                   ).length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
-                      {contactSearchTerm ? "No contacts match your search." : "No contacts found. Try creating a new one."}
+                      <p>No contacts match "{contactSearchTerm}"</p>
+                      <p className="text-xs mt-2">Total contacts loaded: {allContacts.length}</p>
                     </div>
                   ) : (
                     allContacts

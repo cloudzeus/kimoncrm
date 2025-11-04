@@ -221,6 +221,40 @@ export function initializeCronJobs() {
     }
   });
 
+  // Mailbox scan job - runs every 5 minutes
+  cron.schedule("*/5 * * * *", async () => {
+    console.log("📬 Running mailbox scan cron job...");
+    
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000";
+      const cronSecret = process.env.CRON_SECRET;
+      
+      const response = await fetch(`${baseUrl}/api/cron/scan-mailbox`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cronSecret && { Authorization: `Bearer ${cronSecret}` }),
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        if (result.imported === 0) {
+          console.log("✅ Mailbox scan completed: No new emails imported");
+        } else {
+          console.log(
+            `✅ Mailbox scan completed: ${result.imported} emails imported from ${result.accounts} accounts (${result.duration})`
+          );
+        }
+      } else {
+        console.error("❌ Mailbox scan failed:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Error executing mailbox scan cron job:", error);
+    }
+  });
+
   isSchedulerInitialized = true;
   console.log("✅ Cron job scheduler initialized");
   console.log("   - Customer sync: Every 10 minutes");
@@ -229,6 +263,7 @@ export function initializeCronJobs() {
   console.log("   - Manufacturer sync: Every 6 hours");
   console.log("   - Stock sync: Every 4 hours");
   console.log("   - Task reminders: Daily at 9 AM");
+  console.log("   - Mailbox scan: Every 5 minutes");
 }
 
 /**

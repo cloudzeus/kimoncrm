@@ -92,6 +92,11 @@ function ProductsPage() {
 - Follow Prisma naming conventions (camelCase for fields, PascalCase for models)
 - Always use connection pooling in production
 - Use bulk operations for large imports (better performance)
+- **MySQL Limitations**: 
+  - **NEVER use `mode: "insensitive"` with string filters** - MySQL doesn't support this parameter in Prisma queries
+  - Use `contains`, `startsWith`, `endsWith` WITHOUT the `mode` parameter (MySQL string comparisons are case-insensitive by default for most collations)
+  - For case-sensitive searches in MySQL, use raw queries or adjust table collation
+  - JSON field searches in MySQL require different approaches than PostgreSQL
 
 ## Styling Rules
 - Use Tailwind CSS exclusively for styling
