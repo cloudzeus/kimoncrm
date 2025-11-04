@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
   Edit, 
@@ -53,12 +54,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -127,6 +122,13 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   const [contactPhone, setContactPhone] = useState("");
   const [contactRole, setContactRole] = useState("");
   const [contactNotes, setContactNotes] = useState("");
+  const [contactDialogTab, setContactDialogTab] = useState("select"); // "select" or "new"
+  
+  // Existing contacts for selection
+  const [allContacts, setAllContacts] = useState<any[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactSearchTerm, setContactSearchTerm] = useState("");
+  const [selectedExistingContact, setSelectedExistingContact] = useState<any>(null);
   
   // Site survey dialog state
   const [showSiteSurveyDialog, setShowSiteSurveyDialog] = useState(false);
@@ -176,6 +178,21 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
       setFiles(data.files || []);
     } catch (error) {
       console.error("Error fetching files:", error);
+    }
+  };
+
+  const fetchAllContacts = async () => {
+    try {
+      setLoadingContacts(true);
+      const response = await fetch(`/api/contacts?limit=999999`);
+      if (response.ok) {
+        const data = await response.json();
+        setAllContacts(data.contacts || []);
+      }
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+    } finally {
+      setLoadingContacts(false);
     }
   };
 
@@ -244,6 +261,34 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
         element.click();
       }
     });
+  };
+
+  const handleLinkExistingContact = async () => {
+    if (!selectedExistingContact) return;
+    
+    try {
+      const response = await fetch(`/api/leads/${lead.id}/contacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: selectedExistingContact.id,
+          role: selectedExistingContact.role || "Contact",
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Contact linked to lead successfully");
+        fetchLeadContacts();
+        setShowContactDialog(false);
+        setSelectedExistingContact(null);
+        setContactSearchTerm("");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to link contact");
+      }
+    } catch (error) {
+      toast.error("An error occurred while linking the contact");
+    }
   };
 
   const handleContactSave = async () => {
@@ -688,12 +733,6 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                 </div>
               )}
             </div>
-            {lead.description && (
-              <div>
-                <label className="text-sm text-muted-foreground">Description</label>
-                <div className="text-sm">{lead.description}</div>
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-4">
               {lead.estimatedValue && (
                 <div>
@@ -791,6 +830,18 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
           </CardContent>
         </Card>
       </div>
+
+      {/* Description - Full Width */}
+      {lead.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm whitespace-pre-wrap">{lead.description}</div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Activities Tabs */}
       <Card>
@@ -1269,76 +1320,228 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
         </CardContent>
       </Card>
 
-      {/* Contact Dialog */}
-      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
-        <DialogContent className="max-w-md">
+      {/* Contact Dialog with Tabs */}
+      <Dialog open={showContactDialog} onOpenChange={(open) => {
+        setShowContactDialog(open);
+        if (open && !editingContact) {
+          fetchAllContacts();
+          setContactDialogTab("select");
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact"}</DialogTitle>
+            <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact to Lead"}</DialogTitle>
             <DialogDescription>
-              {editingContact ? "Update contact information" : "Add a new contact to this lead"}
+              {editingContact ? "Update contact information" : "Select an existing contact or create a new one"}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="contact-name">Name *</Label>
-              <Input
-                id="contact-name"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Enter contact name"
-              />
+          {editingContact ? (
+            // Edit mode - show form directly
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="contact-name">Name *</Label>
+                <Input
+                  id="contact-name"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Enter contact name"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contact-email">Email</Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="Enter email address"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contact-phone">Phone</Label>
+                <Input
+                  id="contact-phone"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contact-role">Role</Label>
+                <Input
+                  id="contact-role"
+                  value={contactRole}
+                  onChange={(e) => setContactRole(e.target.value)}
+                  placeholder="e.g., Decision Maker, Technical Contact"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contact-notes">Notes</Label>
+                <Textarea
+                  id="contact-notes"
+                  value={contactNotes}
+                  onChange={(e) => setContactNotes(e.target.value)}
+                  placeholder="Additional notes about this contact"
+                  rows={3}
+                />
+              </div>
             </div>
-            
-            <div>
-              <Label htmlFor="contact-email">Email</Label>
-              <Input
-                id="contact-email"
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="Enter email address"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="contact-phone">Phone</Label>
-              <Input
-                id="contact-phone"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="Enter phone number"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="contact-role">Role</Label>
-              <Input
-                id="contact-role"
-                value={contactRole}
-                onChange={(e) => setContactRole(e.target.value)}
-                placeholder="e.g., Decision Maker, Technical Contact"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="contact-notes">Notes</Label>
-              <Textarea
-                id="contact-notes"
-                value={contactNotes}
-                onChange={(e) => setContactNotes(e.target.value)}
-                placeholder="Additional notes about this contact"
-                rows={3}
-              />
-            </div>
-          </div>
+          ) : (
+            // Add mode - show tabs
+            <Tabs value={contactDialogTab} onValueChange={setContactDialogTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="select">Select Existing</TabsTrigger>
+                <TabsTrigger value="new">Create New</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="select" className="space-y-4">
+                <div>
+                  <Label htmlFor="contact-search">Search Contacts</Label>
+                  <Input
+                    id="contact-search"
+                    placeholder="Search by name, email, or phone..."
+                    value={contactSearchTerm}
+                    onChange={(e) => setContactSearchTerm(e.target.value)}
+                  />
+                </div>
+                
+                <div className="border rounded-lg max-h-[400px] overflow-y-auto">
+                  {loadingContacts ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Loading contacts...
+                    </div>
+                  ) : allContacts.filter(c => 
+                    !contactSearchTerm || 
+                    c.name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                    c.email?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                    c.phone?.includes(contactSearchTerm)
+                  ).length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      No contacts found. Try creating a new one.
+                    </div>
+                  ) : (
+                    allContacts
+                      .filter(c => 
+                        !contactSearchTerm || 
+                        c.name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                        c.email?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                        c.phone?.includes(contactSearchTerm)
+                      )
+                      .map((contact) => (
+                        <div
+                          key={contact.id}
+                          className={cn(
+                            "p-4 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors",
+                            selectedExistingContact?.id === contact.id && "bg-blue-50 border-blue-200"
+                          )}
+                          onClick={() => setSelectedExistingContact(contact)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium">{contact.name}</div>
+                              {contact.email && (
+                                <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                                  <AtSign className="h-3 w-3" />
+                                  {contact.email}
+                                </div>
+                              )}
+                              {contact.phone && (
+                                <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Phone className="h-3 w-3" />
+                                  {contact.phone}
+                                </div>
+                              )}
+                              {contact.company?.name && (
+                                <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Building className="h-3 w-3" />
+                                  {contact.company.name}
+                                </div>
+                              )}
+                            </div>
+                            {selectedExistingContact?.id === contact.id && (
+                              <CheckCircle className="h-5 w-5 text-blue-600" />
+                            )}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="new" className="space-y-4">
+                <div>
+                  <Label htmlFor="new-contact-name">Name *</Label>
+                  <Input
+                    id="new-contact-name"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Enter contact name"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="new-contact-email">Email</Label>
+                  <Input
+                    id="new-contact-email"
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="Enter email address"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="new-contact-phone">Phone</Label>
+                  <Input
+                    id="new-contact-phone"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="new-contact-role">Role</Label>
+                  <Input
+                    id="new-contact-role"
+                    value={contactRole}
+                    onChange={(e) => setContactRole(e.target.value)}
+                    placeholder="e.g., Decision Maker, Technical Contact"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="new-contact-notes">Notes</Label>
+                  <Textarea
+                    id="new-contact-notes"
+                    value={contactNotes}
+                    onChange={(e) => setContactNotes(e.target.value)}
+                    placeholder="Additional notes about this contact"
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowContactDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowContactDialog(false);
+              setSelectedExistingContact(null);
+              setContactSearchTerm("");
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleContactSave} disabled={!contactName.trim()}>
-              {editingContact ? "Update" : "Add"} Contact
+            <Button 
+              onClick={editingContact ? handleContactSave : (contactDialogTab === "select" ? handleLinkExistingContact : handleContactSave)} 
+              disabled={editingContact ? !contactName.trim() : (contactDialogTab === "select" ? !selectedExistingContact : !contactName.trim())}
+            >
+              {editingContact ? "Update" : (contactDialogTab === "select" ? "Link Contact" : "Create & Link")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1424,6 +1627,7 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
         leadId={lead.id}
         leadNumber={lead.leadNumber || ""}
         leadTitle={lead.title}
+        leadDescription={lead.description}
         prefilledContact={prefilledContact}
         customerId={lead.customerId}
         customerName={lead.customer?.name}

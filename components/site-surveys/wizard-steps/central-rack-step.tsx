@@ -1679,8 +1679,105 @@ export function CentralRackStep({
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
       console.log('📦 Fresh buildings data from DB:', freshBuildings);
       
-      // Re-collect with fresh data
-      const { products: freshProducts, services: freshServices } = collectAssignedItemsFromBuildings(freshBuildings);
+      // Collect ALL products and services (same logic as Products Analysis and Proposal)
+      const freshProducts: any[] = [];
+      const freshServices: any[] = [];
+      const productsMap = new Map();
+      const servicesMap = new Map();
+      
+      freshBuildings.forEach((building: any) => {
+        const collectProducts = (elements: any[], location: string) => {
+          if (!Array.isArray(elements)) return;
+          elements.forEach((element: any) => {
+            const products = element.products || (element.productId ? [{ productId: element.productId, quantity: element.quantity || 1 }] : []);
+            if (products.length === 0) return;
+            products.forEach((prod: any) => {
+              const key = prod.productId;
+              if (!productsMap.has(key)) {
+                const fullProd = productsList.find(p => p.id === key);
+                productsMap.set(key, {
+                  id: key,
+                  name: fullProd?.name || 'Unknown',
+                  brand: fullProd?.brand?.name || '',
+                  category: fullProd?.category?.name || '',
+                  quantity: prod.quantity || 1,
+                  locations: [location]
+                });
+              } else {
+                const existing = productsMap.get(key);
+                existing.quantity += (prod.quantity || 1);
+                existing.locations.push(location);
+              }
+            });
+          });
+        };
+        
+        const collectServices = (elements: any[], location: string) => {
+          if (!Array.isArray(elements)) return;
+          elements.forEach((element: any) => {
+            const services = element.services || [];
+            services.forEach((serv: any) => {
+              const key = serv.serviceId;
+              if (!servicesMap.has(key)) {
+                const fullServ = servicesList.find(s => s.id === key);
+                servicesMap.set(key, {
+                  id: key,
+                  name: fullServ?.name || 'Unknown',
+                  category: fullServ?.category || '',
+                  quantity: serv.quantity || 1,
+                  locations: [location]
+                });
+              } else {
+                const existing = servicesMap.get(key);
+                existing.quantity += (serv.quantity || 1);
+                existing.locations.push(location);
+              }
+            });
+          });
+        };
+        
+        if (building.centralRack) {
+          collectProducts(building.centralRack.cableTerminations || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.switches || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.routers || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.servers || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.voipPbx || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.headend || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.nvr || [], `${building.name} - Central Rack`);
+          collectProducts(building.centralRack.ata || [], `${building.name} - Central Rack`);
+          
+          collectServices(building.centralRack.cableTerminations || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.switches || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.routers || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.servers || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.voipPbx || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.headend || [], `${building.name} - Central Rack`);
+          collectServices(building.centralRack.nvr || [], `${building.name} - Central Rack`);
+        }
+        
+        building.floors?.forEach((floor: any) => {
+          floor.racks?.forEach((rack: any) => {
+            collectProducts(rack.switches || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.routers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.servers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectProducts(rack.voipPbx || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            
+            collectServices(rack.switches || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectServices(rack.routers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectServices(rack.servers || [], `${building.name} - ${floor.name} - ${rack.name}`);
+            collectServices(rack.voipPbx || [], `${building.name} - ${floor.name} - ${rack.name}`);
+          });
+          
+          floor.rooms?.forEach((room: any) => {
+            collectServices(room.outlets || [], `${building.name} - ${floor.name} - ${room.name}`);
+            collectServices(room.devices || [], `${building.name} - ${floor.name} - ${room.name}`);
+          });
+        });
+      });
+      
+      freshProducts.push(...Array.from(productsMap.values()));
+      freshServices.push(...Array.from(servicesMap.values()));
+      
       console.log('📦 Fresh collected products:', freshProducts);
       console.log('📦 Fresh collected services:', freshServices);
       
@@ -1939,7 +2036,7 @@ export function CentralRackStep({
       const freshBuildings = siteSurveyData.data.wizardData.buildings;
       console.log('📦 Fresh buildings from DB:', freshBuildings);
       
-      // Collect ALL products from buildings (NEW devices with isFutureProposal: true)
+      // Collect ALL products from buildings (regardless of isFutureProposal status)
       const allProductsFromBOM: any[] = [];
       const productsMap = new Map();
       

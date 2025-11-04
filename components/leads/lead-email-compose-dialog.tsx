@@ -40,6 +40,7 @@ interface LeadEmailComposeDialogProps {
   leadId: string;
   leadNumber: string;
   leadTitle: string;
+  leadDescription?: string | null;
   prefilledContact?: any;
   customerId?: string | null;
   customerName?: string | null;
@@ -52,6 +53,7 @@ export function LeadEmailComposeDialog({
   leadId,
   leadNumber,
   leadTitle,
+  leadDescription,
   prefilledContact,
   customerId,
   customerName,
@@ -63,6 +65,7 @@ export function LeadEmailComposeDialog({
   const [subject, setSubject] = useState(`[${leadNumber}] `);
   const [body, setBody] = useState("");
   const [ccMyself, setCcMyself] = useState(true);
+  const [includeLeadDescription, setIncludeLeadDescription] = useState(false);
   const [signature, setSignature] = useState("");
   const [loadingSignature, setLoadingSignature] = useState(false);
 
@@ -174,10 +177,16 @@ export function LeadEmailComposeDialog({
 
     setSending(true);
     try {
+      // Prepend lead description if checkbox is checked
+      let emailBody = body.trim();
+      if (includeLeadDescription && leadDescription) {
+        emailBody = `Lead Description:\n${leadDescription}\n\n---\n\n${emailBody}`;
+      }
+      
       // Combine body with signature
       const fullBody = signature 
-        ? `${body.trim()}\n\n${signature}`
-        : body.trim();
+        ? `${emailBody}\n\n${signature}`
+        : emailBody;
 
       const res = await fetch(`/api/leads/${leadId}/emails/send`, {
         method: "POST",
@@ -430,6 +439,20 @@ export function LeadEmailComposeDialog({
                 </div>
               )}
             </div>
+
+            {/* Include Lead Description Checkbox */}
+            {leadDescription && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="includeLeadDescription"
+                  checked={includeLeadDescription}
+                  onCheckedChange={(checked) => setIncludeLeadDescription(checked as boolean)}
+                />
+                <Label htmlFor="includeLeadDescription" className="text-sm cursor-pointer">
+                  Include lead description in email
+                </Label>
+              </div>
+            )}
 
             <div className="flex items-center space-x-2">
               <Checkbox
