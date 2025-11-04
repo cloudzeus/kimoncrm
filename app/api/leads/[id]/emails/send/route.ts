@@ -63,62 +63,114 @@ export async function POST(
 
     // Send
     let res;
+    let errorDetails = null;
     
-    if (account.provider === "microsoft") {
-      const msg: any = {
-        message: {
-          subject: data.subject,
-          body: { contentType: "HTML", content: html },
-          toRecipients: data.to.map((r: any) => ({
-            emailAddress: { address: r.email, name: r.name || r.email }
-          })),
-          internetMessageHeaders: [
-            { name: "X-CRM-Lead-ID", value: data.metadata.leadId },
-            { name: "X-CRM-Lead-Number", value: data.metadata.leadNumber },
-            { name: "X-CRM-Tags", value: data.metadata.tags.join(",") },
-          ],
-        },
-        saveToSentItems: true,
-      };
+    try {
+      if (account.provider === "microsoft") {
+        const msg: any = {
+          message: {
+            subject: data.subject,
+            body: { contentType: "HTML", content: html },
+            toRecipients: data.to.map((r: any) => ({
+              emailAddress: { address: r.email, name: r.name || r.email }
+            })),
+            internetMessageHeaders: [
+              { name: "X-CRM-Lead-ID", value: data.metadata.leadId },
+              { name: "X-CRM-Lead-Number", value: data.metadata.leadNumber },
+              { name: "X-CRM-Tags", value: data.metadata.tags.join(",") },
+            ],
+          },
+          saveToSentItems: true,
+        };
 
-      if (data.ccMyself && session.user.email) {
-        msg.message.ccRecipients = [{
-          emailAddress: { address: session.user.email, name: session.user.name || session.user.email }
-        }];
+        if (data.ccMyself && session.user.email) {
+          msg.message.ccRecipients = [{
+            emailAddress: { address: session.user.email, name: session.user.name || session.user.email }
+          }];
+        }
+
+        res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${account.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(msg),
+        });
+      } else {
+        const raw = Buffer.from(
+          `To: ${data.to.map((r: any) => r.email).join(", ")}\r\n` +
+          `Subject: ${data.subject}\r\n` +
+          `Content-Type: text/html; charset=utf-8\r\n` +
+          `X-CRM-Lead-ID: ${data.metadata.leadId}\r\n` +
+          `X-CRM-Lead-Number: ${data.metadata.leadNumber}\r\n` +
+          `X-CRM-Tags: ${data.metadata.tags.join(",")}\r\n\r\n` +
+          html
+        ).toString("base64url");
+
+        res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${account.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ raw }),
+        });
       }
 
-      res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(msg),
-      });
-    } else {
-      const raw = Buffer.from(
-        `To: ${data.to.map((r: any) => r.email).join(", ")}\r\n` +
-        `Subject: ${data.subject}\r\n` +
-        `Content-Type: text/html; charset=utf-8\r\n` +
-        `X-CRM-Lead-ID: ${data.metadata.leadId}\r\n` +
-        `X-CRM-Lead-Number: ${data.metadata.leadNumber}\r\n` +
-        `X-CRM-Tags: ${data.metadata.tags.join(",")}\r\n\r\n` +
-        html
-      ).toString("base64url");
+      if (!res?.ok) {
+        const errorText = await res.text();
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = errorText;
+        }
+        
+        console.error("Email send failed:", {
+          status: res.status,
+          statusText: res.statusText,
+          provider: account.provider,
+          error: errorDetails,
+        });
 
-      res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ raw }),
-      });
-    }
+        // Check for token expiration
+        if (res.status === 401) {
+          return NextResponse.json(
+            { 
+              error: "Email account authentication expired. Please reconnect your email account in settings.",
+              code: "AUTH_EXPIRED"
+            },
+            { status: 401 }
+          );
+        }
 
-    if (!res?.ok) {
-      console.error("Send failed:", await res?.json());
-      return NextResponse.json({ error: "Failed to send" }, { status: 500 });
+        // Check for rate limiting
+        if (res.status === 429) {
+          return NextResponse.json(
+            { error: "Email sending rate limit exceeded. Please try again later." },
+            { status: 429 }
+          );
+        }
+
+        // Generic error with details
+        const errorMessage = errorDetails?.error?.message || errorDetails?.message || "Failed to send email";
+        return NextResponse.json(
+          { 
+            error: errorMessage,
+            details: process.env.NODE_ENV === "development" ? errorDetails : undefined
+          },
+          { status: res.status }
+        );
+      }
+    } catch (sendError: any) {
+      console.error("Email send error:", sendError);
+      return NextResponse.json(
+        { 
+          error: "Failed to send email. " + (sendError.message || "Unknown error"),
+          details: process.env.NODE_ENV === "development" ? sendError.toString() : undefined
+        },
+        { status: 500 }
+      );
     }
 
     // Save to DB (optional, don't fail if it errors)
@@ -153,8 +205,14 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Email send route error:", error);
+    return NextResponse.json(
+      { 
+        error: "Failed to send email: " + (error.message || "Unknown error"),
+        details: process.env.NODE_ENV === "development" ? error.toString() : undefined
+      },
+      { status: 500 }
+    );
   }
 }

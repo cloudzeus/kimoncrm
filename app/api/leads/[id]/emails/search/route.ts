@@ -53,26 +53,46 @@ export async function GET(
       emailAddresses.add(lead.assignee.email.toLowerCase());
     }
 
-    // Search for email threads that match any of these emails
+    // Build search conditions
+    const searchConditions: any[] = [];
+
+    // 1. Direct lead ID match
+    searchConditions.push({ leadId: id });
+
+    // 2. Lead number in subject (case-insensitive)
+    if (lead.leadNumber) {
+      searchConditions.push({
+        subject: { contains: lead.leadNumber, mode: "insensitive" },
+      });
+    }
+
+    // 3. Search by email addresses in messages
+    if (emailAddresses.size > 0) {
+      const emailArray = Array.from(emailAddresses);
+      
+      searchConditions.push({
+        messages: {
+          some: {
+            OR: [
+              { fromEmail: { in: emailArray } },
+              // Note: toList, ccList, bccList are JSON fields in Prisma
+              // We need to search them differently
+            ],
+          },
+        },
+      });
+    }
+
+    console.log("Searching emails with criteria:", {
+      leadId: id,
+      leadNumber: lead.leadNumber,
+      emailAddresses: Array.from(emailAddresses),
+    });
+
+    // Search for email threads
     const emailThreads = await prisma.emailThread.findMany({
       where: {
-        OR: [
-          // Search by lead number in subject
-          lead.leadNumber ? {
-            subject: { contains: lead.leadNumber },
-          } : {},
-          // Search by email addresses in messages
-          ...(emailAddresses.size > 0 ? [{
-            messages: {
-              some: {
-                OR: [
-                  { fromEmail: { in: Array.from(emailAddresses) } },
-                  // Check if email is in toList, ccList, or bccList
-                ],
-              },
-            },
-          }] : []),
-        ],
+        OR: searchConditions.length > 0 ? searchConditions : [{ id: "none" }],
       },
       include: {
         messages: {
@@ -84,10 +104,13 @@ export async function GET(
       take: 50,
     });
 
+    console.log(`Found ${emailThreads.length} email threads for lead ${lead.leadNumber}`);
+
     return NextResponse.json({ 
       threads: emailThreads,
       leadTitle: lead.title,
       searchCriteria: {
+        leadId: id,
         leadNumber: lead.leadNumber,
         emailAddresses: Array.from(emailAddresses),
       },

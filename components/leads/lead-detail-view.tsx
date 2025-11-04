@@ -191,10 +191,15 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
       const response = await fetch(`/api/contacts?limit=999999`);
       if (response.ok) {
         const data = await response.json();
+        console.log("Fetched all contacts:", data.contacts?.length || 0, "contacts");
         setAllContacts(data.contacts || []);
+      } else {
+        console.error("Failed to fetch contacts:", response.status);
+        toast.error("Failed to load contacts");
       }
     } catch (error) {
       console.error("Error fetching contacts:", error);
+      toast.error("Error loading contacts");
     } finally {
       setLoadingContacts(false);
     }
@@ -1423,10 +1428,11 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                     !contactSearchTerm || 
                     c.name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
                     c.email?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
-                    c.phone?.includes(contactSearchTerm)
+                    c.mobilePhone?.includes(contactSearchTerm) ||
+                    c.workPhone?.includes(contactSearchTerm)
                   ).length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
-                      No contacts found. Try creating a new one.
+                      {contactSearchTerm ? "No contacts match your search." : "No contacts found. Try creating a new one."}
                     </div>
                   ) : (
                     allContacts
@@ -1434,7 +1440,8 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                         !contactSearchTerm || 
                         c.name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
                         c.email?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
-                        c.phone?.includes(contactSearchTerm)
+                        c.mobilePhone?.includes(contactSearchTerm) ||
+                        c.workPhone?.includes(contactSearchTerm)
                       )
                       .map((contact) => (
                         <div
@@ -1454,16 +1461,16 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
                                   {contact.email}
                                 </div>
                               )}
-                              {contact.phone && (
+                              {(contact.mobilePhone || contact.workPhone) && (
                                 <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                   <Phone className="h-3 w-3" />
-                                  {contact.phone}
+                                  {contact.mobilePhone || contact.workPhone}
                                 </div>
                               )}
-                              {contact.company?.name && (
+                              {contact.customers && contact.customers.length > 0 && contact.customers[0].customer?.name && (
                                 <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                   <Building className="h-3 w-3" />
-                                  {contact.company.name}
+                                  {contact.customers[0].customer.name}
                                 </div>
                               )}
                             </div>

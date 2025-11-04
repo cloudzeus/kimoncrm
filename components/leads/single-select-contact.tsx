@@ -121,7 +121,7 @@ export function SingleSelectContact({
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      {open && filteredContacts.length > 0 && (
+      {open && (
         <div
           className="absolute top-full left-0 right-0 z-[10000] mt-1 bg-popover border rounded-md shadow-lg"
           style={{ zIndex: 10000 }}
@@ -139,9 +139,14 @@ export function SingleSelectContact({
             />
           </div>
           <div className="max-h-60 overflow-auto">
-            {filteredContacts.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                No contacts found.
+            {contacts.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+                No contacts available for this customer.<br/>
+                <span className="text-xs">Please add a contact first using the + button.</span>
+              </div>
+            ) : filteredContacts.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+                No contacts match your search.
               </div>
             ) : (
               filteredContacts.map((contact, index) => (
