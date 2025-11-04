@@ -80,6 +80,7 @@ import { LeadNotesTimeline } from "./lead-notes-timeline";
 import { LeadParticipantsManager } from "./lead-participants-manager";
 import { ProposalGenerationModal } from "../proposals/proposal-generation-modal";
 import { LeadEmailComposeDialog } from "./lead-email-compose-dialog";
+import { LeadFormDialog } from "./lead-form-dialog";
 
 interface LeadDetailViewProps {
   lead: any;
@@ -141,6 +142,9 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
   // Email compose dialog state
   const [showEmailComposeDialog, setShowEmailComposeDialog] = useState(false);
   const [prefilledContact, setPrefilledContact] = useState<any>(null);
+
+  // Edit lead dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   // Task statistics state
   const [taskStats, setTaskStats] = useState({ notStarted: 0, inProgress: 0, completed: 0 });
@@ -671,7 +675,7 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
@@ -1634,6 +1638,13 @@ export function LeadDetailView({ lead, currentUserId, users }: LeadDetailViewPro
         onEmailSent={() => {
           setPrefilledContact(null);
         }}
+      />
+
+      {/* Edit Lead Dialog */}
+      <LeadFormDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        lead={lead}
       />
     </div>
   );

@@ -74,6 +74,12 @@ const nextConfig = {
       moduleIds: 'deterministic',
     };
     
+    // Ensure path aliases are resolved correctly
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, '.'),
+    };
+    
     return config;
   }
 };
