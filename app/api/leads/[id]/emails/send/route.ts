@@ -6,23 +6,36 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.log("📧 [EMAIL SEND] ========================================");
+  console.log("📧 [EMAIL SEND] Starting email send request...");
+  
   try {
     const session = await auth();
     if (!session) {
+      console.error("📧 [EMAIL SEND] ❌ Unauthorized - no session");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    console.log(`📧 [EMAIL SEND] User: ${session.user.email}`);
 
     const { id } = await params;
     const data = await request.json();
 
+    console.log(`📧 [EMAIL SEND] Lead ID: ${id}`);
+    console.log(`📧 [EMAIL SEND] Recipients: ${data.to?.length || 0}`);
+    console.log(`📧 [EMAIL SEND] Subject: ${data.subject}`);
+
     // Validate
     if (!data.to?.length) {
+      console.error("📧 [EMAIL SEND] ❌ No recipients");
       return NextResponse.json({ error: "Recipients required" }, { status: 400 });
     }
     if (!data.subject?.trim()) {
+      console.error("📧 [EMAIL SEND] ❌ No subject");
       return NextResponse.json({ error: "Subject required" }, { status: 400 });
     }
     if (!data.body?.trim()) {
+      console.error("📧 [EMAIL SEND] ❌ No message body");
       return NextResponse.json({ error: "Message required" }, { status: 400 });
     }
 
@@ -33,8 +46,11 @@ export async function POST(
     });
 
     if (!lead) {
+      console.error(`📧 [EMAIL SEND] ❌ Lead not found: ${id}`);
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
+
+    console.log("📧 [EMAIL SEND] ✓ Lead found");
 
     // Get account
     const account = await prisma.account.findFirst({
@@ -44,9 +60,19 @@ export async function POST(
       },
     });
 
-    if (!account?.access_token) {
-      return NextResponse.json({ error: "No email account connected" }, { status: 400 });
+    if (!account) {
+      console.error("📧 [EMAIL SEND] ❌ No email account connected for user");
+      return NextResponse.json({ error: "No email account connected. Please connect your email in settings." }, { status: 400 });
     }
+
+    if (!account.access_token) {
+      console.error("📧 [EMAIL SEND] ❌ No access token in account");
+      return NextResponse.json({ error: "Email account token expired. Please reconnect your email." }, { status: 400 });
+    }
+
+    console.log(`📧 [EMAIL SEND] ✓ Using ${account.provider} account`);
+    console.log(`📧 [EMAIL SEND] Token expires: ${account.expires_at ? new Date(account.expires_at * 1000).toISOString() : 'unknown'}`);
+
 
     // HTML body
     const html = `
