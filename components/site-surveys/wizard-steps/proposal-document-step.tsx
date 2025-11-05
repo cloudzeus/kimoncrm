@@ -49,6 +49,7 @@ export default function ProposalDocumentStep({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isSavingAI, setIsSavingAI] = useState(false);
   
   // Product enhancement states
   const [specificationsDialogOpen, setSpecificationsDialogOpen] = useState(false);
@@ -58,6 +59,15 @@ export default function ProposalDocumentStep({
   // Products and services data
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
+  
+  // AI-generated content (editable)
+  const [aiContent, setAiContent] = useState({
+    infrastructureDesc: '',
+    technicalDesc: '',
+    productsDesc: '',
+    servicesDesc: '',
+    scopeOfWork: ''
+  });
 
   // Company details form
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails>({
@@ -132,6 +142,13 @@ export default function ProposalDocumentStep({
               email: customer.email || ""
             });
           }
+        }
+        
+        // Fetch AI content
+        const aiContentRes = await fetch(`/api/site-surveys/${siteSurveyId}/ai-content`);
+        if (aiContentRes.ok) {
+          const aiData = await aiContentRes.json();
+          setAiContent(aiData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -336,6 +353,39 @@ export default function ProposalDocumentStep({
       });
     } finally {
       setIsCompleting(false);
+    }
+  };
+
+  // Save AI content to database
+  const handleSaveAIContent = async () => {
+    try {
+      setIsSavingAI(true);
+      
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}/ai-content`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aiContent),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save AI content');
+      }
+      
+      toast({
+        title: "Αποθηκεύτηκε",
+        description: "Το περιεχόμενο AI αποθηκεύτηκε επιτυχώς",
+      });
+    } catch (error) {
+      console.error('Error saving AI content:', error);
+      toast({
+        title: "Σφάλμα",
+        description: "Αποτυχία αποθήκευσης περιεχομένου AI",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingAI(false);
     }
   };
 
@@ -1060,157 +1110,84 @@ export default function ProposalDocumentStep({
       </Card>
 
       <Separator />
-
-      {/* Company Details */}
+      
+      {/* AI Technical Description Fields */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Company Information
+          <CardTitle className="flex items-center justify-between">
+            <span>Τεχνικές Περιγραφές AI</span>
+            <Button 
+              onClick={handleSaveAIContent}
+              disabled={isSavingAI}
+              variant="outline"
+              size="sm"
+            >
+              {isSavingAI ? "Αποθήκευση..." : "Αποθήκευση Περιεχομένου"}
+            </Button>
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Επεξεργαστείτε τις τεχνικές περιγραφές που θα χρησιμοποιηθούν στην προσφορά
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name</Label>
-              <Input
-                id="companyName"
-                value={companyDetails.name}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Your Company Name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="companyDescription">Description</Label>
-              <Input
-                id="companyDescription"
-                value={companyDetails.description}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Company description"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="companyAddress">Address</Label>
+          <div>
+            <Label htmlFor="infrastructureDesc">Περιγραφή Υποδομής</Label>
             <Textarea
-              id="companyAddress"
-              value={companyDetails.address}
-              onChange={(e) => setCompanyDetails(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="Company address"
-              rows={2}
+              id="infrastructureDesc"
+              value={aiContent.infrastructureDesc}
+              onChange={(e) => setAiContent(prev => ({ ...prev, infrastructureDesc: e.target.value }))}
+              rows={6}
+              placeholder="Εισάγετε την περιγραφή της υποδομής..."
             />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="taxId">Tax ID</Label>
-              <Input
-                id="taxId"
-                value={companyDetails.taxId}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, taxId: e.target.value }))}
-                placeholder="Tax ID"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="taxOffice">Tax Office</Label>
-              <Input
-                id="taxOffice"
-                value={companyDetails.taxOffice}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, taxOffice: e.target.value }))}
-                placeholder="Tax Office"
-              />
-            </div>
+          
+          <div>
+            <Label htmlFor="technicalDesc">Τεχνική Περιγραφή</Label>
+            <Textarea
+              id="technicalDesc"
+              value={aiContent.technicalDesc}
+              onChange={(e) => setAiContent(prev => ({ ...prev, technicalDesc: e.target.value }))}
+              rows={6}
+              placeholder="Εισάγετε την τεχνική περιγραφή..."
+            />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyPhone">Phone</Label>
-              <Input
-                id="companyPhone"
-                value={companyDetails.phone}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="Phone number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="companyEmail">Email</Label>
-              <Input
-                id="companyEmail"
-                type="email"
-                value={companyDetails.email}
-                onChange={(e) => setCompanyDetails(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="Email address"
-              />
-            </div>
+          
+          <div>
+            <Label htmlFor="productsDesc">Περιγραφή Προϊόντων</Label>
+            <Textarea
+              id="productsDesc"
+              value={aiContent.productsDesc}
+              onChange={(e) => setAiContent(prev => ({ ...prev, productsDesc: e.target.value }))}
+              rows={4}
+              placeholder="Εισάγετε την περιγραφή των προϊόντων..."
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="servicesDesc">Περιγραφή Υπηρεσιών</Label>
+            <Textarea
+              id="servicesDesc"
+              value={aiContent.servicesDesc}
+              onChange={(e) => setAiContent(prev => ({ ...prev, servicesDesc: e.target.value }))}
+              rows={4}
+              placeholder="Εισάγετε την περιγραφή των υπηρεσιών..."
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="scopeOfWork">Πεδίο Εφαρμογής (Scope of Work)</Label>
+            <Textarea
+              id="scopeOfWork"
+              value={aiContent.scopeOfWork}
+              onChange={(e) => setAiContent(prev => ({ ...prev, scopeOfWork: e.target.value }))}
+              rows={4}
+              placeholder="Εισάγετε το πεδίο εφαρμογής..."
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Customer Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Customer Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Customer Name *</Label>
-            <Input
-              id="customerName"
-              value={customerDetails.name}
-              onChange={(e) => setCustomerDetails(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Customer company name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerAddress">Customer Address</Label>
-            <Textarea
-              id="customerAddress"
-              value={customerDetails.address || ''}
-              onChange={(e) => setCustomerDetails(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="Customer address"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contactPerson">Contact Person</Label>
-              <Input
-                id="contactPerson"
-                value={customerDetails.contactPerson || ''}
-                onChange={(e) => setCustomerDetails(prev => ({ ...prev, contactPerson: e.target.value }))}
-                placeholder="Contact person name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customerPhone">Phone</Label>
-              <Input
-                id="customerPhone"
-                value={customerDetails.phone || ''}
-                onChange={(e) => setCustomerDetails(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="Customer phone"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Email</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={customerDetails.email || ''}
-              onChange={(e) => setCustomerDetails(prev => ({ ...prev, email: e.target.value }))}
-              placeholder="Customer email"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <Separator />
 
       {/* Download Buttons */}
       <Card>

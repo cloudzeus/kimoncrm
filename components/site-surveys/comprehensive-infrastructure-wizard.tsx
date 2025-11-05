@@ -491,39 +491,9 @@ export function ComprehensiveInfrastructureWizard({
     try {
       setSaving(true);
       
-      // Helper function to remove circular references and clean data
-      const cleanData = (obj: any, seen = new WeakSet()): any => {
-        if (obj === null || typeof obj !== 'object') {
-          return obj;
-        }
-        
-        // Check for circular reference
-        if (seen.has(obj)) {
-          return undefined; // Return undefined for circular refs
-        }
-        
-        seen.add(obj);
-        
-        if (Array.isArray(obj)) {
-          return obj.map(item => cleanData(item, seen));
-        }
-        
-        const cleaned: any = {};
-        for (const key in obj) {
-          if (obj.hasOwnProperty(key)) {
-            const value = cleanData(obj[key], seen);
-            if (value !== undefined) {
-              cleaned[key] = value;
-            }
-          }
-        }
-        
-        return cleaned;
-      };
-      
-      // Clean the data before serialization
-      const cleanedBuildings = cleanData(wizardData.buildings);
-      const cleanedConnections = cleanData(wizardData.siteConnections);
+      // Simple stringify/parse to remove circular references but keep data
+      const cleanedBuildings = JSON.parse(JSON.stringify(wizardData.buildings));
+      const cleanedConnections = JSON.parse(JSON.stringify(wizardData.siteConnections));
       
       // Save comprehensive infrastructure data
       await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`, {

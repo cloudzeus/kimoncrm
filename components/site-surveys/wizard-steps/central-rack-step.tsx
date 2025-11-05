@@ -1667,7 +1667,7 @@ export function CentralRackStep({
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
       const siteSurveyData = await siteSurveyRes.json();
       
-      if (!siteSurveyData.success || !siteSurveyData.data?.wizardData?.buildings) {
+      if (!siteSurveyData?.wizardData?.buildings) {
         toast({
           title: "Error",
           description: "Failed to fetch site survey data",
@@ -1676,12 +1676,12 @@ export function CentralRackStep({
         return;
       }
       
-      const freshBuildings = siteSurveyData.data.wizardData.buildings;
+      const freshBuildings = siteSurveyData.wizardData.buildings;
       console.log('📦 Fresh buildings data from DB:', freshBuildings);
       
       // Load pricing data from database
-      const dbProductPricing = siteSurveyData.data.wizardData.productPricing || {};
-      const dbServicePricing = siteSurveyData.data.wizardData.servicePricing || {};
+      const dbProductPricing = siteSurveyData.wizardData.productPricing || {};
+      const dbServicePricing = siteSurveyData.wizardData.servicePricing || {};
       console.log('💰 Loaded pricing from DB:', {
         productsCount: Object.keys(dbProductPricing).length,
         servicesCount: Object.keys(dbServicePricing).length,
