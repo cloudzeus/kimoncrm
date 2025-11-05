@@ -17,6 +17,8 @@ interface Proposal {
   stage: string;
   erpQuoteNumber: string | null;
   wordDocumentUrl: string | null;
+  completeProposalUrl: string | null;
+  completeProposalName: string | null;
   createdAt: Date;
   customer: {
     id: string;

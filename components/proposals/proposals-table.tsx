@@ -56,6 +56,8 @@ interface Proposal {
   stage: string;
   erpQuoteNumber: string | null;
   wordDocumentUrl: string | null;
+  completeProposalUrl: string | null;
+  completeProposalName: string | null;
   createdAt: Date;
   customer: {
     id: string;
@@ -246,6 +248,44 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
     } catch (error) {
       console.error('Error downloading document:', error);
       toast.error('Σφάλμα κατά τη λήψη του εγγράφου');
+    }
+  };
+
+  const handleDownloadCompleteProposal = async (proposal: Proposal) => {
+    try {
+      if (!proposal.completeProposalUrl) {
+        toast.error('Δεν υπάρχει πλήρης πρόταση για λήψη');
+        return;
+      }
+
+      toast.info('Λήψη πλήρους πρότασης AI...');
+      
+      // Use proxy endpoint to download file
+      const filename = proposal.completeProposalName || 'Complete-Proposal.docx';
+      const proxyUrl = `/api/files/download?url=${encodeURIComponent(proposal.completeProposalUrl)}&filename=${encodeURIComponent(filename)}`;
+      
+      const response = await fetch(proxyUrl);
+      if (!response.ok) {
+        throw new Error('Failed to download complete proposal');
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      toast.success('Η πλήρης πρόταση AI λήφθηκε επιτυχώς');
+    } catch (error) {
+      console.error('Error downloading complete proposal:', error);
+      toast.error('Σφάλμα κατά τη λήψη της πλήρους πρότασης');
     }
   };
 
@@ -481,7 +521,16 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
               disabled={!row.wordDocumentUrl}
             >
               <Download className="h-4 w-4 mr-2" />
-              Λήψη Word Εγγράφου
+              Λήψη Βασικής Προσφοράς
+            </DropdownMenuItem>
+
+            <DropdownMenuItem 
+              onClick={() => handleDownloadCompleteProposal(row)}
+              disabled={!row.completeProposalUrl}
+              className="text-purple-600"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Λήψη Πλήρους Πρότασης AI
             </DropdownMenuItem>
             
             <DropdownMenuSeparator />

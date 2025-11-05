@@ -133,7 +133,7 @@ export function EquipmentAssignmentStep({
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isAddNewRackDialogOpen, setIsAddNewRackDialogOpen] = useState(false);
   const [selectedElement, setSelectedElement] = useState<{
-    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack' | 'connection' | 'voipPbx' | 'headend' | 'nvr';
+    type: 'termination' | 'switch' | 'router' | 'server' | 'device' | 'outlet' | 'rack' | 'connection' | 'voipPbx' | 'headend' | 'nvr' | 'ata';
     buildingId: string;
     floorId?: string;
     rackId?: string;
@@ -2107,6 +2107,46 @@ export function EquipmentAssignmentStep({
           };
         }
 
+        if (selectedElement.type === 'ata') {
+          const updatedAta = (building.centralRack.ata || []).map(ata => {
+            if (ata.id === selectedElement.elementId) {
+              // Add to products array instead of replacing single productId
+              const existingProducts = ata.products || [];
+              const existingIndex = existingProducts.findIndex(p => p.productId === selectedProductId);
+              
+              let updatedProducts;
+              if (existingIndex >= 0) {
+                // Update existing product quantity
+                updatedProducts = [...existingProducts];
+                updatedProducts[existingIndex] = {
+                  ...updatedProducts[existingIndex],
+                  quantity: updatedProducts[existingIndex].quantity + productQuantity,
+                };
+              } else {
+                // Add new product
+                updatedProducts = [
+                  ...existingProducts,
+                  { productId: selectedProductId, quantity: productQuantity },
+                ];
+              }
+              
+              return {
+                ...ata,
+                isFutureProposal: true,
+                products: updatedProducts,
+              };
+            }
+            return ata;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              ata: updatedAta,
+            },
+          };
+        }
+
         if (selectedElement.type === 'connection') {
           const updatedConnections = (building.centralRack.connections || []).map(conn => {
             if (conn.id === selectedElement.elementId) {
@@ -2624,6 +2664,25 @@ export function EquipmentAssignmentStep({
             centralRack: {
               ...building.centralRack,
               nvr: updatedNvr,
+            },
+          };
+        }
+
+        if (selectedElement.type === 'ata') {
+          const updatedAta = (building.centralRack.ata || []).map(ata => {
+            if (ata.id === selectedElement.elementId) {
+              return {
+                ...ata,
+                services: [...(ata.services || []), newService],
+              };
+            }
+            return ata;
+          });
+          return {
+            ...building,
+            centralRack: {
+              ...building.centralRack,
+              ata: updatedAta,
             },
           };
         }
