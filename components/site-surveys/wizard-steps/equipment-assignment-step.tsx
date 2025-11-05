@@ -806,63 +806,82 @@ export function EquipmentAssignmentStep({
     return getFloorMultiplier(floor) * getRoomMultiplier(room);
   };
 
-  // Delete NEW element
+  // Delete NEW element from central rack or floor rack
   const deleteNewElement = (buildingId: string, floorId: string | undefined, rackId: string | undefined, roomId: string | undefined, elementType: string, elementId: string) => {
+    console.log(`🗑️ Deleting ${elementType} with ID ${elementId}`);
+    
     const updatedBuildings = localBuildings.map(building => {
       if (building.id !== buildingId) return building;
 
-      // Handle central rack
+      // Handle central rack elements
       if (!floorId && building.centralRack) {
-        if (elementType === 'switch') {
-          return { ...building, centralRack: { ...building.centralRack, switches: building.centralRack.switches.filter(sw => sw.id !== elementId) } };
+        const updatedCentralRack = { ...building.centralRack };
+        
+        switch (elementType) {
+          case 'switch':
+            updatedCentralRack.switches = building.centralRack.switches.filter(sw => sw.id !== elementId);
+            break;
+          case 'router':
+            updatedCentralRack.routers = building.centralRack.routers.filter(r => r.id !== elementId);
+            break;
+          case 'server':
+            updatedCentralRack.servers = (building.centralRack.servers || []).filter(s => s.id !== elementId);
+            break;
+          case 'termination':
+            updatedCentralRack.cableTerminations = building.centralRack.cableTerminations.filter(t => t.id !== elementId);
+            break;
+          case 'voipPbx':
+            updatedCentralRack.voipPbx = (building.centralRack.voipPbx || []).filter(p => p.id !== elementId);
+            break;
+          case 'headend':
+            updatedCentralRack.headend = (building.centralRack.headend || []).filter(h => h.id !== elementId);
+            break;
+          case 'nvr':
+            updatedCentralRack.nvr = (building.centralRack.nvr || []).filter(n => n.id !== elementId);
+            break;
+          case 'ata':
+            updatedCentralRack.ata = (building.centralRack.ata || []).filter(a => a.id !== elementId);
+            break;
         }
-        if (elementType === 'router') {
-          return { ...building, centralRack: { ...building.centralRack, routers: building.centralRack.routers.filter(r => r.id !== elementId) } };
-        }
-        if (elementType === 'server') {
-          return { ...building, centralRack: { ...building.centralRack, servers: (building.centralRack.servers || []).filter(s => s.id !== elementId) } };
-        }
-        if (elementType === 'termination') {
-          return { ...building, centralRack: { ...building.centralRack, cableTerminations: building.centralRack.cableTerminations.filter(t => t.id !== elementId) } };
-        }
+        
+        return { ...building, centralRack: updatedCentralRack };
       }
 
-      // Handle floor-level elements
-      if (floorId) {
+      // Handle floor rack elements
+      if (floorId && rackId) {
         const updatedFloors = building.floors.map(floor => {
           if (floor.id !== floorId) return floor;
-
-          // Handle rack elements
-          if (rackId) {
-            const updatedRacks = (floor.racks || []).map(rack => {
-              if (rack.id !== rackId) return rack;
-              if (elementType === 'switch') return { ...rack, switches: rack.switches.filter(sw => sw.id !== elementId) };
-              if (elementType === 'router') return { ...rack, routers: (rack.routers || []).filter(r => r.id !== elementId) };
-              if (elementType === 'server') return { ...rack, servers: (rack.servers || []).filter(s => s.id !== elementId) };
-              if (elementType === 'voipPbx') return { ...rack, voipPbx: (rack.voipPbx || []).filter(p => p.id !== elementId) };
-              if (elementType === 'headend') return { ...rack, headend: (rack.headend || []).filter(h => h.id !== elementId) };
-              if (elementType === 'nvr') return { ...rack, nvr: (rack.nvr || []).filter(n => n.id !== elementId) };
-              if (elementType === 'ata') return { ...rack, ata: (rack.ata || []).filter(a => a.id !== elementId) };
-              if (elementType === 'termination') return { ...rack, cableTerminations: (rack.cableTerminations || []).filter(t => t.id !== elementId) };
-              if (elementType === 'connection') return { ...rack, connections: rack.connections.filter(c => c.id !== elementId) };
-              return rack;
-            });
-            return { ...floor, racks: updatedRacks };
-          }
-
-          // Handle room elements
-          if (roomId) {
-            const updatedRooms = floor.rooms.map(room => {
-              if (room.id !== roomId) return room;
-              if (elementType === 'device') return { ...room, devices: room.devices.filter(d => d.id !== elementId) };
-              if (elementType === 'outlet') return { ...room, outlets: room.outlets.filter(o => o.id !== elementId) };
-              return room;
-            });
-            return { ...floor, rooms: updatedRooms };
-          }
-
-          return floor;
+          
+          const updatedRacks = (floor.racks || []).map(rack => {
+            if (rack.id !== rackId) return rack;
+            
+            const updatedRack = { ...rack };
+            switch (elementType) {
+              case 'switch':
+                updatedRack.switches = (rack.switches || []).filter(sw => sw.id !== elementId);
+                break;
+              case 'router':
+                updatedRack.routers = (rack.routers || []).filter(r => r.id !== elementId);
+                break;
+              case 'server':
+                updatedRack.servers = (rack.servers || []).filter(s => s.id !== elementId);
+                break;
+              case 'voipPbx':
+                updatedRack.voipPbx = (rack.voipPbx || []).filter(p => p.id !== elementId);
+                break;
+              case 'nvr':
+                updatedRack.nvr = (rack.nvr || []).filter(n => n.id !== elementId);
+                break;
+              case 'ata':
+                updatedRack.ata = (rack.ata || []).filter(a => a.id !== elementId);
+                break;
+            }
+            return updatedRack;
+          });
+          
+          return { ...floor, racks: updatedRacks };
         });
+        
         return { ...building, floors: updatedFloors };
       }
 
@@ -872,8 +891,9 @@ export function EquipmentAssignmentStep({
     setLocalBuildings(updatedBuildings);
     onUpdate(updatedBuildings);
     if (siteSurveyId) autoSaveInfrastructure(siteSurveyId, updatedBuildings);
-    toast({ title: "Success", description: "Element deleted" });
+    toast({ title: "Success", description: `${elementType} deleted successfully` });
   };
+
 
   // Update NEW element properties
   const updateNewElement = (buildingId: string, floorId: string | undefined, rackId: string | undefined, roomId: string | undefined, elementType: string, elementId: string, updates: any) => {
