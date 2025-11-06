@@ -117,7 +117,7 @@ export async function POST(
               unitPrice: p.unitPrice || 0,
               margin: p.margin || 0,
               totalPrice: p.totalPrice || 0,
-              sodtype: '51', // Product
+              sodtype: '51', // Product (51 = Product)
             };
           })
           .filter(Boolean) as any[];
@@ -140,7 +140,7 @@ export async function POST(
               unitPrice: s.unitPrice || 0,
               margin: s.margin || 0,
               totalPrice: s.totalPrice || 0,
-              sodtype: '52', // Service
+              sodtype: '51', // Service (51 = Service)
             });
           }
         });

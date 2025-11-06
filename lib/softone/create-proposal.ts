@@ -24,8 +24,7 @@ export interface ProposalLine {
   unitPrice: number;
   margin: number;
   totalPrice: number;
-  vat?: number;
-  sodtype?: string; // "51" for services, "52" for products
+  sodtype?: string; // "51" = service, "52" = product
 }
 
 export interface CreateProposalData {
@@ -65,8 +64,8 @@ export async function createProposalInSoftOne(
         MTRL: line.mtrl,
         QTY1: line.quantity,
         PRICE: line.unitPrice,
-        VAT: line.vat || 1410, // Default VAT code (24% in Greece)
-        SODTYPE: line.sodtype || (line.sodtype === '51' ? '51' : '52') // "51" = service, "52" = product
+        VAT: 1410, // Always use 1410 (24% VAT code in Greece)
+        SODTYPE: line.sodtype || '52' // "51" = service, "52" = product (default to product)
       }));
 
     console.log('📝 Prepared MTRLINES:', mtrLines);
