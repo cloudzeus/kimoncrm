@@ -24,7 +24,7 @@ export interface ProposalLine {
   unitPrice: number;
   margin: number;
   totalPrice: number;
-  sodtype?: string; // "51" = service, "52" = product
+  sodtype?: string; // "51" = product, "52" = service
 }
 
 export interface CreateProposalData {
@@ -65,7 +65,7 @@ export async function createProposalInSoftOne(
         QTY1: line.quantity,
         PRICE: line.unitPrice,
         VAT: 1410, // Always use 1410 (24% VAT code in Greece)
-        SODTYPE: line.sodtype || '52' // "51" = service, "52" = product (default to product)
+        SODTYPE: line.sodtype || '51' // "51" = product, "52" = service (default to product)
       }));
 
     console.log('📝 Prepared MTRLINES:', mtrLines);
@@ -91,7 +91,7 @@ export async function createProposalInSoftOne(
     console.log('📤 ERP Request:', JSON.stringify(requestBody, null, 2));
 
     // Make the API call to create the proposal using getOrderDoc endpoint
-    const endpoint = `${SOFTONE_BASE_URL}/JS/webservice.utilities/getOrderDoc`;
+    const endpoint = 'https://aic.oncloud.gr/s1services/JS/webservice.utilities/getOrderDoc';
     console.log('🌐 ERP Endpoint:', endpoint);
 
     const response = await fetch(endpoint, {
