@@ -3,34 +3,28 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
-import {
-  Document,
-  Paragraph,
-  TextRun,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  AlignmentType,
-  HeadingLevel,
-  ImageRun,
-  Packer,
-  BorderStyle,
-  ShadingType,
-  UnderlineType,
-} from 'docx';
+import { createProposalInSoftOne } from '@/lib/softone/create-proposal';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import fs from 'fs';
+import path from 'path';
 
 /**
- * Complete Proposal Document Generator
- * Matches the exact format from the provided Word document template
+ * Complete Proposal Document Generator - TEMPLATE BASED
+ * Uses proposal-template.docx with Docxtemplater
  * 
- * Structure:
- * 1. Cover Page (with company header, FINCODE, customer, assignees)
- * 2. Table of Contents
- * 3. ΤΕΧΝΙΚΗ ΠΡΟΤΑΣΗ (Technical Proposal - AI generated text)
- * 4. ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ (Product specs with images - bulleted format)
- * 5. ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΤΑΣΗ (Pricing tables - Required, Optional, Services)
- * 6. ΑΠΟΜΑΚΡΥΣΜΕΝΗ ΥΠΟΣΤΗΡΙΞΗ (Warranty & Support terms)
+ * Template Placeholders Required:
+ * - {proposalNumber} → FINCODE from ERP (e.g., ΠΡΦ0000403)
+ * - {date} → Current date
+ * - {customerName} → Customer name
+ * - {projectName} → Project title
+ * - {technicalDescription} → AI-generated technical text (optional)
+ * - {products} → Array with: {name}, {brand}, {category}, {quantity}, {unitPrice}, {margin}, {totalPrice}, {specifications}
+ * - {services} → Array with: {name}, {category}, {quantity}, {unitPrice}, {totalPrice}
+ * - {totalProductsAmount} → Total for products
+ * - {totalServicesAmount} → Total for services
+ * - {grandTotal} → Total + VAT
+ * - {vatAmount} → VAT amount
  */
 
 export async function POST(
@@ -39,15 +33,16 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userId = session.user.id;
     const { id: siteSurveyId } = await params;
     const body = await request.json();
     const { products = [], services = [] } = body;
 
-    console.log('📄 Generating complete proposal document:', {
+    console.log('📄 Generating complete proposal document from template:', {
       siteSurveyId,
       productsCount: products.length,
       servicesCount: services.length,
@@ -78,10 +73,165 @@ export async function POST(
     const latestProposal = siteSurvey.proposals?.[0];
     const customerName = siteSurvey.customer?.name || 'N/A';
     const projectName = siteSurvey.title || 'Site Survey';
-    const proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
+    let proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
     const assignedUserName = session.user.name || 'N/A';
 
-    // Fetch full product details
+    // Load AI technical description from database
+    const infrastructureData = siteSurvey.infrastructureData as any;
+    const aiContent = infrastructureData?.aiContent || {};
+    const technicalDescription = aiContent.technicalDescription || latestProposal?.technicalDesc || '';
+
+    // Check if proposal already exists for this site survey
+    const existingProposal = await prisma.proposal.findFirst({
+      where: {
+        siteSurveyId: siteSurveyId,
+        erpProposalNumber: { not: null },
+      },
+    });
+
+    // Only create new ERP order if no existing proposal with ERP number
+    if (!existingProposal) {
+      // Try to create ERP order to get FINCODE
+      try {
+        if (siteSurvey.customer?.trdr && products.length > 0) {
+          console.log('🔄 Attempting to create ERP order for proposal...');
+        
+        // Fetch product details with MTRL codes
+        const productIds = products.map((p: any) => p.id);
+        const productsWithMtrl = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, mtrl: true, name: true }
+        });
+        
+        // Prepare ERP lines
+        const erpLines = products
+          .map((p: any) => {
+            const productInfo = productsWithMtrl.find(pm => pm.id === p.id);
+            if (!productInfo?.mtrl) return null;
+            
+            return {
+              productId: p.id,
+              mtrl: productInfo.mtrl,
+              name: productInfo.name || '',
+              quantity: p.quantity || 1,
+              unitPrice: p.unitPrice || 0,
+              margin: p.margin || 0,
+              totalPrice: p.totalPrice || 0,
+              sodtype: '51', // Product
+            };
+          })
+          .filter(Boolean) as any[];
+        
+        // Add services
+        const serviceIds = services.map((s: any) => s.id);
+        const servicesWithMtrl = await prisma.service.findMany({
+          where: { id: { in: serviceIds } },
+          select: { id: true, code: true, name: true }
+        });
+        
+        services.forEach((s: any) => {
+          const serviceInfo = servicesWithMtrl.find(sm => sm.id === s.id);
+          if (serviceInfo?.code) {
+            erpLines.push({
+              productId: s.id,
+              mtrl: serviceInfo.code,
+              name: serviceInfo.name || '',
+              quantity: s.quantity || 1,
+              unitPrice: s.unitPrice || 0,
+              margin: s.margin || 0,
+              totalPrice: s.totalPrice || 0,
+              sodtype: '52', // Service
+            });
+          }
+        });
+        
+        if (erpLines.length > 0) {
+          const erpResult = await createProposalInSoftOne({
+            series: '7001', // Default series for proposals
+            trdr: siteSurvey.customer.trdr.toString(),
+            comments: `Complete Proposal - ${projectName}`,
+            lines: erpLines,
+          });
+          
+          if (erpResult.success && erpResult.proposalNumber) {
+            proposalNumber = erpResult.proposalNumber;
+            const erpData = erpResult.erpResponse || {};
+            console.log('✅ ERP order created successfully:', proposalNumber);
+            console.log('📊 ERP Data:', erpData);
+            
+            // Save ERP proposal to database with all ERP fields
+            if (siteSurvey.customerId) {
+              await prisma.proposal.create({
+                data: {
+                  siteSurveyId: siteSurveyId,
+                  leadId: siteSurvey.leadId,
+                  customerId: siteSurvey.customerId,
+                  projectTitle: projectName,
+                  erpProposalNumber: proposalNumber, // FINCODE
+                  erpSeries: erpData.SERIES?.toString() || null,
+                  erpSeriesNum: erpData.SERIESNUM?.toString() || null,
+                  erpFindoc: erpData.FINDOC?.toString() || null,
+                  erpSaldocnum: erpData.SALDOCNUM || null,
+                  erpTurnover: erpData.TURNOVR || null,
+                  erpVatAmount: erpData.VATAMNT || null,
+                  technicalDesc: technicalDescription,
+                  status: 'APPROVED',
+                  stage: 'DOCUMENT_GENERATION',
+                  erpSyncStatus: 'SYNCED',
+                  generatedBy: userId,
+                },
+              });
+              console.log('✅ Proposal saved to database with full ERP data');
+            }
+          } else {
+            console.warn('⚠️ ERP order creation failed, using fallback:', erpResult.error);
+            // Save proposal anyway without ERP number
+            if (siteSurvey.customerId) {
+              await prisma.proposal.create({
+                data: {
+                  siteSurveyId: siteSurveyId,
+                  leadId: siteSurvey.leadId,
+                  customerId: siteSurvey.customerId,
+                  projectTitle: projectName,
+                  erpProposalNumber: null,
+                  technicalDesc: technicalDescription,
+                  status: 'DRAFT',
+                  stage: 'DOCUMENT_GENERATION',
+                  generatedBy: userId,
+                },
+              });
+              console.log('⚠️ Proposal saved without ERP number');
+            }
+          }
+        }
+      }
+    } catch (erpError) {
+      console.error('⚠️ ERP integration error (continuing with fallback):', erpError);
+      // Save proposal anyway without ERP number
+      if (siteSurvey.customerId) {
+        await prisma.proposal.create({
+          data: {
+            siteSurveyId: siteSurveyId,
+            leadId: siteSurvey.leadId,
+            customerId: siteSurvey.customerId,
+            projectTitle: projectName,
+            erpProposalNumber: null,
+            technicalDesc: technicalDescription,
+            status: 'DRAFT',
+            stage: 'DOCUMENT_GENERATION',
+            generatedBy: userId,
+          },
+        });
+        console.log('⚠️ Proposal saved after ERP error');
+      }
+      }
+    } else {
+      // Use existing proposal number
+      proposalNumber = existingProposal.erpProposalNumber || 'TRF>PENDING';
+      console.log('ℹ️ Using existing proposal number:', proposalNumber);
+    }
+
+    // Fetch full product details with specifications
     const productIds = products.map((p: any) => p.id);
     const fullProducts = await prisma.product.findMany({
       where: { id: { in: productIds } },
@@ -99,12 +249,114 @@ export async function POST(
       },
     });
 
-    const allChildren: any[] = [];
+    // Prepare template data
+    const currentDate = new Date().toLocaleDateString('el-GR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
 
-    // ========================================
-    // 1. COVER PAGE
-    // ========================================
+    // Prepare products data for template
+    const productsData = products.map((p: any) => {
+      const fullProduct = fullProducts.find(fp => fp.id === p.id);
+      const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      
+      // Get specifications (filter out N/A)
+      const specifications = fullProduct?.specifications
+        ?.map((spec: any) => {
+          const greekSpec = spec.translations.find((t: any) => t.languageCode === 'el');
+          if (greekSpec && greekSpec.specValue && greekSpec.specValue !== 'N/A' && greekSpec.specValue.trim() !== '') {
+            return `${greekSpec.specName}: ${greekSpec.specValue}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join('\n') || 'Δεν υπάρχουν προδιαγραφές';
+
+      return {
+        name: greekTranslation?.name || fullProduct?.name || 'N/A',
+        brand: fullProduct?.brand?.name || 'N/A',
+        category: fullProduct?.category?.name || 'N/A',
+        quantity: p.quantity || 0,
+        unitPrice: p.unitPrice || 0,
+        margin: p.margin || 0,
+        totalPrice: p.totalPrice || 0,
+        specifications,
+      };
+    });
+
+    // Prepare services data for template
+    const servicesData = services.map((s: any) => ({
+      name: s.name || 'N/A',
+      category: s.category || 'N/A',
+      quantity: s.quantity || 0,
+      unitPrice: s.unitPrice || 0,
+      totalPrice: s.totalPrice || 0,
+    }));
+
+    // Calculate totals
+    const totalProductsAmount = products.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
+    const totalServicesAmount = services.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
+    const subtotal = totalProductsAmount + totalServicesAmount;
+    const vatAmount = subtotal * 0.24; // 24% Greek VAT
+    const grandTotal = subtotal + vatAmount;
+
+    // Load template
+    const templatePath = path.join(process.cwd(), 'public', 'templates', 'proposal-template.docx');
     
+    if (!fs.existsSync(templatePath)) {
+      console.error('❌ Template file not found:', templatePath);
+      return NextResponse.json(
+        { error: 'Proposal template file not found' },
+        { status: 500 }
+      );
+    }
+
+    console.log('📄 Loading template from:', templatePath);
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Create docxtemplater instance
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    // Fill template with data
+    const templateData = {
+      proposalNumber,
+      date: currentDate,
+      customerName,
+      projectName,
+      technicalDescription: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      products: productsData,
+      services: servicesData,
+      totalProductsAmount: totalProductsAmount.toFixed(2),
+      totalServicesAmount: totalServicesAmount.toFixed(2),
+      subtotal: subtotal.toFixed(2),
+      vatAmount: vatAmount.toFixed(2),
+      grandTotal: grandTotal.toFixed(2),
+    };
+
+    console.log('📝 Template data prepared:', {
+      proposalNumber,
+      productsCount: productsData.length,
+      servicesCount: servicesData.length,
+      grandTotal,
+    });
+
+    doc.render(templateData);
+
+    // Generate buffer from template
+    const buffer = doc.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+
+    console.log('✅ Complete proposal document generated from template');
+
+    // OLD PROGRAMMATIC GENERATION REMOVED - NOW USING TEMPLATE
+    /*
     // Company Header Block (Blue background)
     allChildren.push(
       new Paragraph({
@@ -337,8 +589,6 @@ export async function POST(
     // ========================================
     // 3. TECHNICAL PROPOSAL (AI Generated Text)
     // ========================================
-    const technicalDescription = latestProposal?.technicalDesc || '';
-    
     if (technicalDescription) {
       allChildren.push(
         new Paragraph({
@@ -505,6 +755,11 @@ export async function POST(
           const greekTranslation = spec.translations.find((t) => t.languageCode === 'el');
           const specName = greekTranslation?.specName || spec.specKey || 'N/A';
           const specValue = greekTranslation?.specValue || 'N/A';
+
+          // Skip specs with N/A values
+          if (specValue === 'N/A' || !specValue || specValue.trim() === '') {
+            return;
+          }
 
           allChildren.push(
             new Paragraph({
@@ -862,28 +1117,14 @@ export async function POST(
       })
     );
 
-    // ========================================
-    // CREATE DOCUMENT
-    // ========================================
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: allChildren,
-        },
-      ],
-    });
-
-    console.log('✅ Complete proposal document created successfully');
-
-    // Generate buffer
-    const buffer = await Packer.toBuffer(doc);
+    */
+    // END OF OLD PROGRAMMATIC GENERATION CODE
 
     // Save to database with versioning
     const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
     
     const { nextVersion } = await manageDocumentVersions({
-      entityType: 'site-survey',
+      entityType: 'SITESURVEY',
       entityId: siteSurveyId,
       documentType: 'complete-proposal',
       baseFileName,

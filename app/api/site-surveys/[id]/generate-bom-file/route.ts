@@ -21,15 +21,144 @@ export async function POST(
     }
 
     const { id: siteSurveyId } = await params;
-    const body = await request.json();
-    const { equipment } = body;
-
-    if (!equipment || !Array.isArray(equipment) || equipment.length === 0) {
+    
+    // Fetch buildings from database instead of requiring them in the request
+    const infrastructureRes = await prisma.siteSurvey.findUnique({
+      where: { id: siteSurveyId },
+      select: { infrastructureData: true }
+    });
+    
+    const infrastructureData = infrastructureRes?.infrastructureData as any;
+    const buildings = infrastructureData?.buildings || [];
+    
+    if (!buildings || buildings.length === 0) {
       return NextResponse.json(
-        { error: "No equipment data provided" },
+        { error: "No buildings data found. Please complete Step 1 first." },
         { status: 400 }
       );
     }
+    
+    // Collect products and services from buildings
+    const equipment: any[] = [];
+    
+    buildings.forEach((building: any) => {
+      if (building.centralRack) {
+        // Collect from VOIP PBX
+        building.centralRack.voipPbx?.forEach((pbx: any) => {
+          const pbxProducts = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
+          pbxProducts.forEach((p: any) => {
+            equipment.push({
+              productId: p.productId,
+              quantity: p.quantity,
+              type: 'product'
+            });
+          });
+        });
+        
+        // Collect from ATA
+        building.centralRack.ata?.forEach((ata: any) => {
+          const ataProducts = ata.products || [];
+          ataProducts.forEach((p: any) => {
+            equipment.push({
+              productId: p.productId,
+              quantity: p.quantity,
+              type: 'product'
+            });
+          });
+        });
+        
+        // Collect from other central rack equipment
+        building.centralRack.switches?.forEach((sw: any) => {
+          const swProducts = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
+          swProducts.forEach((p: any) => {
+            equipment.push({
+              productId: p.productId,
+              quantity: p.quantity,
+              type: 'product'
+            });
+          });
+        });
+      }
+      
+      // Collect from floor racks
+      building.floors?.forEach((floor: any) => {
+        floor.racks?.forEach((rack: any) => {
+          rack.switches?.forEach((sw: any) => {
+            const swProducts = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
+            swProducts.forEach((p: any) => {
+              equipment.push({
+                productId: p.productId,
+                quantity: p.quantity,
+                type: 'product'
+              });
+            });
+          });
+        });
+        
+        // Collect from rooms
+        floor.rooms?.forEach((room: any) => {
+          room.devices?.forEach((device: any) => {
+            const deviceProducts = device.products || (device.productId ? [{ productId: device.productId, quantity: device.quantity || 1 }] : []);
+            deviceProducts.forEach((p: any) => {
+              equipment.push({
+                productId: p.productId,
+                quantity: p.quantity,
+                type: 'product'
+              });
+            });
+          });
+        });
+      });
+    });
+    
+    if (!equipment || equipment.length === 0) {
+      return NextResponse.json(
+        { error: "No products found in buildings. Please add products in Step 2." },
+        { status: 400 }
+      );
+    }
+    
+    // Fetch product details from database
+    const productIds = equipment.map(e => e.productId);
+    const productDetails = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        code1: true,
+        brand: {
+          select: {
+            name: true,
+          },
+        },
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        mtrl: true,
+      }
+    });
+    
+    // Enrich equipment with product details
+    const enrichedEquipment = equipment.map(item => {
+      const product = productDetails.find(p => p.id === item.productId);
+      const brandValue = product?.brand?.name || 'Generic';
+      const categoryValue = product?.category?.name || 'N/A';
+      return {
+        ...item,
+        name: product?.name || 'Unknown Product',
+        code: product?.code || product?.code1 || '',
+        brand: brandValue,
+        category: categoryValue,
+        manufacturerCode: product?.mtrl || '',
+        eanCode: product?.code1 || '',
+      };
+    });
+    
+    const finalProducts = enrichedEquipment.filter((item: any) => item.type === 'product');
+    const finalServices = enrichedEquipment.filter((item: any) => item.type === 'service');
 
     // Get site survey with lead info
     const siteSurvey = await prisma.siteSurvey.findUnique({
@@ -76,10 +205,8 @@ export async function POST(
 
     const customerName = siteSurvey.customer?.name || "Customer";
 
-    // Separate products and services
-    const products = equipment.filter((item: any) => item.type === 'product');
-    const services = equipment.filter((item: any) => item.type === 'service');
-
+    // products and services already declared above from enrichedEquipment
+    
     // Generate BOM Excel
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'KimonCRM';
@@ -123,8 +250,8 @@ export async function POST(
     ];
 
     // Group products by brand
-    const productsByBrand = products.reduce((acc: any, product: any) => {
-      const brand = (product.brand || 'Generic').trim().toUpperCase();
+    const productsByBrand = finalProducts.reduce((acc: any, product: any) => {
+      const brand = String(product.brand || 'Generic').trim().toUpperCase();
       if (!acc[brand]) {
         acc[brand] = [];
       }
@@ -254,7 +381,6 @@ export async function POST(
     summarySheet.getCell('A8').value = 'Brand';
     summarySheet.getCell('B8').value = 'Products Count';
     summarySheet.getCell('C8').value = 'Total Quantity';
-    summarySheet.getCell('D8').value = 'Total Value (€)';
     summarySheet.getRow(8).font = { bold: true };
     summarySheet.getRow(8).fill = {
       type: 'pattern',
@@ -266,22 +392,17 @@ export async function POST(
     // Add brand summaries
     let totalProducts = 0;
     let totalQuantity = 0;
-    let totalValue = 0;
 
     sortedBrands.forEach((brand: string) => {
       const brandProducts = productsByBrand[brand];
       const brandQuantity = brandProducts.reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
-      const brandValue = brandProducts.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
       
       summarySheet.getCell(`A${summaryRow}`).value = brand;
       summarySheet.getCell(`B${summaryRow}`).value = brandProducts.length;
       summarySheet.getCell(`C${summaryRow}`).value = brandQuantity;
-      summarySheet.getCell(`D${summaryRow}`).value = brandValue;
-      summarySheet.getCell(`D${summaryRow}`).numFmt = '€#,##0.00';
       
       totalProducts += brandProducts.length;
       totalQuantity += brandQuantity;
-      totalValue += brandValue;
       
       summaryRow++;
     });
@@ -290,8 +411,6 @@ export async function POST(
     summarySheet.getCell(`A${summaryRow}`).value = 'TOTAL PRODUCTS';
     summarySheet.getCell(`B${summaryRow}`).value = totalProducts;
     summarySheet.getCell(`C${summaryRow}`).value = totalQuantity;
-    summarySheet.getCell(`D${summaryRow}`).value = totalValue;
-    summarySheet.getCell(`D${summaryRow}`).numFmt = '€#,##0.00';
     summarySheet.getRow(summaryRow).font = { bold: true };
     summarySheet.getRow(summaryRow).fill = {
       type: 'pattern',
@@ -300,10 +419,9 @@ export async function POST(
     };
     summaryRow += 2;
 
-    // Services summary
-    if (services.length > 0) {
-      const servicesQuantity = services.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
-      const servicesValue = services.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
+    // Services summary (quantities only)
+    if (finalServices.length > 0) {
+      const servicesQuantity = finalServices.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
       
       summarySheet.getCell(`A${summaryRow}`).value = 'SERVICES';
       summarySheet.getCell(`A${summaryRow}`).font = { size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -312,135 +430,17 @@ export async function POST(
         pattern: 'solid',
         fgColor: { argb: 'FF16A085' }
       };
-      summarySheet.mergeCells(`A${summaryRow}:F${summaryRow}`);
+      summarySheet.mergeCells(`A${summaryRow}:C${summaryRow}`);
       summarySheet.getRow(summaryRow).height = 25;
       summaryRow++;
 
       summarySheet.getCell(`A${summaryRow}`).value = 'Services Count';
-      summarySheet.getCell(`B${summaryRow}`).value = services.length;
+      summarySheet.getCell(`B${summaryRow}`).value = finalServices.length;
       summaryRow++;
       
       summarySheet.getCell(`A${summaryRow}`).value = 'Total Quantity';
       summarySheet.getCell(`B${summaryRow}`).value = servicesQuantity;
       summaryRow++;
-      
-      summarySheet.getCell(`A${summaryRow}`).value = 'Total Value';
-      summarySheet.getCell(`B${summaryRow}`).value = servicesValue;
-      summarySheet.getCell(`B${summaryRow}`).numFmt = '€#,##0.00';
-      summaryRow += 2;
-    }
-
-    // Grand Total
-    const grandTotal = totalValue + (services.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0));
-    summarySheet.getCell(`A${summaryRow}`).value = 'GRAND TOTAL';
-    summarySheet.getCell(`B${summaryRow}`).value = grandTotal;
-    summarySheet.getCell(`B${summaryRow}`).numFmt = '€#,##0.00';
-    summarySheet.getRow(summaryRow).font = { size: 16, bold: true };
-    summarySheet.getRow(summaryRow).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFFF6B6B' }
-    };
-    summarySheet.getRow(summaryRow).height = 30;
-
-    // Add Services sheet if there are services
-    if (services && services.length > 0) {
-      const servicesSheet = workbook.addWorksheet('Services');
-      
-      servicesSheet.columns = [
-        { width: 10 },  // #
-        { width: 40 },  // Service Name
-        { width: 25 },  // Category
-        { width: 12 },  // Quantity
-        { width: 15 },  // Unit Price
-        { width: 12 },  // Margin %
-        { width: 15 },  // Total Price
-        { width: 50 }   // Location
-      ];
-
-      // Title
-      servicesSheet.mergeCells('A1:H1');
-      const titleCell = servicesSheet.getCell('A1');
-      titleCell.value = 'Services BOM';
-      titleCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF16A085' }
-      };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      servicesSheet.getRow(1).height = 30;
-
-      // Headers
-      const headers = ['#', 'Service', 'Category', 'Qty', 'Unit Price (€)', 'Margin (%)', 'Total (€)', 'Location'];
-      servicesSheet.addRow(headers);
-      const headerRow = servicesSheet.getRow(2);
-      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF27AE60' }
-      };
-      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-      headerRow.height = 25;
-
-      // Data rows
-      let currentRow = 3;
-      services.forEach((service: any, index: number) => {
-        const location = service.infrastructureElement 
-          ? `${service.infrastructureElement.buildingName || ''} - ${service.infrastructureElement.floorName || ''} - ${service.infrastructureElement.elementName || ''}`
-          : 'General';
-
-        servicesSheet.addRow([
-          index + 1,
-          service.name || 'N/A',
-          service.category || 'N/A',
-          service.quantity || 0,
-          service.price || 0,
-          0, // Margin - to be filled
-          service.totalPrice || 0,
-          location
-        ]);
-        
-        const dataRow = servicesSheet.getRow(currentRow);
-        dataRow.alignment = { vertical: 'middle' };
-        dataRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(5).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(5).numFmt = '€#,##0.00';
-        dataRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(6).numFmt = '0.00"%"';
-        dataRow.getCell(7).alignment = { vertical: 'middle', horizontal: 'right' };
-        dataRow.getCell(7).numFmt = '€#,##0.00';
-        
-        currentRow++;
-      });
-
-      // Subtotal
-      const subtotal = services.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
-      servicesSheet.addRow(['', '', '', '', '', 'SUBTOTAL:', subtotal, '']);
-      const subtotalRow = servicesSheet.getRow(currentRow);
-      subtotalRow.font = { bold: true };
-      subtotalRow.getCell(6).alignment = { horizontal: 'right' };
-      subtotalRow.getCell(7).alignment = { horizontal: 'right' };
-      subtotalRow.getCell(7).numFmt = '€#,##0.00';
-      subtotalRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE8F8F5' }
-      };
-
-      // Apply borders
-      for (let row = 2; row <= currentRow; row++) {
-        for (let col = 1; col <= 8; col++) {
-          const cell = servicesSheet.getRow(row).getCell(col);
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
-            left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
-            bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
-            right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
-          };
-        }
-      }
     }
 
     // Convert workbook to buffer
@@ -503,7 +503,7 @@ export async function POST(
         url: uploadResult.url,
         entityId: entityId!,
         type: entityType,
-        description: `Bill of Materials (BOM) - ${products.length} products, ${services.length} services (v${versionNumber})`,
+        description: `Bill of Materials (BOM) - ${finalProducts.length} products, ${finalServices.length} services (v${versionNumber})`,
       },
     });
 
@@ -515,8 +515,8 @@ export async function POST(
         fileId: fileRecord.id,
         url: uploadResult.url,
         version: versionNumber,
-        productsCount: products.length,
-        servicesCount: services.length,
+        productsCount: finalProducts.length,
+        servicesCount: finalServices.length,
       },
     });
 

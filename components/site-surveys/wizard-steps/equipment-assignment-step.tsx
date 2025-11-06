@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -234,21 +234,44 @@ export function EquipmentAssignmentStep({
     }
   };
 
+  // Auto-save function to persist central rack equipment to database
+  const autoSaveToDatabase = async (buildingsToSave: BuildingData[]) => {
+    try {
+      await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          infrastructureData: {
+            buildings: buildingsToSave,
+          },
+        }),
+      });
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  };
+
   // Sync local state with props - ensures changes from Step 1 appear here
-  // IMPORTANT: Only sync ONCE on mount, never overwrite after that
   useEffect(() => {
-    // Only sync if localBuildings is empty (initial mount)
     if (localBuildings.length === 0 && buildings.length > 0) {
-      console.log('🔄 Equipment Step: Initial sync from Step 1', buildings.length, 'buildings');
       setLocalBuildings(buildings);
       setLastSyncTime(new Date());
-      
-      // Auto-expand first building for better UX
       setExpandedBuildings(new Set([buildings[0].id]));
-    } else {
-      console.log('🔄 Equipment Step: Skipping sync - already have local data');
     }
-  }, []); // Empty deps - only run once on mount
+  }, []);
+
+  // Sync localBuildings back to parent whenever it changes
+  const lastSyncedBuildings = useRef<string>('');
+  useEffect(() => {
+    if (localBuildings.length > 0) {
+      const currentState = JSON.stringify(localBuildings);
+      if (currentState !== lastSyncedBuildings.current) {
+        lastSyncedBuildings.current = currentState;
+        onUpdate(localBuildings);
+        autoSaveToDatabase(localBuildings);
+      }
+    }
+  }, [localBuildings]);
 
   // Toggle functions
   const toggleBuilding = (buildingId: string) => {

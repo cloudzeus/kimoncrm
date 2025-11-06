@@ -3,10 +3,8 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/db/prisma';
 
 /**
- * Save/Load AI-generated technical descriptions for proposals
+ * GET - Load AI content for a site survey
  */
-
-// GET - Load AI content
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -21,35 +19,33 @@ export async function GET(
 
     const siteSurvey = await prisma.siteSurvey.findUnique({
       where: { id: siteSurveyId },
-      select: {
-        infrastructureData: true,
-      },
+      select: { infrastructureData: true },
     });
 
     if (!siteSurvey) {
-      return NextResponse.json({ error: 'Site survey not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Site survey not found' },
+        { status: 404 }
+      );
     }
 
     const infrastructureData = siteSurvey.infrastructureData as any;
-    const aiContent = infrastructureData?.aiContent || {
-      infrastructureDesc: '',
-      technicalDesc: '',
-      productsDesc: '',
-      servicesDesc: '',
-      scopeOfWork: '',
-    };
+    const aiContent = infrastructureData?.aiContent || null;
 
-    return NextResponse.json(aiContent);
-  } catch (error) {
+    return NextResponse.json({ aiContent });
+
+  } catch (error: any) {
     console.error('Error loading AI content:', error);
     return NextResponse.json(
-      { error: 'Failed to load AI content' },
+      { error: 'Failed to load AI content', details: error.message },
       { status: 500 }
     );
   }
 }
 
-// POST - Save AI content
+/**
+ * POST - Save AI content for a site survey
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,52 +57,44 @@ export async function POST(
     }
 
     const { id: siteSurveyId } = await params;
-    const aiContent = await request.json();
+    const body = await request.json();
+    const { aiContent } = body;
 
-    // Validate aiContent
-    if (!aiContent || typeof aiContent !== 'object') {
-      return NextResponse.json({ error: 'Invalid AI content' }, { status: 400 });
-    }
-
-    // Get existing infrastructureData
+    // Get current infrastructure data
     const siteSurvey = await prisma.siteSurvey.findUnique({
       where: { id: siteSurveyId },
-      select: {
-        infrastructureData: true,
-      },
+      select: { infrastructureData: true },
     });
 
     if (!siteSurvey) {
-      return NextResponse.json({ error: 'Site survey not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Site survey not found' },
+        { status: 404 }
+      );
     }
 
-    // Merge AI content into infrastructureData
-    const existingData = (siteSurvey.infrastructureData as any) || {};
-    const updatedData = {
-      ...existingData,
+    // Merge AI content into infrastructure data
+    const currentInfraData = (siteSurvey.infrastructureData as any) || {};
+    const updatedInfraData = {
+      ...currentInfraData,
       aiContent,
     };
 
-    // Update site survey
+    // Update the site survey
     await prisma.siteSurvey.update({
       where: { id: siteSurveyId },
-      data: {
-        infrastructureData: updatedData,
-      },
+      data: { infrastructureData: updatedInfraData },
     });
 
-    console.log('✅ AI content saved to site survey:', siteSurveyId);
+    console.log('✅ AI content saved successfully');
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'AI content saved successfully' 
-    });
-  } catch (error) {
+    return NextResponse.json({ success: true });
+
+  } catch (error: any) {
     console.error('Error saving AI content:', error);
     return NextResponse.json(
-      { error: 'Failed to save AI content' },
+      { error: 'Failed to save AI content', details: error.message },
       { status: 500 }
     );
   }
 }
-

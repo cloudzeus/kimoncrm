@@ -93,7 +93,7 @@ export async function prepareProductAnalysisData(product: ProductData): Promise<
   if (product.specifications && product.specifications.length > 0) {
     for (const spec of product.specifications) {
       const greekSpec = spec.translations.find(t => t.languageCode === 'el');
-      if (greekSpec) {
+      if (greekSpec && greekSpec.specValue && greekSpec.specValue !== 'N/A' && greekSpec.specValue.trim() !== '') {
         specifications.push({
           name: greekSpec.specName,
           value: greekSpec.specValue,
@@ -341,10 +341,10 @@ export async function generateMultiProductAnalysisBuffer(
       const greekName = greekTranslation?.name || product.name || 'N/A';
       const greekDescription = greekTranslation?.description || product.translations?.[0]?.description || '';
 
-      // Get Greek specifications
+      // Get Greek specifications (filter out N/A values)
       const greekSpecs = (product.specifications || []).map(spec => {
         const greekSpec = spec.translations.find(t => t.languageCode === 'el');
-        if (greekSpec) {
+        if (greekSpec && greekSpec.specValue && greekSpec.specValue !== 'N/A' && greekSpec.specValue.trim() !== '') {
           return {
             name: greekSpec.specName,
             value: greekSpec.specValue,

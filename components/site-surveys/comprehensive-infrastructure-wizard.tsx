@@ -30,7 +30,6 @@ import { EquipmentAssignmentStep } from "./wizard-steps/equipment-assignment-ste
 import { CentralRackStep } from "./wizard-steps/central-rack-step";
 import ProposalDocumentStep from "./wizard-steps/proposal-document-step";
 import { BuildingData, SiteConnectionData } from "@/types/building-data";
-import { ProposalGenerationModal } from "../proposals/proposal-generation-modal";
 
 export interface InfrastructureData {
   buildings: BuildingData[];
@@ -411,6 +410,31 @@ interface ComprehensiveInfrastructureWizardProps {
   onRFPGenerated?: (rfpData: any) => void;
 }
 
+// Utility: Safe JSON stringify that handles circular references
+const safeStringify = (obj: any): string => {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    // Skip Next.js special objects (params, searchParams, etc.)
+    if (key === 'params' || key === 'searchParams' || key === '__params') {
+      return undefined;
+    }
+    
+    if (typeof value === 'object' && value !== null) {
+      // Skip promises (Next.js async params/searchParams)
+      if (value instanceof Promise) {
+        return undefined;
+      }
+      
+      // Check for circular reference
+      if (seen.has(value)) {
+        return '[Circular]';
+      }
+      seen.add(value);
+    }
+    return value;
+  });
+};
+
 const STEPS = [
   {
     id: 1,
@@ -457,7 +481,6 @@ export function ComprehensiveInfrastructureWizard({
   const [generatingBOM, setGeneratingBOM] = useState(false);
   const [generatingRFP, setGeneratingRFP] = useState(false);
   const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
-  const [showProposalDialog, setShowProposalDialog] = useState(false);
 
   // Load existing data on mount
   useEffect(() => {
@@ -491,15 +514,73 @@ export function ComprehensiveInfrastructureWizard({
     try {
       setSaving(true);
       
-      // Simple stringify/parse to remove circular references but keep data
-      const cleanedBuildings = JSON.parse(JSON.stringify(wizardData.buildings));
-      const cleanedConnections = JSON.parse(JSON.stringify(wizardData.siteConnections));
+      // Deep clone function that removes circular references and React/DOM objects
+      const deepClone = (obj: any, seen = new WeakMap()): any => {
+        // Handle primitives and null
+        if (obj === null || typeof obj !== 'object') {
+          return obj;
+        }
+        
+        // Skip Promises (Next.js async params/searchParams)
+        if (obj instanceof Promise) {
+          return undefined;
+        }
+        
+        // Skip DOM elements and React internals
+        if (obj instanceof HTMLElement || obj instanceof Node || obj instanceof Window) {
+          return undefined;
+        }
+        if (obj?.$$typeof || obj?._owner || obj?._store) {
+          return undefined;
+        }
+        
+        // Check for circular reference - return placeholder
+        if (seen.has(obj)) {
+          return undefined; // Skip circular refs instead of including them
+        }
+        
+        // Mark as seen
+        seen.set(obj, true);
+        
+        // Handle arrays
+        if (Array.isArray(obj)) {
+          const arrCopy: any[] = [];
+          for (let i = 0; i < obj.length; i++) {
+            const cloned = deepClone(obj[i], seen);
+            if (cloned !== undefined) {
+              arrCopy.push(cloned);
+            }
+          }
+          return arrCopy;
+        }
+        
+        // Handle objects
+        const objCopy: any = {};
+        for (const key in obj) {
+          // Skip Next.js special properties
+          if (key === 'params' || key === 'searchParams' || key === '__params') {
+            continue;
+          }
+          
+          if (obj.hasOwnProperty(key)) {
+            const cloned = deepClone(obj[key], seen);
+            if (cloned !== undefined) {
+              objCopy[key] = cloned;
+            }
+          }
+        }
+        return objCopy;
+      };
+      
+      // Remove circular references but keep all data
+      const cleanedBuildings = deepClone(wizardData.buildings);
+      const cleanedConnections = deepClone(wizardData.siteConnections);
       
       // Save comprehensive infrastructure data
       await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: safeStringify({
           infrastructureData: {
             buildings: cleanedBuildings,
           },
@@ -516,7 +597,7 @@ export function ComprehensiveInfrastructureWizard({
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: safeStringify({
               buildings: cleanedBuildings,
               stepCompleted: markStepComplete,
             }),
@@ -558,7 +639,7 @@ export function ComprehensiveInfrastructureWizard({
           await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stage: "REQUIREMENTS_AND_PRODUCTS" }),
+            body: safeStringify({ stage: "REQUIREMENTS_AND_PRODUCTS" }),
           });
         } catch (error) {
           console.error("Failed to update stage:", error);
@@ -569,7 +650,7 @@ export function ComprehensiveInfrastructureWizard({
           await fetch(`/api/site-surveys/${siteSurveyId}/stage`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stage: "PRICING_COMPLETED" }),
+            body: safeStringify({ stage: "PRICING_COMPLETED" }),
           });
         } catch (error) {
           console.error("Failed to update stage:", error);
@@ -615,42 +696,9 @@ export function ComprehensiveInfrastructureWizard({
   };
 
   const handleBuildingsUpdate = (buildings: BuildingData[]) => {
-    // Helper function to remove circular references
-    const cleanData = (obj: any, seen = new WeakSet()): any => {
-      if (obj === null || typeof obj !== 'object') {
-        return obj;
-      }
-      
-      // Check for circular reference
-      if (seen.has(obj)) {
-        return undefined; // Return undefined for circular refs
-      }
-      
-      seen.add(obj);
-      
-      if (Array.isArray(obj)) {
-        return obj.map(item => cleanData(item, seen));
-      }
-      
-      const cleaned: any = {};
-      for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          const value = cleanData(obj[key], seen);
-          if (value !== undefined) {
-            cleaned[key] = value;
-          }
-        }
-      }
-      
-      return cleaned;
-    };
-    
-    // Clean buildings before setting state to avoid circular references
-    const cleanedBuildings = cleanData(buildings);
-    
     setWizardData(prev => ({
       ...prev,
-      buildings: cleanedBuildings,
+      buildings: buildings,
     }));
   };
 
@@ -835,70 +883,14 @@ export function ComprehensiveInfrastructureWizard({
 
   // Generate BOM File
   const handleGenerateBOM = async () => {
-    // Collect all equipment from all buildings
-    const allEquipment: any[] = [];
-    wizardData.buildings.forEach(building => {
-      // From central rack
-      if (building.centralRack) {
-        if (building.centralRack.equipment) {
-          allEquipment.push(...building.centralRack.equipment);
-        }
-        if (building.centralRack.switches) {
-          allEquipment.push(...building.centralRack.switches);
-        }
-        if (building.centralRack.routers) {
-          allEquipment.push(...building.centralRack.routers);
-        }
-        if (building.centralRack.servers) {
-          allEquipment.push(...building.centralRack.servers);
-        }
-      }
-      
-      // From floors
-      building.floors?.forEach(floor => {
-        floor.racks?.forEach(rack => {
-          if (rack.equipment) {
-            allEquipment.push(...rack.equipment);
-          }
-          if (rack.switches) {
-            allEquipment.push(...rack.switches);
-          }
-          if (rack.routers) {
-            allEquipment.push(...rack.routers);
-          }
-          if (rack.servers) {
-            allEquipment.push(...rack.servers);
-          }
-        });
-        floor.rooms?.forEach(room => {
-          if (room.equipment) {
-            allEquipment.push(...room.equipment);
-          }
-          if (room.devices) {
-            allEquipment.push(...room.devices);
-          }
-        });
-      });
-    });
-
-    if (allEquipment.length === 0) {
-      toast.error("Please add equipment before generating the BOM file");
-      return;
-    }
-
     setGeneratingBOM(true);
     try {
-      // Clean equipment data to remove circular references
-      const cleanedEquipment = allEquipment.map(item => cleanData(item));
-      
       const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-bom-file`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          equipment: cleanedEquipment,
-        }),
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
@@ -1059,27 +1051,45 @@ export function ComprehensiveInfrastructureWizard({
       const allProducts = Array.isArray(productsData) ? productsData : (productsData.data || []);
       const allServices = Array.isArray(servicesData) ? servicesData : (servicesData.data || []);
 
-      // Step 1.5: Load custom pricing from localStorage
+      // Step 1.5: Load custom pricing from database first, then fallback to localStorage
       let productPricingMap = new Map();
       let servicePricingMap = new Map();
       
       try {
-        const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
-        const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
-        
-        if (savedProductPricing) {
-          const pricingData = JSON.parse(savedProductPricing);
-          productPricingMap = new Map(pricingData);
-          console.log('Loaded product pricing from localStorage:', productPricingMap.size, 'items');
+        // Load from database first
+        const dbResponse = await fetch(`/api/site-surveys/${siteSurveyId}`);
+        if (dbResponse.ok) {
+          const dbData = await dbResponse.json();
+          const wizardDataFromDb = dbData.wizardData || dbData.infrastructureData;
+          const productPricingFromDb = wizardDataFromDb?.productPricing || {};
+          const servicePricingFromDb = wizardDataFromDb?.servicePricing || {};
+          
+          // Convert object to Map
+          productPricingMap = new Map(Object.entries(productPricingFromDb));
+          servicePricingMap = new Map(Object.entries(servicePricingFromDb));
+          console.log('Loaded pricing from database:', productPricingMap.size, 'products,', servicePricingMap.size, 'services');
         }
         
-        if (savedServicePricing) {
-          const pricingData = JSON.parse(savedServicePricing);
-          servicePricingMap = new Map(pricingData);
-          console.log('Loaded service pricing from localStorage:', servicePricingMap.size, 'items');
+        // Fallback to localStorage if database has no pricing
+        if (productPricingMap.size === 0) {
+          const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
+          if (savedProductPricing) {
+            const pricingData = JSON.parse(savedProductPricing);
+            productPricingMap = new Map(pricingData);
+            console.log('Fallback: Loaded product pricing from localStorage:', productPricingMap.size, 'items');
+          }
+        }
+        
+        if (servicePricingMap.size === 0) {
+          const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
+          if (savedServicePricing) {
+            const pricingData = JSON.parse(savedServicePricing);
+            servicePricingMap = new Map(pricingData);
+            console.log('Fallback: Loaded service pricing from localStorage:', servicePricingMap.size, 'items');
+          }
         }
       } catch (error) {
-        console.error('Failed to load pricing from localStorage:', error);
+        console.error('Failed to load pricing:', error);
       }
 
       // Step 2: Collect all equipment with full details from all buildings
@@ -1384,86 +1394,85 @@ export function ComprehensiveInfrastructureWizard({
 
   // Generate Product Analysis (Word Document)
   const handleGenerateProductAnalysis = async () => {
-    // Collect all equipment from all buildings
-    const allEquipment: any[] = [];
-    wizardData.buildings.forEach(building => {
-      // From central rack
+    // Collect all product IDs from buildings (same logic as BOM)
+    const productIds = new Set<string>();
+    
+    wizardData.buildings.forEach((building: any) => {
+      // Central rack products
       if (building.centralRack) {
-        // Central rack equipment
-        if (building.centralRack.equipment) {
-          allEquipment.push(...building.centralRack.equipment);
-        }
-        // Switches in central rack
-        if (building.centralRack.switches) {
-          allEquipment.push(...building.centralRack.switches);
-        }
-        // Routers in central rack
-        if (building.centralRack.routers) {
-          allEquipment.push(...building.centralRack.routers);
-        }
-        // Servers in central rack
-        if (building.centralRack.servers) {
-          allEquipment.push(...building.centralRack.servers);
-        }
-      }
-      
-      // From floors
-      building.floors?.forEach(floor => {
-        // From racks
-        floor.racks?.forEach(rack => {
-          if (rack.equipment) {
-            allEquipment.push(...rack.equipment);
-          }
-          if (rack.switches) {
-            allEquipment.push(...rack.switches);
-          }
-          if (rack.routers) {
-            allEquipment.push(...rack.routers);
-          }
-          if (rack.servers) {
-            allEquipment.push(...rack.servers);
-          }
+        // VOIP PBX
+        building.centralRack.voipPbx?.forEach((pbx: any) => {
+          const products = pbx.products || (pbx.productId ? [{ productId: pbx.productId }] : []);
+          products.forEach((p: any) => {
+            if (p.productId) productIds.add(p.productId);
+          });
         });
         
-        // From rooms
-        floor.rooms?.forEach(room => {
-          if (room.equipment) {
-            allEquipment.push(...room.equipment);
-          }
-          if (room.devices) {
-            allEquipment.push(...room.devices);
-          }
+        // ATA
+        building.centralRack.ata?.forEach((ata: any) => {
+          const products = ata.products || (ata.productId ? [{ productId: ata.productId }] : []);
+          products.forEach((p: any) => {
+            if (p.productId) productIds.add(p.productId);
+          });
+        });
+        
+        // Switches
+        building.centralRack.switches?.forEach((sw: any) => {
+          const products = sw.products || (sw.productId ? [{ productId: sw.productId }] : []);
+          products.forEach((p: any) => {
+            if (p.productId) productIds.add(p.productId);
+          });
+        });
+      }
+      
+      // Floor products
+      building.floors?.forEach((floor: any) => {
+        floor.racks?.forEach((rack: any) => {
+          rack.switches?.forEach((sw: any) => {
+            const products = sw.products || (sw.productId ? [{ productId: sw.productId }] : []);
+            products.forEach((p: any) => {
+              if (p.productId) productIds.add(p.productId);
+            });
+          });
+        });
+        
+        // Room products
+        floor.rooms?.forEach((room: any) => {
+          room.devices?.forEach((device: any) => {
+            const products = device.products || (device.productId ? [{ productId: device.productId }] : []);
+            products.forEach((p: any) => {
+              if (p.productId) productIds.add(p.productId);
+            });
+          });
+          
+          room.outlets?.forEach((outlet: any) => {
+            const products = outlet.products || (outlet.productId ? [{ productId: outlet.productId }] : []);
+            products.forEach((p: any) => {
+              if (p.productId) productIds.add(p.productId);
+            });
+          });
+          
+          room.connections?.forEach((conn: any) => {
+            const products = conn.products || (conn.productId ? [{ productId: conn.productId }] : []);
+            products.forEach((p: any) => {
+              if (p.productId) productIds.add(p.productId);
+            });
+          });
         });
       });
     });
 
-    // Filter for products marked as "new" (isFutureProposal = true) only (excluding services)
-    const newProducts = allEquipment.filter((item: any) => 
-      (item.isFutureProposal === true || item.isNew === true || item.status === 'new' || item.condition === 'new') &&
-      item.type !== 'SERVICE' && 
-      item.itemType !== 'SERVICE' &&
-      item.category !== 'SERVICE'
-    );
+    const uniqueProductIds = Array.from(productIds);
 
-    if (newProducts.length === 0) {
-      toast.error("No new products found. Please add products marked as 'new' in step 2 before generating the analysis document");
+    if (uniqueProductIds.length === 0) {
+      toast.error("No products found. Please add products in Step 2 before generating the analysis document");
       return;
     }
 
     setGeneratingAnalysis(true);
     try {
-      // Generate analysis for each unique new product
-      // Try multiple ID fields to find the product ID
-      const uniqueProductIds = [...new Set(
-        newProducts.map((p: any) => p.productId || p.id || p.equipmentId || p.itemId).filter(Boolean)
-      )];
-      
-      if (uniqueProductIds.length === 0) {
-        toast.error("No valid product IDs found for new products");
-        return;
-      }
 
-      toast.info(`Generating single analysis document for ${uniqueProductIds.length} new product(s)...`);
+      toast.info(`Generating analysis document for ${uniqueProductIds.length} product(s)...`);
 
       // Call the multi-product analysis endpoint
       const response = await fetch(`/api/site-surveys/${siteSurveyId}/generate-multi-product-analysis`, {
@@ -1495,7 +1504,7 @@ export function ComprehensiveInfrastructureWizard({
       toast.success(
         `Successfully generated product analysis document`,
         {
-          description: `Analysis completed for ${uniqueProductIds.length} new product(s)`,
+          description: `Analysis completed for ${uniqueProductIds.length} product(s)`,
           duration: 5000,
         }
       );
@@ -1509,6 +1518,160 @@ export function ComprehensiveInfrastructureWizard({
       );
     } finally {
       setGeneratingAnalysis(false);
+    }
+  };
+
+  // Generate Complete Proposal (Word Document)
+  const handleGenerateCompleteProposal = async () => {
+    setGeneratingRFP(true); // Use same loading state
+    try {
+      // Fetch fresh data from database to get latest pricing
+      const response = await fetch(`/api/site-surveys/${siteSurveyId}`);
+      if (!response.ok) throw new Error('Failed to fetch site survey data');
+      
+      const freshData = await response.json();
+      const freshWizardData = freshData.wizardData || freshData.infrastructureData;
+      
+      // Collect products and services with quantities (same logic as BOM)
+      const equipment: any[] = [];
+      
+      (freshWizardData.buildings || []).forEach((building: any) => {
+        if (building.centralRack) {
+          // VOIP PBX
+          building.centralRack.voipPbx?.forEach((pbx: any) => {
+            const products = pbx.products || (pbx.productId ? [{ productId: pbx.productId, quantity: 1 }] : []);
+            products.forEach((p: any) => {
+              equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+            });
+            pbx.services?.forEach((s: any) => {
+              equipment.push({ serviceId: s.serviceId, quantity: s.quantity || 1, type: 'service' });
+            });
+          });
+          
+          // ATA
+          building.centralRack.ata?.forEach((ata: any) => {
+            const products = ata.products || [];
+            products.forEach((p: any) => {
+              equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+            });
+            ata.services?.forEach((s: any) => {
+              equipment.push({ serviceId: s.serviceId, quantity: s.quantity || 1, type: 'service' });
+            });
+          });
+          
+          // Switches
+          building.centralRack.switches?.forEach((sw: any) => {
+            const products = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
+            products.forEach((p: any) => {
+              equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+            });
+            sw.services?.forEach((s: any) => {
+              equipment.push({ serviceId: s.serviceId, quantity: s.quantity || 1, type: 'service' });
+            });
+          });
+        }
+        
+        // Floor racks
+        building.floors?.forEach((floor: any) => {
+          floor.racks?.forEach((rack: any) => {
+            rack.switches?.forEach((sw: any) => {
+              const products = sw.products || (sw.productId ? [{ productId: sw.productId, quantity: 1 }] : []);
+              products.forEach((p: any) => {
+                equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+              });
+              sw.services?.forEach((s: any) => {
+                equipment.push({ serviceId: s.serviceId, quantity: s.quantity || 1, type: 'service' });
+              });
+            });
+          });
+          
+          // Rooms
+          floor.rooms?.forEach((room: any) => {
+            room.devices?.forEach((device: any) => {
+              const products = device.products || (device.productId ? [{ productId: device.productId, quantity: device.quantity || 1 }] : []);
+              products.forEach((p: any) => {
+                equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+              });
+              device.services?.forEach((s: any) => {
+                equipment.push({ serviceId: s.serviceId, quantity: s.quantity || 1, type: 'service' });
+              });
+            });
+            
+            room.outlets?.forEach((outlet: any) => {
+              const products = outlet.products || (outlet.productId ? [{ productId: outlet.productId, quantity: 1 }] : []);
+              products.forEach((p: any) => {
+                equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+              });
+            });
+            
+            room.connections?.forEach((conn: any) => {
+              const products = conn.products || (conn.productId ? [{ productId: conn.productId, quantity: 1 }] : []);
+              products.forEach((p: any) => {
+                equipment.push({ productId: p.productId, quantity: p.quantity, type: 'product' });
+              });
+            });
+          });
+        });
+      });
+      
+      const collectedProducts = equipment.filter(e => e.type === 'product').map(e => ({ id: e.productId, quantity: e.quantity }));
+      const collectedServices = equipment.filter(e => e.type === 'service').map(e => ({ id: e.serviceId, quantity: e.quantity }));
+      
+      // Load pricing from database
+      const productPricing = freshWizardData.productPricing || {};
+      const servicePricing = freshWizardData.servicePricing || {};
+      
+      // Apply pricing
+      const productsWithPricing = collectedProducts.map((p: any) => ({
+        ...p,
+        unitPrice: productPricing[p.id]?.price || 0,
+        margin: productPricing[p.id]?.margin || 0,
+        totalPrice: (productPricing[p.id]?.price || 0) * p.quantity,
+      }));
+      
+      const servicesWithPricing = collectedServices.map((s: any) => ({
+        ...s,
+        unitPrice: servicePricing[s.id]?.price || 0,
+        margin: servicePricing[s.id]?.margin || 0,
+        totalPrice: (servicePricing[s.id]?.price || 0) * s.quantity,
+      }));
+      
+      toast.info('Generating complete proposal document...');
+      
+      // Call API to generate complete proposal
+      const proposalResponse = await fetch(`/api/site-surveys/${siteSurveyId}/generate-complete-proposal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          products: productsWithPricing,
+          services: servicesWithPricing,
+        }),
+      });
+      
+      if (!proposalResponse.ok) {
+        const errorData = await proposalResponse.json();
+        throw new Error(errorData.error || 'Failed to generate complete proposal');
+      }
+      
+      // Download the file
+      const blob = await proposalResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Complete-Proposal_${siteSurveyData?.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Complete proposal generated successfully!');
+    } catch (error) {
+      console.error('Error generating complete proposal:', error);
+      toast.error('Failed to generate complete proposal', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setGeneratingRFP(false);
     }
   };
 
@@ -1626,23 +1789,7 @@ export function ComprehensiveInfrastructureWizard({
                 <Button
                   className="rounded-none bg-pink-600 hover:bg-pink-700 text-white"
                   size="sm"
-                  onClick={async () => {
-                    // Check if RFP exists by fetching fresh data
-                    try {
-                      const rfpCheck = await fetch(`/api/site-surveys/${siteSurveyId}`);
-                      const rfpData = await rfpCheck.json();
-                      
-                      if (!rfpData.success || !rfpData.data?.lead?.rfps || rfpData.data.lead.rfps.length === 0) {
-                        toast.error("RFP Required", {
-                          description: "Please generate an RFP first by clicking the 'RFP' button above. The RFP is required to create a comprehensive proposal.",
-                        });
-                        return;
-                      }
-                      setShowProposalDialog(true);
-                    } catch (error) {
-                      toast.error("Error checking RFP status");
-                    }
-                  }}
+                  onClick={handleGenerateCompleteProposal}
                   disabled={generatingRFP}
                 >
                   {generatingRFP ? (
@@ -1663,16 +1810,6 @@ export function ComprehensiveInfrastructureWizard({
         </div>
       </div>
 
-      {/* Proposal Generation Modal */}
-      <ProposalGenerationModal
-        open={showProposalDialog}
-        onOpenChange={setShowProposalDialog}
-        rfpId={siteSurveyData?.lead?.rfps?.[0]?.id}
-        leadId={siteSurveyData?.leadId}
-        siteSurveyId={siteSurveyId}
-        customerName={siteSurveyData?.customer?.name || 'Unknown Customer'}
-        leadNumber={siteSurveyData?.lead?.leadNumber}
-      />
 
       {/* Progress Bar */}
       <div className="bg-white border-b">
