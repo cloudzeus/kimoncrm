@@ -56,10 +56,14 @@ export async function POST(
       completedStep 
     } = body;
 
-    // Validate that the site survey exists
+    // Validate that the site survey exists and get current data
     const existingSurvey = await prisma.siteSurvey.findUnique({
       where: { id },
-      select: { id: true, completedSteps: true },
+      select: { 
+        id: true, 
+        completedSteps: true,
+        infrastructureData: true, // Get existing infrastructure data to preserve aiContent
+      },
     });
 
     if (!existingSurvey) {
@@ -69,11 +73,30 @@ export async function POST(
     // Update completed steps
     const completedSteps = { ...(existingSurvey.completedSteps as any || {}), ...(completedStep ? { [`step${completedStep}`]: true } : {}) };
 
+    // Merge infrastructure data to preserve aiContent AND wizardData (pricing)
+    const currentInfraData = (existingSurvey.infrastructureData as any) || {};
+    const mergedInfraData = infrastructureData 
+      ? {
+          ...infrastructureData,
+          aiContent: currentInfraData.aiContent || infrastructureData.aiContent, // Preserve existing aiContent
+          wizardData: currentInfraData.wizardData || infrastructureData.wizardData, // Preserve existing wizardData with pricing
+        }
+      : null;
+    
+    if (currentInfraData.aiContent) {
+      console.log('✅ Preserving existing AI content during save');
+    }
+    if (currentInfraData.wizardData) {
+      console.log('✅ Preserving existing wizardData (pricing) during save');
+      console.log('   Products pricing:', Object.keys(currentInfraData.wizardData.productPricing || {}).length);
+      console.log('   Services pricing:', Object.keys(currentInfraData.wizardData.servicePricing || {}).length);
+    }
+
     // Update the site survey with comprehensive infrastructure data
     const updatedSurvey = await prisma.siteSurvey.update({
       where: { id },
       data: {
-        infrastructureData: infrastructureData || null,
+        infrastructureData: mergedInfraData,
         equipment: equipment || null,
         siteConnections: siteConnections || null,
         futureInfrastructureData: futureInfrastructureData || null,

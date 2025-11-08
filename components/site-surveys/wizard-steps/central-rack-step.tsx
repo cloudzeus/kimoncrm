@@ -19,6 +19,7 @@ import { Package, Wrench, Sparkles, Calculator, FileText, Download, MoreHorizont
 import ProductSpecificationsDialog from "@/components/products/product-specifications-dialog";
 import ProductImagesDialog from "@/components/products/product-images-dialog";
 import ProductTranslationsDialog from "@/components/products/product-translations-dialog";
+import { useWizardContext } from "@/contexts/wizard-context";
 
 interface CentralRackStepProps {
   buildings: BuildingData[];
@@ -63,8 +64,10 @@ export function CentralRackStep({
   siteSurveyId,
 }: CentralRackStepProps) {
   const { toast } = useToast();
-  const [productPricing, setProductPricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
-  const [servicePricing, setServicePricing] = useState<Map<string, { unitPrice: number; margin: number; totalPrice: number }>>(new Map());
+  
+  // Use pricing from context (shared across wizard, auto-saves to database)
+  const { productPricing, servicePricing, updateProductPricing, updateServicePricing, saveToDatabase } = useWizardContext();
+  
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
   const [brandsList, setBrandsList] = useState<any[]>([]);
@@ -102,25 +105,7 @@ export function CentralRackStep({
     actions: true
   });
 
-  // Load saved pricing from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
-      const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
-      
-      if (savedProductPricing) {
-        const data = JSON.parse(savedProductPricing);
-        setProductPricing(new Map(data));
-      }
-      
-      if (savedServicePricing) {
-        const data = JSON.parse(savedServicePricing);
-        setServicePricing(new Map(data));
-      }
-    } catch (error) {
-      console.error('Failed to load saved pricing:', error);
-    }
-  }, [siteSurveyId]);
+  // Pricing is now loaded from database via WizardContext (no localStorage needed)
 
   // Fetch products, services, brands, categories, AND site survey data
   useEffect(() => {
@@ -201,39 +186,7 @@ export function CentralRackStep({
     return product?.brand?.name || product?.brand || 'Generic';
   };
 
-  // Save progress function
-  const handleSaveProgress = async () => {
-    try {
-      console.log('💾 Saving wizard progress...');
-      
-      const response = await fetch(`/api/site-surveys/${siteSurveyId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wizardData: {
-            buildings,
-            productPricing: Object.fromEntries(productPricing),
-            servicePricing: Object.fromEntries(servicePricing),
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save progress');
-      }
-
-      console.log('✅ Progress saved successfully');
-      return true;
-    } catch (error) {
-      console.error('Error saving progress:', error);
-      toast({
-        title: "Save Error",
-        description: "Failed to save progress. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
+  // Save progress is now handled by WizardContext auto-save (no manual save needed)
 
   // Helper to get product category
   const getProductCategory = (productId: string) => {
@@ -1617,44 +1570,30 @@ export function CentralRackStep({
     return acc;
   }, {} as Record<string, ProductData[]>);
 
-  // Pricing helper functions
-  const updateProductPricing = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
+  // Pricing helper functions (use context, auto-saves to database)
+  const updateProductPricingLocal = (productId: string, field: 'unitPrice' | 'margin', value: number) => {
     const current = productPricing.get(productId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
     const updated = { ...current, [field]: value };
     updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
-    const newPricing = new Map(productPricing.set(productId, updated));
-    setProductPricing(newPricing);
     
-    // Save to localStorage for persistence
-    try {
-      const pricingData = Array.from(newPricing.entries());
-      localStorage.setItem(`pricing-products-${siteSurveyId}`, JSON.stringify(pricingData));
-    } catch (error) {
-      console.error('Failed to save product pricing:', error);
-    }
+    // Update via context (triggers auto-save to database, NO localStorage)
+    updateProductPricing(productId, updated);
   };
 
-  const updateServicePricing = (serviceId: string, field: 'unitPrice' | 'margin', value: number) => {
+  const updateServicePricingLocal = (serviceId: string, field: 'unitPrice' | 'margin', value: number) => {
     const current = servicePricing.get(serviceId) || { unitPrice: 0, margin: 0, totalPrice: 0 };
     const updated = { ...current, [field]: value };
     updated.totalPrice = updated.unitPrice / (1 - updated.margin / 100);
-    const newPricing = new Map(servicePricing.set(serviceId, updated));
-    setServicePricing(newPricing);
     
-    // Save to localStorage for persistence
-    try {
-      const pricingData = Array.from(newPricing.entries());
-      localStorage.setItem(`pricing-services-${siteSurveyId}`, JSON.stringify(pricingData));
-    } catch (error) {
-      console.error('Failed to save service pricing:', error);
-    }
+    // Update via context (triggers auto-save to database, NO localStorage)
+    updateServicePricing(serviceId, updated);
   };
 
   const handleGenerateInfrastructureExcel = async () => {
     try {
-      // AUTO-SAVE before generating
-      console.log('💾 Auto-saving data before generating Infrastructure Excel...');
-      await handleSaveProgress();
+      // AUTO-SAVE before generating (context auto-saves, but ensure it's complete)
+      console.log('💾 Ensuring data is saved before generating Infrastructure Excel...');
+      await saveToDatabase();
       
       const response = await fetch('/api/site-surveys/generate-infrastructure-excel', {
         method: 'POST',
@@ -1701,8 +1640,8 @@ export function CentralRackStep({
       console.log('🚀 Starting BOM generation...');
       
       // STEP 1: AUTO-SAVE current data before generating
-      console.log('💾 Auto-saving data before generating BOM...');
-      await handleSaveProgress();
+      console.log('💾 Ensuring data is saved before generating BOM...');
+      await saveToDatabase();
       
       // STEP 2: Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -1806,8 +1745,8 @@ export function CentralRackStep({
       console.log('🚀 Starting Proposal generation and ERP submission...');
       
       // STEP 1: AUTO-SAVE current data before generating
-      console.log('💾 Auto-saving data before generating Proposal...');
-      await handleSaveProgress();
+      console.log('💾 Ensuring data is saved before generating Proposal...');
+      await saveToDatabase();
       
       // STEP 2: Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2027,7 +1966,7 @@ export function CentralRackStep({
       console.log('🚀 Starting Products Analysis generation...');
       
       // AUTO-SAVE first
-      await handleSaveProgress();
+      await saveToDatabase();
       
       // Fetch fresh buildings data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2188,8 +2127,8 @@ export function CentralRackStep({
       console.log('📄 Starting comprehensive proposal document generation...');
       
       // AUTO-SAVE before generating
-      console.log('💾 Auto-saving data before generating Proposal Document...');
-      await handleSaveProgress();
+      console.log('💾 Ensuring data is saved before generating Proposal Document...');
+      await saveToDatabase();
       
       // Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2319,8 +2258,8 @@ export function CentralRackStep({
       console.log('📄 Starting complete proposal generation (new format)...');
       
       // AUTO-SAVE before generating
-      console.log('💾 Auto-saving data before generating Complete Proposal...');
-      await handleSaveProgress();
+      console.log('💾 Ensuring data is saved before generating Complete Proposal...');
+      await saveToDatabase();
       
       // Fetch fresh data from database
       const siteSurveyRes = await fetch(`/api/site-surveys/${siteSurveyId}`);
@@ -2762,7 +2701,7 @@ export function CentralRackStep({
                                 type="number"
                                 step="0.01"
                                 value={pricing.unitPrice}
-                                onChange={(e) => updateProductPricing(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                onChange={(e) => updateProductPricingLocal(product.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                                 className="w-20 text-right text-xs h-7"
                                 placeholder="0.00"
                               />
@@ -2774,7 +2713,7 @@ export function CentralRackStep({
                                 type="number"
                                 step="0.1"
                                 value={pricing.margin}
-                                onChange={(e) => updateProductPricing(product.id, 'margin', parseFloat(e.target.value) || 0)}
+                                onChange={(e) => updateProductPricingLocal(product.id, 'margin', parseFloat(e.target.value) || 0)}
                                 className="w-20 text-right text-xs h-7"
                                 placeholder="0"
                               />
@@ -2919,7 +2858,7 @@ export function CentralRackStep({
                             type="number"
                             step="0.01"
                             value={pricing.unitPrice}
-                            onChange={(e) => updateServicePricing(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateServicePricingLocal(service.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className="w-20 text-right text-xs h-7"
                             placeholder="0.00"
                           />
@@ -2929,7 +2868,7 @@ export function CentralRackStep({
                             type="number"
                             step="0.1"
                             value={pricing.margin}
-                            onChange={(e) => updateServicePricing(service.id, 'margin', parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateServicePricingLocal(service.id, 'margin', parseFloat(e.target.value) || 0)}
                             className="w-20 text-right text-xs h-7"
                             placeholder="0"
                           />

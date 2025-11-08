@@ -155,6 +155,29 @@ export async function PATCH(
     if (validatedData.phone !== undefined) updateData.phone = validatedData.phone;
     if (validatedData.email !== undefined) updateData.email = validatedData.email || null;
     if (validatedData.status !== undefined) updateData.status = validatedData.status;
+    
+    // Handle wizardData (from central-rack-step save progress)
+    if (body.wizardData !== undefined) {
+      const currentInfraData = (existingSurvey.infrastructureData as any) || {};
+      updateData.infrastructureData = {
+        ...currentInfraData,
+        wizardData: body.wizardData,
+        aiContent: currentInfraData.aiContent, // Preserve AI content
+      };
+      console.log('💾 Saving wizardData with pricing:', {
+        buildingsCount: body.wizardData.buildings?.length || 0,
+        productPricing: Object.keys(body.wizardData.productPricing || {}).length,
+        servicePricing: Object.keys(body.wizardData.servicePricing || {}).length,
+      });
+      console.log('📊 Sample pricing being saved:');
+      console.log('  Products:', JSON.stringify(Object.entries(body.wizardData.productPricing || {}).slice(0, 3), null, 2));
+      console.log('  Services:', JSON.stringify(Object.entries(body.wizardData.servicePricing || {}).slice(0, 3), null, 2));
+      console.log('📊 Full infrastructureData structure after merge:', JSON.stringify({
+        hasWizardData: !!updateData.infrastructureData.wizardData,
+        hasAiContent: !!updateData.infrastructureData.aiContent,
+        wizardDataKeys: Object.keys(updateData.infrastructureData.wizardData || {}),
+      }, null, 2));
+    }
 
     const siteSurvey = await prisma.siteSurvey.update({
       where: { id },

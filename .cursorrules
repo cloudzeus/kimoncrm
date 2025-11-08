@@ -31,6 +31,15 @@
 - **Use skeleton components** (e.g., shadcn/ui `Skeleton`) in all page components when data is loading
 - **For existing client components with data fetching**: Consider refactoring to Server Components where possible
 
+### Data Persistence Strategy (CRITICAL)
+- **NEVER use localStorage or sessionStorage for application data** - These cause client/server sync issues and data loss
+- **ALWAYS persist data to database via Server Actions** - Database is the single source of truth
+- **Use database for all user data, settings, preferences, and application state**
+- **For temporary UI state only**: Use React state (useState) for ephemeral UI interactions (open/closed, selected tab, etc.)
+- **For session data**: Use server-side session management with Better-Auth, NOT browser storage
+- **Auto-save to database**: For multi-step forms/wizards, save progress to database after each step via Server Actions
+- **Load from database**: Always load initial state from database, never from localStorage
+
 ### Server Actions
 - Use Server Actions for all mutations (create, update, delete operations)
 - Mark functions with `"use server"` directive for form submissions and data mutations

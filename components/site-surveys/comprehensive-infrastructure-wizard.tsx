@@ -30,6 +30,8 @@ import { EquipmentAssignmentStep } from "./wizard-steps/equipment-assignment-ste
 import { CentralRackStep } from "./wizard-steps/central-rack-step";
 import ProposalDocumentStep from "./wizard-steps/proposal-document-step";
 import { BuildingData, SiteConnectionData } from "@/types/building-data";
+import { saveWizardData } from "@/app/actions/site-survey-wizard";
+import { WizardProvider, useWizardContext } from "@/contexts/wizard-context";
 
 export interface InfrastructureData {
   buildings: BuildingData[];
@@ -462,27 +464,117 @@ const STEPS = [
   },
 ];
 
+// Wrapper component that provides context
 export function ComprehensiveInfrastructureWizard({
   siteSurveyId,
   siteSurveyData,
   onComplete,
   onRFPGenerated,
 }: ComprehensiveInfrastructureWizardProps) {
+  const [initialData, setInitialData] = useState<{
+    buildings: BuildingData[];
+    productPricing: Record<string, any>;
+    servicePricing: Record<string, any>;
+  } | null>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
+
+  // Load initial data from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const response = await fetch(`/api/site-surveys/${siteSurveyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const wizardData = data.wizardData || data.infrastructureData?.wizardData || {};
+          
+          setInitialData({
+            buildings: wizardData.buildings || [],
+            productPricing: wizardData.productPricing || {},
+            servicePricing: wizardData.servicePricing || {},
+          });
+          
+          console.log('✅ Loaded initial wizard data from database:', {
+            buildings: wizardData.buildings?.length || 0,
+            productPricing: Object.keys(wizardData.productPricing || {}).length,
+            servicePricing: Object.keys(wizardData.servicePricing || {}).length,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+        toast.error('Failed to load wizard data');
+      } finally {
+        setInitialLoad(false);
+      }
+    };
+    
+    loadData();
+  }, [siteSurveyId]);
+
+  if (initialLoad || !initialData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-8 w-8 mx-auto text-blue-600" />
+          <p className="mt-2 text-sm text-muted-foreground">Loading wizard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <WizardProvider
+      siteSurveyId={siteSurveyId}
+      initialBuildings={initialData.buildings}
+      initialProductPricing={initialData.productPricing}
+      initialServicePricing={initialData.servicePricing}
+    >
+      <WizardContent
+        siteSurveyId={siteSurveyId}
+        siteSurveyData={siteSurveyData}
+        onComplete={onComplete}
+        onRFPGenerated={onRFPGenerated}
+      />
+    </WizardProvider>
+  );
+}
+
+// Internal wizard component that uses context
+function WizardContent({
+  siteSurveyId,
+  siteSurveyData,
+  onComplete,
+  onRFPGenerated,
+}: ComprehensiveInfrastructureWizardProps) {
+  // Get context - this MUST be called at the top of the component
+  const wizardContext = useWizardContext();
+  const { buildings, productPricing, servicePricing, setBuildings, saveToDatabase, loadFromDatabase, isAutoSaving } = wizardContext;
   
   const [wizardData, setWizardData] = useState<InfrastructureData>({
-    buildings: [],
+    buildings: buildings || [],
     siteConnections: [],
   });
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [generatingFile, setGeneratingFile] = useState(false);
   const [generatingBOM, setGeneratingBOM] = useState(false);
   const [generatingRFP, setGeneratingRFP] = useState(false);
   const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
 
-  // Load existing data on mount
+  // Load pricing from database on mount (BEFORE any other operations)
+  useEffect(() => {
+    console.log('🔄 [WIZARD] Loading wizard data from database on mount...');
+    loadFromDatabase(siteSurveyId);
+  }, [siteSurveyId, loadFromDatabase]);
+
+  // Sync buildings from context to local state
+  useEffect(() => {
+    if (buildings) {
+      setWizardData(prev => ({ ...prev, buildings }));
+    }
+  }, [buildings]);
+
+  // Load existing infrastructure data on mount
   useEffect(() => {
     loadExistingData();
   }, [siteSurveyId]);
@@ -495,10 +587,12 @@ export function ComprehensiveInfrastructureWizard({
       const response = await fetch(`/api/site-surveys/${siteSurveyId}/comprehensive-infrastructure`);
       if (response.ok) {
         const data = await response.json();
+        const loadedBuildings = data.infrastructureData?.buildings || [];
         setWizardData({
-          buildings: data.infrastructureData?.buildings || [],
+          buildings: loadedBuildings,
           siteConnections: data.siteConnections || [],
         });
+        setBuildings(loadedBuildings); // Update context
       }
 
     } catch (error) {
@@ -506,7 +600,6 @@ export function ComprehensiveInfrastructureWizard({
       toast.error("Failed to load existing data");
     } finally {
       setLoading(false);
-      setInitialLoad(false);
     }
   };
 
@@ -695,11 +788,12 @@ export function ComprehensiveInfrastructureWizard({
     }
   };
 
-  const handleBuildingsUpdate = (buildings: BuildingData[]) => {
+  const handleBuildingsUpdate = (updatedBuildings: BuildingData[]) => {
     setWizardData(prev => ({
       ...prev,
-      buildings: buildings,
+      buildings: updatedBuildings,
     }));
+    setBuildings(updatedBuildings); // Update context (will auto-save)
   };
 
   const handleSiteConnectionsUpdate = (siteConnections: SiteConnectionData[]) => {
@@ -1034,6 +1128,11 @@ export function ComprehensiveInfrastructureWizard({
   const handleGenerateRFP = async () => {
     setGeneratingRFP(true);
     try {
+      // Ensure pricing is loaded from context
+      if (!productPricing || !servicePricing) {
+        throw new Error('Pricing data not loaded from context');
+      }
+
       // Step 1: Fetch all products and services
       const [productsRes, servicesRes] = await Promise.all([
         fetch('/api/products?limit=999999'), // Get all products
@@ -1051,46 +1150,15 @@ export function ComprehensiveInfrastructureWizard({
       const allProducts = Array.isArray(productsData) ? productsData : (productsData.data || []);
       const allServices = Array.isArray(servicesData) ? servicesData : (servicesData.data || []);
 
-      // Step 1.5: Load custom pricing from database first, then fallback to localStorage
-      let productPricingMap = new Map();
-      let servicePricingMap = new Map();
+      // Use pricing from context (loaded from database, NO localStorage)
+      console.log('📊 Using pricing from context:', {
+        productPricing: productPricing.size,
+        servicePricing: servicePricing.size,
+      });
       
-      try {
-        // Load from database first
-        const dbResponse = await fetch(`/api/site-surveys/${siteSurveyId}`);
-        if (dbResponse.ok) {
-          const dbData = await dbResponse.json();
-          const wizardDataFromDb = dbData.wizardData || dbData.infrastructureData;
-          const productPricingFromDb = wizardDataFromDb?.productPricing || {};
-          const servicePricingFromDb = wizardDataFromDb?.servicePricing || {};
-          
-          // Convert object to Map
-          productPricingMap = new Map(Object.entries(productPricingFromDb));
-          servicePricingMap = new Map(Object.entries(servicePricingFromDb));
-          console.log('Loaded pricing from database:', productPricingMap.size, 'products,', servicePricingMap.size, 'services');
-        }
-        
-        // Fallback to localStorage if database has no pricing
-        if (productPricingMap.size === 0) {
-          const savedProductPricing = localStorage.getItem(`pricing-products-${siteSurveyId}`);
-          if (savedProductPricing) {
-            const pricingData = JSON.parse(savedProductPricing);
-            productPricingMap = new Map(pricingData);
-            console.log('Fallback: Loaded product pricing from localStorage:', productPricingMap.size, 'items');
-          }
-        }
-        
-        if (servicePricingMap.size === 0) {
-          const savedServicePricing = localStorage.getItem(`pricing-services-${siteSurveyId}`);
-          if (savedServicePricing) {
-            const pricingData = JSON.parse(savedServicePricing);
-            servicePricingMap = new Map(pricingData);
-            console.log('Fallback: Loaded service pricing from localStorage:', servicePricingMap.size, 'items');
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load pricing:', error);
-      }
+      // Use context pricing Maps directly
+      const productPricingMap = productPricing;
+      const servicePricingMap = servicePricing;
 
       // Step 2: Collect all equipment with full details from all buildings
       const productsMap = new Map();
@@ -1525,7 +1593,32 @@ export function ComprehensiveInfrastructureWizard({
   const handleGenerateCompleteProposal = async () => {
     setGeneratingRFP(true); // Use same loading state
     try {
-      // Fetch fresh data from database to get latest pricing
+      console.log('🚀 [WIZARD] Starting Complete Proposal generation...');
+      
+      // Ensure context is ready
+      if (!productPricing || !servicePricing || !buildings) {
+        throw new Error('Wizard context not initialized');
+      }
+      
+      // STEP 1: Save current wizard data + pricing to database FIRST
+      console.log('💾 [WIZARD] Saving current state from context to database...');
+      console.log('💾 [WIZARD] Context state:', {
+        buildings: buildings.length,
+        productPricing: productPricing.size,
+        servicePricing: servicePricing.size,
+      });
+      
+      // Save using context method (which uses Server Action)
+      const saved = await saveToDatabase();
+      
+      if (!saved) {
+        toast.error('Failed to save pricing data');
+        return;
+      }
+      
+      console.log('✅ [WIZARD] Wizard data saved successfully, now fetching fresh data...');
+      
+      // STEP 2: Fetch fresh data from database to get latest pricing
       const response = await fetch(`/api/site-surveys/${siteSurveyId}`);
       if (!response.ok) throw new Error('Failed to fetch site survey data');
       
@@ -1677,17 +1770,7 @@ export function ComprehensiveInfrastructureWizard({
 
   const progress = (currentStep / STEPS.length) * 100;
 
-  if (initialLoad) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading infrastructure data...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // No need for initialLoad check here - parent wrapper handles it
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

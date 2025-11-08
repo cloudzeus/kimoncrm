@@ -39,16 +39,8 @@ export async function POST(
 
     const userId = session.user.id;
     const { id: siteSurveyId } = await params;
-    const body = await request.json();
-    const { products = [], services = [] } = body;
 
-    console.log('📄 Generating complete proposal document from template:', {
-      siteSurveyId,
-      productsCount: products.length,
-      servicesCount: services.length,
-    });
-
-    // Fetch site survey with all relations
+    // Fetch site survey with all relations including wizard data with pricing
     const siteSurvey = await prisma.siteSurvey.findUnique({
       where: { id: siteSurveyId },
       include: {
@@ -62,6 +54,135 @@ export async function POST(
         },
       },
     });
+    
+    // Get ALL data from database - buildings, products, services, and pricing
+    const infrastructureData = siteSurvey?.infrastructureData as any;
+    const wizardData = infrastructureData?.wizardData || infrastructureData || {};
+    const buildings = wizardData.buildings || [];
+    const productPricing = wizardData.productPricing || {};
+    const servicePricing = wizardData.servicePricing || {};
+    
+    // Collect ALL products and services from buildings
+    const allProducts: any[] = [];
+    const allServices: any[] = [];
+    
+    buildings.forEach((building: any) => {
+      // 1. Central Rack - VoIP PBX products
+      building.centralRack?.voipPbx?.forEach((voip: any) => {
+        voip.products?.forEach((product: any) => {
+          allProducts.push({
+            id: product.productId,
+            quantity: product.quantity || 1,
+          });
+        });
+        voip.services?.forEach((service: any) => {
+          allServices.push({
+            id: service.serviceId,
+            quantity: service.quantity || 1,
+          });
+        });
+      });
+      
+      // 2. Central Rack - ATA devices
+      building.centralRack?.ata?.forEach((ata: any) => {
+        if (ata.isFutureProposal) {
+          ata.products?.forEach((product: any) => {
+            allProducts.push({
+              id: product.productId,
+              quantity: product.quantity || 1,
+            });
+          });
+          ata.services?.forEach((service: any) => {
+            allServices.push({
+              id: service.serviceId,
+              quantity: service.quantity || 1,
+            });
+          });
+        }
+      });
+      
+      // 3. Central Rack - Cable Terminations
+      building.centralRack?.cableTerminations?.forEach((term: any) => {
+        if (term.isFutureProposal) {
+          term.services?.forEach((service: any) => {
+            allServices.push({
+              id: service.serviceId,
+              quantity: service.quantity || 1,
+            });
+          });
+        }
+      });
+      
+      // 4. Floors - Racks - Switches
+      building.floors?.forEach((floor: any) => {
+        floor.racks?.forEach((rack: any) => {
+          rack.switches?.forEach((sw: any) => {
+            if (sw.isFutureProposal) {
+              sw.products?.forEach((product: any) => {
+                allProducts.push({
+                  id: product.productId,
+                  quantity: product.quantity || 1,
+                });
+              });
+              sw.services?.forEach((service: any) => {
+                allServices.push({
+                  id: service.serviceId,
+                  quantity: service.quantity || 1,
+                });
+              });
+            }
+          });
+        });
+        
+        // 5. Floors - Rooms - Devices
+        floor.rooms?.forEach((room: any) => {
+          const multiplier = floor.isTypical ? (floor.repeatCount || 1) : 1;
+          const roomMultiplier = room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1;
+          const totalMultiplier = multiplier * roomMultiplier;
+          
+          room.devices?.forEach((device: any) => {
+            if (device.isFutureProposal && device.productId) {
+              allProducts.push({
+                id: device.productId,
+                quantity: (device.quantity || 1) * totalMultiplier,
+              });
+            }
+            device.services?.forEach((service: any) => {
+              allServices.push({
+                id: service.serviceId,
+                quantity: (service.quantity || 1) * totalMultiplier,
+              });
+            });
+          });
+          
+          // 6. Rooms - Outlets
+          room.outlets?.forEach((outlet: any) => {
+            if (outlet.isFutureProposal) {
+              outlet.services?.forEach((service: any) => {
+                allServices.push({
+                  id: service.serviceId,
+                  quantity: (service.quantity || 1) * totalMultiplier,
+                });
+              });
+            }
+          });
+        });
+      });
+    });
+    
+    console.log('📄 Loaded from DB:', {
+      buildings: buildings.length,
+      products: allProducts.length,
+      services: allServices.length,
+      productPricing: Object.keys(productPricing).length,
+      servicePricing: Object.keys(servicePricing).length,
+    });
+    console.log('🔍 FULL PRODUCT PRICING MAP:', JSON.stringify(productPricing, null, 2));
+    console.log('🔍 FULL SERVICE PRICING MAP:', JSON.stringify(servicePricing, null, 2));
+    console.log('🧱 RAW ERP INPUT DATA:', JSON.stringify({
+      products: allProducts,
+      services: allServices,
+    }, null, 2));
 
     if (!siteSurvey) {
       return NextResponse.json(
@@ -76,8 +197,7 @@ export async function POST(
     let proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
     const assignedUserName = session.user.name || 'N/A';
 
-    // Load AI technical description from database
-    const infrastructureData = siteSurvey.infrastructureData as any;
+    // Load AI technical description from database (already have infrastructureData from above)
     const aiContent = infrastructureData?.aiContent || {};
     const technicalDescription = aiContent.technicalDescription || latestProposal?.technicalDesc || '';
 
@@ -93,59 +213,87 @@ export async function POST(
     if (!existingProposal) {
       // Try to create ERP order to get FINCODE
       try {
-        if (siteSurvey.customer?.trdr && products.length > 0) {
+        if (siteSurvey.customer?.trdr && allProducts.length > 0) {
           console.log('🔄 Attempting to create ERP order for proposal...');
         
         // Fetch product details with MTRL codes
-        const productIds = products.map((p: any) => p.id);
+        const productIds = allProducts.map((p: any) => p.id);
         const productsWithMtrl = await prisma.product.findMany({
           where: { id: { in: productIds } },
           select: { id: true, mtrl: true, name: true }
         });
         
         // Prepare ERP lines
-        const erpLines = products
+        const erpLines = allProducts
           .map((p: any) => {
             const productInfo = productsWithMtrl.find(pm => pm.id === p.id);
             if (!productInfo?.mtrl) return null;
+            
+            // Get pricing from database (totalPrice is the unit price with margin)
+            const pricing = productPricing[p.id] || {};
+            const quantity = p.quantity || 1;
+            
+            // Use totalPrice field which contains unit price with margin already calculated
+            const unitPriceWithMargin = parseFloat(pricing.totalPrice || 0);
+            const margin = parseFloat(pricing.margin || 0);
+            
+            console.log(`📊 Product ${p.id}: qty=${quantity}, unitPrice=${unitPriceWithMargin}, margin=${margin}%`);
             
             return {
               productId: p.id,
               mtrl: productInfo.mtrl,
               name: productInfo.name || '',
-              quantity: p.quantity || 1,
-              unitPrice: p.unitPrice || 0,
-              margin: p.margin || 0,
-              totalPrice: p.totalPrice || 0,
+              quantity: quantity,
+              unitPrice: unitPriceWithMargin,
+              margin: margin,
+              totalPrice: unitPriceWithMargin * quantity,
               sodtype: '51', // 51 = Product
             };
           })
           .filter(Boolean) as any[];
         
         // Add services
-        const serviceIds = services.map((s: any) => s.id);
+        const serviceIds = allServices.map((s: any) => s.id);
         const servicesWithMtrl = await prisma.service.findMany({
           where: { id: { in: serviceIds } },
           select: { id: true, code: true, name: true }
         });
         
-        services.forEach((s: any) => {
+        allServices.forEach((s: any) => {
           const serviceInfo = servicesWithMtrl.find(sm => sm.id === s.id);
           if (serviceInfo?.code) {
+            // Get pricing from database (totalPrice is the unit price with margin)
+            const pricing = servicePricing[s.id] || {};
+            const quantity = s.quantity || 1;
+            
+            // Use totalPrice field which contains unit price with margin already calculated
+            const unitPriceWithMargin = parseFloat(pricing.totalPrice || 0);
+            const margin = parseFloat(pricing.margin || 0);
+            
+            console.log(`📊 Service ${s.id}: qty=${quantity}, unitPrice=${unitPriceWithMargin}, margin=${margin}%`);
+            
             erpLines.push({
               productId: s.id,
-              mtrl: serviceInfo.code,
+              mtrl: '3544', // Testing: use fixed MTRL for services
               name: serviceInfo.name || '',
-              quantity: s.quantity || 1,
-              unitPrice: s.unitPrice || 0,
-              margin: s.margin || 0,
-              totalPrice: s.totalPrice || 0,
+              quantity: quantity,
+              unitPrice: unitPriceWithMargin,
+              margin: margin,
+              totalPrice: unitPriceWithMargin * quantity,
               sodtype: '52', // 52 = Service
             });
           }
         });
         
+        console.log('🧮 ERP LINES (detailed):', JSON.stringify(erpLines, null, 2));
+
         if (erpLines.length > 0) {
+          console.log('\n📊 ===== ITEMS WITH PRICES =====');
+          erpLines.forEach((line, idx) => {
+            console.log(`${idx + 1}. MTRL: ${line.mtrl}, QTY: ${line.quantity}, PRICE: ${line.unitPrice}, SODTYPE: ${line.sodtype}`);
+          });
+          console.log('================================\n');
+          
           const erpResult = await createProposalInSoftOne({
             series: '7001', // Default series for proposals
             trdr: siteSurvey.customer.trdr.toString(),
@@ -232,7 +380,7 @@ export async function POST(
     }
 
     // Fetch full product details with specifications
-    const productIds = products.map((p: any) => p.id);
+    const productIds = allProducts.map((p: any) => p.id);
     const fullProducts = await prisma.product.findMany({
       where: { id: { in: productIds } },
       include: {
@@ -257,9 +405,16 @@ export async function POST(
     });
 
     // Prepare products data for template
-    const productsData = products.map((p: any) => {
+    const productsData = allProducts.map((p: any) => {
       const fullProduct = fullProducts.find(fp => fp.id === p.id);
       const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      
+      // Get pricing from database (unitPrice already includes margin calculation)
+      const pricing = productPricing[p.id] || {};
+      const unitPrice = parseFloat(pricing.unitPrice || pricing.totalPrice || 0);
+      const margin = parseFloat(pricing.margin || 0);
+      const quantity = p.quantity || 1;
+      const totalPrice = unitPrice * quantity;
       
       // Get specifications (filter out N/A)
       const specifications = fullProduct?.specifications
@@ -277,26 +432,34 @@ export async function POST(
         name: greekTranslation?.name || fullProduct?.name || 'N/A',
         brand: fullProduct?.brand?.name || 'N/A',
         category: fullProduct?.category?.name || 'N/A',
-        quantity: p.quantity || 0,
-        unitPrice: p.unitPrice || 0,
-        margin: p.margin || 0,
-        totalPrice: p.totalPrice || 0,
+        quantity: quantity,
+        unitPrice: unitPrice,
+        margin: margin,
+        totalPrice: totalPrice,
         specifications,
       };
     });
 
     // Prepare services data for template
-    const servicesData = services.map((s: any) => ({
-      name: s.name || 'N/A',
-      category: s.category || 'N/A',
-      quantity: s.quantity || 0,
-      unitPrice: s.unitPrice || 0,
-      totalPrice: s.totalPrice || 0,
-    }));
+    const servicesData = allServices.map((s: any) => {
+      // Get pricing from database (unitPrice already includes margin calculation)
+      const pricing = servicePricing[s.id] || {};
+      const unitPrice = parseFloat(pricing.unitPrice || pricing.totalPrice || 0);
+      const quantity = s.quantity || 1;
+      const totalPrice = unitPrice * quantity;
+      
+      return {
+        name: s.name || 'N/A',
+        category: s.category || 'N/A',
+        quantity: quantity,
+        unitPrice: unitPrice,
+        totalPrice: totalPrice,
+      };
+    });
 
     // Calculate totals
-    const totalProductsAmount = products.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
-    const totalServicesAmount = services.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
+    const totalProductsAmount = productsData.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
+    const totalServicesAmount = servicesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
     const subtotal = totalProductsAmount + totalServicesAmount;
     const vatAmount = subtotal * 0.24; // 24% Greek VAT
     const grandTotal = subtotal + vatAmount;
@@ -312,6 +475,33 @@ export async function POST(
       );
     }
 
+    // TEMPORARILY SKIP TEMPLATE GENERATION TO TEST ERP INTEGRATION
+    console.log('⚠️ SKIPPING template generation to test ERP/pricing first');
+    console.log('📊 Would generate document with data:', {
+      proposalNumber,
+      productsCount: productsData.length,
+      servicesCount: servicesData.length,
+      totalProductsAmount,
+      totalServicesAmount,
+      grandTotal,
+    });
+    
+    return NextResponse.json({
+      success: true,
+      message: 'ERP integration test - template generation disabled',
+      debug: {
+        proposalNumber,
+        productsCount: productsData.length,
+        servicesCount: servicesData.length,
+        productPricingCount: Object.keys(productPricing).length,
+        servicePricingCount: Object.keys(servicePricing).length,
+        totalProductsAmount,
+        totalServicesAmount,
+        grandTotal,
+      }
+    });
+    
+    /* DISABLED FOR NOW - FIX TEMPLATE LOOP FIRST
     console.log('📄 Loading template from:', templatePath);
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
@@ -321,6 +511,7 @@ export async function POST(
       paragraphLoop: true,
       linebreaks: true,
     });
+    */
 
     // Fill template with data
     const templateData = {
