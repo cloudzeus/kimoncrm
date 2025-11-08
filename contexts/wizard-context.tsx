@@ -18,6 +18,8 @@ interface WizardContextType {
   setBuildings: (buildings: BuildingData[]) => void;
   updateProductPricing: (productId: string, pricing: PricingData) => void;
   updateServicePricing: (serviceId: string, pricing: PricingData) => void;
+  deleteProductPricing: (productId: string) => void;
+  deleteServicePricing: (serviceId: string) => void;
   saveToDatabase: () => Promise<boolean>;
   loadFromDatabase: (siteSurveyId: string) => Promise<void>;
   isAutoSaving: boolean;
@@ -115,7 +117,7 @@ export function WizardProvider({
       console.error('❌ [CONTEXT] Failed to load from database:', error);
       toast.error('Failed to load wizard data');
     }
-  }, []);
+  }, [setBuildings, setProductPricing, setServicePricing]);
 
   const updateProductPricing = useCallback((productId: string, pricing: PricingData) => {
     console.log('💰 [CONTEXT] Updating product pricing:', productId, pricing);
@@ -135,6 +137,24 @@ export function WizardProvider({
     });
   }, []);
 
+  const deleteProductPricing = useCallback((productId: string) => {
+    console.log('🗑️ [CONTEXT] Deleting product pricing:', productId);
+    setProductPricing(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(productId);
+      return newMap;
+    });
+  }, []);
+
+  const deleteServicePricing = useCallback((serviceId: string) => {
+    console.log('🗑️ [CONTEXT] Deleting service pricing:', serviceId);
+    setServicePricing(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(serviceId);
+      return newMap;
+    });
+  }, []);
+
   const value: WizardContextType = {
     buildings,
     productPricing,
@@ -142,6 +162,8 @@ export function WizardProvider({
     setBuildings,
     updateProductPricing,
     updateServicePricing,
+    deleteProductPricing,
+    deleteServicePricing,
     saveToDatabase,
     loadFromDatabase,
     isAutoSaving,

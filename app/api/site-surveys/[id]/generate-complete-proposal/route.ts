@@ -486,6 +486,9 @@ export async function POST(
       grandTotal,
     });
     
+    // TEMPORARILY DISABLED: Template generation to test ERP/pricing first
+    // Once pricing works, we'll re-enable this and fix the template loop
+    
     return NextResponse.json({
       success: true,
       message: 'ERP integration test - template generation disabled',
@@ -495,24 +498,16 @@ export async function POST(
         servicesCount: servicesData.length,
         productPricingCount: Object.keys(productPricing).length,
         servicePricingCount: Object.keys(servicePricing).length,
+        productsData: productsData.slice(0, 3), // First 3 for debugging
+        servicesData: servicesData.slice(0, 3), // First 3 for debugging
         totalProductsAmount,
         totalServicesAmount,
         grandTotal,
       }
     });
     
-    /* DISABLED FOR NOW - FIX TEMPLATE LOOP FIRST
-    console.log('📄 Loading template from:', templatePath);
-    const content = fs.readFileSync(templatePath, 'binary');
-    const zip = new PizZip(content);
+    /* TEMPLATE GENERATION DISABLED - UNCOMMENT WHEN READY
     
-    // Create docxtemplater instance
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
-    */
-
     // Fill template with data
     const templateData = {
       proposalNumber,
@@ -535,6 +530,16 @@ export async function POST(
       servicesCount: servicesData.length,
       grandTotal,
     });
+    
+    console.log('📄 Loading template from:', templatePath);
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Create docxtemplater instance
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
 
     doc.render(templateData);
 
@@ -545,9 +550,32 @@ export async function POST(
     });
 
     console.log('✅ Complete proposal document generated from template');
+    
+    // Save to database
+    await prisma.proposal.create({
+      data: {
+        siteSurveyId,
+        version: nextVersion,
+        filename: versionedFilename,
+        status: 'DRAFT',
+        content: JSON.stringify(templateData),
+        generatedBy: userId,
+      },
+    });
 
+    // Return the document
+    return new NextResponse(Buffer.from(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(versionedFilename)}"`,
+      },
+    });
+    */
+
+    /* OLD CODE - ALL DISABLED UNTIL PRICING IS TESTED
+    
     // OLD PROGRAMMATIC GENERATION REMOVED - NOW USING TEMPLATE
-    /*
     // Company Header Block (Blue background)
     allChildren.push(
       new Paragraph({
@@ -1308,51 +1336,9 @@ export async function POST(
       })
     );
 
-    */
-    // END OF OLD PROGRAMMATIC GENERATION CODE
-
-    // Save to database with versioning
-    const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
     
-    const { nextVersion } = await manageDocumentVersions({
-      entityType: 'SITESURVEY',
-      entityId: siteSurveyId,
-      documentType: 'complete-proposal',
-      baseFileName,
-      fileExtension: 'docx',
-    });
-
-    const versionedFilename = generateVersionedFilename(baseFileName, nextVersion, 'docx');
-
-    console.log('📤 Uploading complete proposal to BunnyCDN:', versionedFilename);
-
-    const uploadResult = await uploadFileToBunny(
-      Buffer.from(buffer),
-      versionedFilename,
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    );
-
-    console.log('✅ Complete proposal uploaded:', uploadResult.url);
-
-    await prisma.file.create({
-      data: {
-        name: versionedFilename,
-        url: uploadResult.url,
-        filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: buffer.byteLength,
-        type: 'SITESURVEY',
-        entityId: siteSurveyId,
-      },
-    });
-
-    // Return the document
-    return new NextResponse(Buffer.from(buffer), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(versionedFilename)}"`,
-      },
-    });
+    // END OF ALL DISABLED CODE
+    */
   } catch (error: any) {
     console.error('❌ Error generating complete proposal:', error);
     return NextResponse.json(

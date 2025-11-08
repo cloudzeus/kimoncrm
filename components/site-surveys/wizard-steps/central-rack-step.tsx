@@ -66,7 +66,7 @@ export function CentralRackStep({
   const { toast } = useToast();
   
   // Use pricing from context (shared across wizard, auto-saves to database)
-  const { productPricing, servicePricing, updateProductPricing, updateServicePricing, saveToDatabase } = useWizardContext();
+  const { productPricing, servicePricing, updateProductPricing, updateServicePricing, deleteProductPricing, deleteServicePricing, saveToDatabase } = useWizardContext();
   
   const [productsList, setProductsList] = useState<any[]>([]);
   const [servicesList, setServicesList] = useState<any[]>([]);
@@ -137,19 +137,7 @@ export function CentralRackStep({
           });
           onUpdate(siteSurveyData.data.wizardData.buildings);
           
-          // Load pricing from database
-          const dbProductPricing = siteSurveyData.data.wizardData.productPricing || {};
-          const dbServicePricing = siteSurveyData.data.wizardData.servicePricing || {};
-          
-          if (Object.keys(dbProductPricing).length > 0) {
-            console.log('💰 Loading product pricing from database:', Object.keys(dbProductPricing).length, 'products');
-            setProductPricing(new Map(Object.entries(dbProductPricing)));
-          }
-          
-          if (Object.keys(dbServicePricing).length > 0) {
-            console.log('💰 Loading service pricing from database:', Object.keys(dbServicePricing).length, 'services');
-            setServicePricing(new Map(Object.entries(dbServicePricing)));
-          }
+          // Pricing is now loaded by WizardContext on mount (no need to load here)
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -488,10 +476,8 @@ export function CentralRackStep({
 
     onUpdate(updatedBuildings);
     
-    // Also remove pricing data
-    const newPricing = new Map(productPricing);
-    newPricing.delete(productId);
-    setProductPricing(newPricing);
+    // Also remove pricing data (using context)
+    deleteProductPricing(productId);
     
     toast({
       title: "Success",
@@ -607,10 +593,8 @@ export function CentralRackStep({
 
     onUpdate(updatedBuildings);
     
-    // Also remove pricing data
-    const newPricing = new Map(servicePricing);
-    newPricing.delete(serviceId);
-    setServicePricing(newPricing);
+    // Also remove pricing data (using context)
+    deleteServicePricing(serviceId);
     
     toast({
       title: "Success",
