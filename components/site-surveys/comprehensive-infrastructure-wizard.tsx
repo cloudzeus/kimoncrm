@@ -1125,7 +1125,7 @@ function WizardContent({
   };
 
   // Generate RFP
-  const handleGenerateRFP = async () => {
+  async function handleGenerateRFP() {
     setGeneratingRFP(true);
     try {
       // Ensure pricing is loaded from context
@@ -1458,7 +1458,7 @@ function WizardContent({
     } finally {
       setGeneratingRFP(false);
     }
-  };
+  }
 
   // Generate Product Analysis (Word Document)
   const handleGenerateProductAnalysis = async () => {
@@ -1590,14 +1590,21 @@ function WizardContent({
   };
 
   // Generate Complete Proposal (Word Document)
-  const handleGenerateCompleteProposal = async () => {
+  async function handleGenerateCompleteProposal() {
     setGeneratingRFP(true); // Use same loading state
     try {
       console.log('🚀 [WIZARD] Starting Complete Proposal generation...');
+      console.log('🔍 [WIZARD] Context available:', {
+        hasProductPricing: !!productPricing,
+        hasServicePricing: !!servicePricing,
+        hasBuildings: !!buildings,
+      });
       
       // Ensure context is ready
       if (!productPricing || !servicePricing || !buildings) {
-        throw new Error('Wizard context not initialized');
+        console.error('❌ [WIZARD] Context not initialized:', { productPricing, servicePricing, buildings });
+        toast.error('Wizard context not ready. Please try again.');
+        return;
       }
       
       // STEP 1: Save current wizard data + pricing to database FIRST
@@ -1710,54 +1717,106 @@ function WizardContent({
       const collectedProducts = equipment.filter(e => e.type === 'product').map(e => ({ id: e.productId, quantity: e.quantity }));
       const collectedServices = equipment.filter(e => e.type === 'service').map(e => ({ id: e.serviceId, quantity: e.quantity }));
       
-      // Load pricing from database
-      const productPricing = freshWizardData.productPricing || {};
-      const servicePricing = freshWizardData.servicePricing || {};
+      // Load pricing from database (rename to avoid shadowing context variables)
+      const dbProductPricing = freshWizardData.productPricing || {};
+      const dbServicePricing = freshWizardData.servicePricing || {};
       
       // Apply pricing
       const productsWithPricing = collectedProducts.map((p: any) => ({
         ...p,
-        unitPrice: productPricing[p.id]?.price || 0,
-        margin: productPricing[p.id]?.margin || 0,
-        totalPrice: (productPricing[p.id]?.price || 0) * p.quantity,
+        unitPrice: dbProductPricing[p.id]?.unitPrice || dbProductPricing[p.id]?.totalPrice || 0,
+        margin: dbProductPricing[p.id]?.margin || 0,
+        totalPrice: (dbProductPricing[p.id]?.unitPrice || dbProductPricing[p.id]?.totalPrice || 0) * p.quantity,
       }));
       
       const servicesWithPricing = collectedServices.map((s: any) => ({
         ...s,
-        unitPrice: servicePricing[s.id]?.price || 0,
-        margin: servicePricing[s.id]?.margin || 0,
-        totalPrice: (servicePricing[s.id]?.price || 0) * s.quantity,
+        unitPrice: dbServicePricing[s.id]?.unitPrice || dbServicePricing[s.id]?.totalPrice || 0,
+        margin: dbServicePricing[s.id]?.margin || 0,
+        totalPrice: (dbServicePricing[s.id]?.unitPrice || dbServicePricing[s.id]?.totalPrice || 0) * s.quantity,
       }));
       
       toast.info('Generating complete proposal document...');
       
-      // Call API to generate complete proposal
-      const proposalResponse = await fetch(`/api/site-surveys/${siteSurveyId}/generate-complete-proposal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products: productsWithPricing,
-          services: servicesWithPricing,
-        }),
-      });
+      // Helper function to call the API
+      const callProposalAPI = async (skipErp: boolean = false) => {
+        return await fetch(`/api/site-surveys/${siteSurveyId}/generate-complete-proposal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            products: productsWithPricing,
+            services: servicesWithPricing,
+            skipErpCreation: skipErp,
+          }),
+        });
+      };
+      
+      // First attempt - check if ERP proposal exists
+      let proposalResponse = await callProposalAPI(false);
+      
+      // Check for ERP conflict (409 status)
+      if (proposalResponse.status === 409) {
+        const warningData = await proposalResponse.json();
+        
+        // Show confirmation dialog
+        const confirmed = window.confirm(
+          `${warningData.message}\n\n` +
+          `Υπάρχουσα προσφορά ERP: ${warningData.existingProposal?.erpFinCode || warningData.existingProposal?.erpProposalNumber}\n` +
+          `Ημερομηνία: ${new Date(warningData.existingProposal?.createdAt).toLocaleDateString('el-GR')}\n\n` +
+          `${warningData.question}\n\n` +
+          `• ΟΚ = Δημιουργία νέας προσφοράς στο ERP (θα δημιουργηθεί νέος αριθμός)\n` +
+          `• Ακύρωση = Χρήση υπάρχουσας προσφοράς (συνιστάται)`
+        );
+        
+        if (confirmed) {
+          // User wants NEW ERP proposal - this feature not implemented yet
+          toast.error('Η δημιουργία νέας προσφοράς ERP δεν υποστηρίζεται ακόμα. Θα χρησιμοποιηθεί η υπάρχουσα.');
+          proposalResponse = await callProposalAPI(true); // Use existing
+        } else {
+          // User chose to use existing
+          toast.info('Χρήση υπάρχουσας προσφοράς ERP: ' + (warningData.existingProposal?.erpFinCode || ''));
+          proposalResponse = await callProposalAPI(true); // Skip ERP creation
+        }
+      }
       
       if (!proposalResponse.ok) {
         const errorData = await proposalResponse.json();
         throw new Error(errorData.error || 'Failed to generate complete proposal');
       }
       
-      // Download the file
-      const blob = await proposalResponse.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Complete-Proposal_${siteSurveyData?.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Check if response is JSON (debug mode) or file (production mode)
+      const contentType = proposalResponse.headers.get('content-type');
       
-      toast.success('Complete proposal generated successfully!');
+      if (contentType?.includes('application/json')) {
+        // DEBUG MODE: Show pricing data in console
+        const debugData = await proposalResponse.json();
+        console.log('🐛 [DEBUG MODE] Proposal Generation Test Results:', debugData);
+        console.log('📊 Products Data:', debugData.debug?.productsData);
+        console.log('📊 Services Data:', debugData.debug?.servicesData);
+        console.log('💰 Pricing Totals:', {
+          products: debugData.debug?.totalProductsAmount,
+          services: debugData.debug?.totalServicesAmount,
+          total: debugData.debug?.grandTotal,
+        });
+        
+        toast.success('✅ Pricing test successful! Check console for details.', {
+          description: `Found ${debugData.debug?.productsCount} products, ${debugData.debug?.servicesCount} services. Total: €${debugData.debug?.grandTotal?.toFixed(2)}`,
+          duration: 5000,
+        });
+      } else {
+        // PRODUCTION MODE: Download the Word file
+        const blob = await proposalResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Complete-Proposal_${siteSurveyData?.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast.success('Complete proposal generated successfully!');
+      }
     } catch (error) {
       console.error('Error generating complete proposal:', error);
       toast.error('Failed to generate complete proposal', {
@@ -1766,7 +1825,7 @@ function WizardContent({
     } finally {
       setGeneratingRFP(false);
     }
-  };
+  }
 
   const progress = (currentStep / STEPS.length) * 100;
 
@@ -1778,14 +1837,36 @@ function WizardContent({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {siteSurveyData?.title || 'Infrastructure Survey'}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {siteSurveyData?.title || 'Infrastructure Survey'}
+                </h1>
+                {/* Data status badge */}
+                {productPricing.size > 0 || servicePricing.size > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                    <span className="w-2 h-2 bg-green-600 rounded-full"></span>
+                    {productPricing.size + servicePricing.size} items priced
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    No pricing data
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600 mt-1">
                 Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1]?.title}
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Auto-save indicator */}
+              {isAutoSaving && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                  <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                  <span className="font-medium">Saving to database...</span>
+                </div>
+              )}
+              
               <Button
                 variant="outline"
                 onClick={saveProgress}

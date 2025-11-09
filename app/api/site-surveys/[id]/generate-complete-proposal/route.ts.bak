@@ -1,0 +1,1577 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/db/prisma';
+import { uploadFileToBunny } from '@/lib/bunny/upload';
+import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
+import { createProposalInSoftOne } from '@/lib/softone/create-proposal';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import ImageModule from 'docxtemplater-image-module-free';
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import http from 'http';
+
+/**
+ * Complete Proposal Document Generator - TEMPLATE BASED
+ * Uses proposal-template.docx with Docxtemplater
+ * 
+ * Template Placeholders Required:
+ * - {proposalNumber} → FINCODE from ERP (e.g., ΠΡΦ0000403)
+ * - {date} → Current date
+ * - {customerName} → Customer name
+ * - {projectName} → Project title
+ * - {technicalDescription} → AI-generated technical text (optional)
+ * - {products} → Array with: {name}, {brand}, {category}, {quantity}, {unitPrice}, {margin}, {totalPrice}, {specifications}
+ * - {services} → Array with: {name}, {category}, {quantity}, {unitPrice}, {totalPrice}
+ * - {totalProductsAmount} → Total for products
+ * - {totalServicesAmount} → Total for services
+ * - {grandTotal} → Total + VAT
+ * - {vatAmount} → VAT amount
+ */
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    const { id: siteSurveyId } = await params;
+    
+    // Parse request body to check for flags
+    const body = await request.json().catch(() => ({}));
+    const skipErpCreation = body.skipErpCreation === true;
+
+    // Fetch site survey with all relations including wizard data with pricing
+    const siteSurvey = await prisma.siteSurvey.findUnique({
+      where: { id: siteSurveyId },
+      include: {
+        customer: true,
+        lead: true,
+        proposals: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+    
+    // Get ALL data from database - buildings, products, services, and pricing
+    const infrastructureData = siteSurvey?.infrastructureData as any;
+    const wizardData = infrastructureData?.wizardData || infrastructureData || {};
+    const buildings = wizardData.buildings || [];
+    const productPricing = wizardData.productPricing || {};
+    const servicePricing = wizardData.servicePricing || {};
+    
+    // Collect ALL products and services from buildings
+    const allProducts: any[] = [];
+    const allServices: any[] = [];
+    
+    buildings.forEach((building: any) => {
+      // 1. Central Rack - VoIP PBX products
+      building.centralRack?.voipPbx?.forEach((voip: any) => {
+        voip.products?.forEach((product: any) => {
+          allProducts.push({
+            id: product.productId,
+            quantity: product.quantity || 1,
+          });
+        });
+        voip.services?.forEach((service: any) => {
+          allServices.push({
+            id: service.serviceId,
+            quantity: service.quantity || 1,
+          });
+        });
+      });
+      
+      // 2. Central Rack - ATA devices
+      building.centralRack?.ata?.forEach((ata: any) => {
+        if (ata.isFutureProposal) {
+          ata.products?.forEach((product: any) => {
+            allProducts.push({
+              id: product.productId,
+              quantity: product.quantity || 1,
+            });
+          });
+          ata.services?.forEach((service: any) => {
+            allServices.push({
+              id: service.serviceId,
+              quantity: service.quantity || 1,
+            });
+          });
+        }
+      });
+      
+      // 3. Central Rack - Cable Terminations
+      building.centralRack?.cableTerminations?.forEach((term: any) => {
+        if (term.isFutureProposal) {
+          term.services?.forEach((service: any) => {
+            allServices.push({
+              id: service.serviceId,
+              quantity: service.quantity || 1,
+            });
+          });
+        }
+      });
+      
+      // 4. Floors - Racks - Switches
+      building.floors?.forEach((floor: any) => {
+        floor.racks?.forEach((rack: any) => {
+          rack.switches?.forEach((sw: any) => {
+            if (sw.isFutureProposal) {
+              sw.products?.forEach((product: any) => {
+                allProducts.push({
+                  id: product.productId,
+                  quantity: product.quantity || 1,
+                });
+              });
+              sw.services?.forEach((service: any) => {
+                allServices.push({
+                  id: service.serviceId,
+                  quantity: service.quantity || 1,
+                });
+              });
+            }
+          });
+        });
+        
+        // 5. Floors - Rooms - Devices
+        floor.rooms?.forEach((room: any) => {
+          const multiplier = floor.isTypical ? (floor.repeatCount || 1) : 1;
+          const roomMultiplier = room.isTypicalRoom ? (room.identicalRoomsCount || 1) : 1;
+          const totalMultiplier = multiplier * roomMultiplier;
+          
+          room.devices?.forEach((device: any) => {
+            if (device.isFutureProposal && device.productId) {
+              allProducts.push({
+                id: device.productId,
+                quantity: (device.quantity || 1) * totalMultiplier,
+              });
+            }
+            device.services?.forEach((service: any) => {
+              allServices.push({
+                id: service.serviceId,
+                quantity: (service.quantity || 1) * totalMultiplier,
+              });
+            });
+          });
+          
+          // 6. Rooms - Outlets
+          room.outlets?.forEach((outlet: any) => {
+            if (outlet.isFutureProposal) {
+              outlet.services?.forEach((service: any) => {
+                allServices.push({
+                  id: service.serviceId,
+                  quantity: (service.quantity || 1) * totalMultiplier,
+                });
+              });
+            }
+          });
+        });
+      });
+    });
+    
+    console.log('📄 Loaded from DB:', {
+      buildings: buildings.length,
+      products: allProducts.length,
+      services: allServices.length,
+      productPricing: Object.keys(productPricing).length,
+      servicePricing: Object.keys(servicePricing).length,
+    });
+    console.log('🔍 FULL PRODUCT PRICING MAP:', JSON.stringify(productPricing, null, 2));
+    console.log('🔍 FULL SERVICE PRICING MAP:', JSON.stringify(servicePricing, null, 2));
+    console.log('🧱 RAW ERP INPUT DATA:', JSON.stringify({
+      products: allProducts,
+      services: allServices,
+    }, null, 2));
+
+    if (!siteSurvey) {
+      return NextResponse.json(
+        { error: 'Site survey not found' },
+        { status: 404 }
+      );
+    }
+
+    const latestProposal = siteSurvey.proposals?.[0];
+    const customerName = siteSurvey.customer?.name || 'N/A';
+    const projectName = siteSurvey.title || 'Site Survey';
+    let proposalNumber = latestProposal?.erpProposalNumber || 'TRF>PENDING';
+    const assignedUserName = session.user.name || 'N/A';
+
+    // Load AI technical description from database (already have infrastructureData from above)
+    const aiContent = infrastructureData?.aiContent || {};
+    const technicalDescription = aiContent.technicalDescription || latestProposal?.technicalDesc || '';
+
+    // Check if proposal already exists with ERP number
+    const existingErpProposal = await prisma.proposal.findFirst({
+      where: {
+        siteSurveyId: siteSurveyId,
+        erpProposalNumber: { not: null },
+      },
+      select: {
+        id: true,
+        erpProposalNumber: true, // This IS the FINCODE from SoftOne
+        erpQuoteNumber: true,
+        erpSeries: true,
+        erpSeriesNum: true,
+        createdAt: true,
+      },
+    });
+
+    // If ERP proposal exists and user hasn't confirmed to skip, ask for confirmation
+    if (existingErpProposal && !skipErpCreation) {
+      console.log('⚠️ Existing ERP proposal found:', existingErpProposal);
+      return NextResponse.json({
+        warningType: 'ERP_PROPOSAL_EXISTS',
+        message: 'Υπάρχει ήδη προσφορά στο ERP για αυτή τη μελέτη',
+        existingProposal: {
+          erpProposalNumber: existingErpProposal.erpProposalNumber, // FINCODE
+          erpQuoteNumber: existingErpProposal.erpQuoteNumber,
+          series: existingErpProposal.erpSeries,
+          seriesNum: existingErpProposal.erpSeriesNum,
+          createdAt: existingErpProposal.createdAt,
+        },
+        question: 'Θέλετε να δημιουργήσετε νέα προσφορά στο ERP;',
+        actions: {
+          useExisting: 'Χρήση υπάρχουσας προσφοράς (συνιστάται)',
+          createNew: 'Δημιουργία νέας προσφοράς στο ERP',
+        },
+      }, { status: 409 }); // 409 Conflict
+    }
+
+    // Reset proposal number based on user choice
+    // If user chose to skip ERP creation, use existing proposal number
+    if (skipErpCreation && existingErpProposal) {
+      proposalNumber = existingErpProposal.erpProposalNumber || existingErpProposal.erpQuoteNumber || '';
+      console.log('ℹ️ Using existing ERP proposal number:', proposalNumber);
+    }
+    // Only create new ERP order if no existing proposal
+    else if (!existingErpProposal) {
+      // Try to create ERP order to get FINCODE
+      try {
+        if (siteSurvey.customer?.trdr && (allProducts.length > 0 || allServices.length > 0)) {
+          console.log('🔄 Attempting to create NEW ERP order for proposal...');
+        
+          // Fetch product details with MTRL codes
+          const productIds = allProducts.map((p: any) => p.id);
+        const productsWithMtrl = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, mtrl: true, name: true }
+        });
+        
+        // Prepare ERP lines
+        const erpLines = allProducts
+          .map((p: any) => {
+            const productInfo = productsWithMtrl.find(pm => pm.id === p.id);
+            if (!productInfo?.mtrl) return null;
+            
+            // Get pricing from database (totalPrice is the unit price with margin)
+            const pricing = productPricing[p.id] || {};
+            const quantity = p.quantity || 1;
+            
+            // Use totalPrice field which contains unit price with margin already calculated
+            const unitPriceWithMargin = parseFloat(pricing.totalPrice || 0);
+            const margin = parseFloat(pricing.margin || 0);
+            
+            console.log(`📊 Product ${p.id}: qty=${quantity}, unitPrice=${unitPriceWithMargin}, margin=${margin}%`);
+            
+            return {
+              productId: p.id,
+              mtrl: productInfo.mtrl,
+              name: productInfo.name || '',
+              quantity: quantity,
+              unitPrice: unitPriceWithMargin,
+              margin: margin,
+              totalPrice: unitPriceWithMargin * quantity,
+              sodtype: '51', // 51 = Product
+            };
+          })
+          .filter(Boolean) as any[];
+        
+        // Add services
+        const serviceIds = allServices.map((s: any) => s.id);
+        const servicesWithMtrl = await prisma.service.findMany({
+          where: { id: { in: serviceIds } },
+          select: { id: true, code: true, name: true }
+        });
+        
+        allServices.forEach((s: any) => {
+          const serviceInfo = servicesWithMtrl.find(sm => sm.id === s.id);
+          if (serviceInfo?.code) {
+            // Get pricing from database (totalPrice is the unit price with margin)
+            const pricing = servicePricing[s.id] || {};
+            const quantity = s.quantity || 1;
+            
+            // Use totalPrice field which contains unit price with margin already calculated
+            const unitPriceWithMargin = parseFloat(pricing.totalPrice || 0);
+            const margin = parseFloat(pricing.margin || 0);
+            
+            console.log(`📊 Service ${s.id}: qty=${quantity}, unitPrice=${unitPriceWithMargin}, margin=${margin}%`);
+            
+            erpLines.push({
+              productId: s.id,
+              mtrl: '3544', // Testing: use fixed MTRL for services
+              name: serviceInfo.name || '',
+              quantity: quantity,
+              unitPrice: unitPriceWithMargin,
+              margin: margin,
+              totalPrice: unitPriceWithMargin * quantity,
+              sodtype: '52', // 52 = Service
+            });
+          }
+        });
+        
+        console.log('🧮 ERP LINES (detailed):', JSON.stringify(erpLines, null, 2));
+
+        if (erpLines.length > 0) {
+          console.log('\n📊 ===== ITEMS WITH PRICES =====');
+          erpLines.forEach((line, idx) => {
+            console.log(`${idx + 1}. MTRL: ${line.mtrl}, QTY: ${line.quantity}, PRICE: ${line.unitPrice}, SODTYPE: ${line.sodtype}`);
+          });
+          console.log('================================\n');
+          
+          const erpResult = await createProposalInSoftOne({
+            series: '7001', // Default series for proposals
+            trdr: siteSurvey.customer.trdr.toString(),
+            comments: `Complete Proposal - ${projectName}`,
+            lines: erpLines,
+          });
+          
+          if (erpResult.success && erpResult.proposalNumber) {
+            proposalNumber = erpResult.proposalNumber;
+            const erpData = erpResult.erpResponse || {};
+            console.log('✅ ERP order created successfully:', proposalNumber);
+            console.log('📊 ERP Data:', erpData);
+            
+            // Save ERP proposal to database with all ERP fields
+            if (siteSurvey.customerId) {
+              await prisma.proposal.create({
+                data: {
+                  siteSurveyId: siteSurveyId,
+                  leadId: siteSurvey.leadId,
+                  customerId: siteSurvey.customerId,
+                  projectTitle: projectName,
+                  erpProposalNumber: proposalNumber, // FINCODE
+                  erpSeries: erpData.SERIES?.toString() || null,
+                  erpSeriesNum: erpData.SERIESNUM?.toString() || null,
+                  erpFindoc: erpData.FINDOC?.toString() || null,
+                  erpSaldocnum: erpData.SALDOCNUM || null,
+                  erpTurnover: erpData.TURNOVR || null,
+                  erpVatAmount: erpData.VATAMNT || null,
+                  technicalDesc: technicalDescription,
+                  status: 'APPROVED',
+                  stage: 'DOCUMENT_GENERATION',
+                  erpSyncStatus: 'SYNCED',
+                  generatedBy: userId,
+                },
+              });
+              console.log('✅ Proposal saved to database with full ERP data');
+            }
+          } else {
+            console.warn('⚠️ ERP order creation failed, using fallback:', erpResult.error);
+            // Save proposal anyway without ERP number
+            if (siteSurvey.customerId) {
+              await prisma.proposal.create({
+                data: {
+                  siteSurveyId: siteSurveyId,
+                  leadId: siteSurvey.leadId,
+                  customerId: siteSurvey.customerId,
+                  projectTitle: projectName,
+                  erpProposalNumber: null,
+                  technicalDesc: technicalDescription,
+                  status: 'DRAFT',
+                  stage: 'DOCUMENT_GENERATION',
+                  generatedBy: userId,
+                },
+              });
+              console.log('⚠️ Proposal saved without ERP number');
+            }
+          }
+        }
+        } // Close if (siteSurvey.customer?.trdr...)
+      } catch (erpError) {
+        console.error('⚠️ ERP integration error (continuing with fallback):', erpError);
+        // Save proposal anyway without ERP number
+        if (siteSurvey.customerId) {
+          await prisma.proposal.create({
+            data: {
+              siteSurveyId: siteSurveyId,
+              leadId: siteSurvey.leadId,
+              customerId: siteSurvey.customerId,
+              projectTitle: projectName,
+              erpProposalNumber: null,
+              technicalDesc: technicalDescription,
+              status: 'DRAFT',
+              stage: 'DOCUMENT_GENERATION',
+              generatedBy: userId,
+            },
+          });
+          console.log('⚠️ Proposal saved after ERP error');
+        }
+      } // Close try-catch
+    } // Close else if (!existingErpProposal)
+    else {
+      // Use existing proposal number
+      proposalNumber = existingErpProposal?.erpProposalNumber || 'TRF>PENDING';
+      console.log('ℹ️ Using existing proposal number:', proposalNumber);
+    }
+
+    // Fetch full product details with specifications
+    const productIds = allProducts.map((p: any) => p.id);
+    const fullProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: {
+        images: true,
+        translations: true,
+        specifications: {
+          include: {
+            translations: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+        brand: true,
+        category: true,
+      },
+    });
+
+    // Prepare template data
+    const currentDate = new Date().toLocaleDateString('el-GR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    // Prepare products data for template
+    const productsData = allProducts.map((p: any) => {
+      const fullProduct = fullProducts.find(fp => fp.id === p.id);
+      const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      
+      // Get pricing from database (unitPrice already includes margin calculation)
+      const pricing = productPricing[p.id] || {};
+      const unitPrice = parseFloat(pricing.unitPrice || pricing.totalPrice || 0);
+      const margin = parseFloat(pricing.margin || 0);
+      const quantity = p.quantity || 1;
+      const totalPrice = unitPrice * quantity;
+      
+      // Get specifications (filter out N/A)
+      const specifications = fullProduct?.specifications
+        ?.map((spec: any) => {
+          const greekSpec = spec.translations.find((t: any) => t.languageCode === 'el');
+          if (greekSpec && greekSpec.specValue && greekSpec.specValue !== 'N/A' && greekSpec.specValue.trim() !== '') {
+            return `${greekSpec.specName}: ${greekSpec.specValue}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join('\n') || 'Δεν υπάρχουν προδιαγραφές';
+
+      return {
+        name: greekTranslation?.name || fullProduct?.name || 'N/A',
+        brand: fullProduct?.brand?.name || 'N/A',
+        category: fullProduct?.category?.name || 'N/A',
+        quantity: quantity,
+        unitPrice: unitPrice,
+        margin: margin,
+        totalPrice: totalPrice,
+        specifications,
+      };
+    });
+
+    // Prepare services data for template
+    const servicesData = allServices.map((s: any) => {
+      // Get pricing from database (unitPrice already includes margin calculation)
+      const pricing = servicePricing[s.id] || {};
+      const unitPrice = parseFloat(pricing.unitPrice || pricing.totalPrice || 0);
+      const quantity = s.quantity || 1;
+      const totalPrice = unitPrice * quantity;
+      
+      return {
+        name: s.name || 'N/A',
+        category: s.category || 'N/A',
+        quantity: quantity,
+        unitPrice: unitPrice,
+        totalPrice: totalPrice,
+      };
+    });
+
+    // Calculate totals
+    const totalProductsAmount = productsData.reduce((sum: number, p: any) => sum + (p.totalPrice || 0), 0);
+    const totalServicesAmount = servicesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0);
+    const subtotal = totalProductsAmount + totalServicesAmount;
+    const vatAmount = subtotal * 0.24; // 24% Greek VAT
+    const grandTotal = subtotal + vatAmount;
+
+    // Load template
+    const templatePath = path.join(process.cwd(), 'public', 'templates', 'proposal-template.docx');
+    
+    if (!fs.existsSync(templatePath)) {
+      console.error('❌ Template file not found:', templatePath);
+      return NextResponse.json(
+        { error: 'Proposal template file not found' },
+        { status: 500 }
+      );
+    }
+
+    // Prepare template data with product images
+    console.log('📊 Preparing template data with images...');
+    
+    // Helper to fetch image as buffer
+    const fetchImage = async (url: string): Promise<Buffer | null> => {
+      try {
+        const protocol = url.startsWith('https') ? https : http;
+        return await new Promise((resolve, reject) => {
+          protocol.get(url, (res) => {
+            const chunks: Uint8Array[] = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+          }).on('error', reject);
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch image ${url}:`, error);
+        return null;
+      }
+    };
+    
+    // Fetch product images and add to product data
+    const productsWithImages = await Promise.all(
+      productsData.map(async (product: any) => {
+        const fullProduct = fullProducts.find((p) => p.id === product.id);
+        let imageBuffer = null;
+        
+        if (fullProduct?.imageUrl) {
+          imageBuffer = await fetchImage(fullProduct.imageUrl);
+        }
+        
+        return {
+          ...product,
+          image: imageBuffer,
+        };
+      })
+    );
+    
+    const templateData = {
+      proposalNumber,
+      date: currentDate,
+      customerName,
+      projectName,
+      technicalDescription: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      products: productsWithImages,
+      services: servicesData,
+      totalProductsAmount: totalProductsAmount.toFixed(2),
+      totalServicesAmount: totalServicesAmount.toFixed(2),
+      subtotal: subtotal.toFixed(2),
+      vatAmount: vatAmount.toFixed(2),
+      grandTotal: grandTotal.toFixed(2),
+    };
+    
+    console.log('📝 Template data prepared:', {
+      proposalNumber,
+      productsCount: productsWithImages.length,
+      servicesCount: servicesData.length,
+      productsWithImagesCount: productsWithImages.filter((p: any) => p.image).length,
+      grandTotal,
+    });
+    
+    // Load and process template with Docxtemplater
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Configure image module
+    const imageOpts = {
+      centered: false,
+      getImage(tagValue: any) {
+        return tagValue;
+      },
+      getSize() {
+        return [150, 150]; // Fixed size for product images
+      },
+    };
+    
+    // Create docxtemplater instance with image module
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      modules: [new ImageModule(imageOpts)],
+    });
+    
+    // Render template with data
+    doc.render(templateData);
+    
+    // Generate buffer from template
+    const buffer = doc.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+    
+    console.log('✅ Complete proposal document generated from template');
+
+    // Save to database with versioning
+    const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
+      
+      // Split by double line breaks (paragraph separators)
+      const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+      
+      paragraphs.forEach(paragraphText => {
+        const trimmed = paragraphText.trim();
+        
+        // Check if it's a heading (ALL CAPS and relatively short)
+        const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length < 100 && trimmed.length > 5;
+        
+        // Check if it contains bullet points or line breaks
+        const lines = trimmed.split('\n').filter(l => l.trim());
+        
+        if (lines.length === 1) {
+          // Single line paragraph
+          result.push(new Paragraph({
+            children: [
+              new TextRun({
+                text: trimmed,
+                size: isHeading ? 26 : 22,
+                bold: isHeading,
+                color: isHeading ? '1F4788' : '000000',
+              }),
+            ],
+            alignment: isHeading ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
+            spacing: { 
+              before: isHeading ? 300 : 100,
+              after: isHeading ? 200 : 150,
+            },
+          }));
+        } else {
+          // Multiple lines - could be bullet points or separate sentences
+          lines.forEach(line => {
+            const isBullet = /^[•\-\*]\s/.test(line);
+            const cleanLine = isBullet ? line.substring(2).trim() : line.trim();
+            
+            result.push(new Paragraph({
+              children: [
+                new TextRun({
+                  text: cleanLine,
+                  size: 22,
+                }),
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+              bullet: isBullet ? { level: 0 } : undefined,
+              spacing: { 
+                before: 50,
+                after: 50,
+              },
+            }));
+          });
+        }
+      });
+      
+      return result;
+    };
+    
+    // ========================================
+    // PROGRAMMATIC WORD DOCUMENT GENERATION
+    // ========================================
+    // Using programmatic generation instead of Docxtemplater (template has loop issues)
+    
+    const allChildren: any[] = [];
+    
+    /* OLD TEMPLATE CODE - COMMENTED OUT DUE TO LOOP ERRORS
+    
+    // Fill template with data
+    const templateData = {
+      proposalNumber,
+      date: currentDate,
+      customerName,
+      projectName,
+      technicalDescription: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      products: productsData,
+      services: servicesData,
+      totalProductsAmount: totalProductsAmount.toFixed(2),
+      totalServicesAmount: totalServicesAmount.toFixed(2),
+      subtotal: subtotal.toFixed(2),
+      vatAmount: vatAmount.toFixed(2),
+      grandTotal: grandTotal.toFixed(2),
+    };
+
+    console.log('📝 Template data prepared:', {
+      proposalNumber,
+      productsCount: productsData.length,
+      servicesCount: servicesData.length,
+      grandTotal,
+    });
+    
+    console.log('📄 Loading template from:', templatePath);
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Create docxtemplater instance
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    doc.render(templateData);
+
+    // Generate buffer from template
+    const buffer = doc.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+
+    console.log('✅ Complete proposal document generated from template');
+    
+    // Save to database
+    await prisma.proposal.create({
+      data: {
+        siteSurveyId,
+        version: nextVersion,
+        filename: versionedFilename,
+        status: 'DRAFT',
+        content: JSON.stringify(templateData),
+        generatedBy: userId,
+      },
+    });
+
+    // Return the document
+    return new NextResponse(Buffer.from(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(versionedFilename)}"`,
+      },
+    });
+    */
+
+    // ========================================
+    // 1. COMPANY HEADER
+    // ========================================
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Advanced Integrated Communication Ltd.',
+            bold: true,
+            size: 24,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '4472C4',
+          fill: '4472C4',
+        },
+        spacing: { before: 200, after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Διονυσίου Πλακοδούρη & Τιμοδέμου',
+            size: 20,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '4472C4',
+          fill: '4472C4',
+        },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΑΦΜ: 997088870 ΔΟΥ Ηρακλείου',
+            size: 18,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '4472C4',
+          fill: '4472C4',
+        },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: '28ωος Οκτωβρίου 125,70, Τ.Κ. 71305',
+            size: 18,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '4472C4',
+          fill: '4472C4',
+        },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: '210-6610380 sales@aic.gr',
+            size: 18,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '4472C4',
+          fill: '4472C4',
+        },
+        spacing: { after: 400 },
+      })
+    );
+
+    // Proposal Details (currentDate already declared at top)
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Ημερομηνία: ${currentDate}`,
+            size: 22,
+          }),
+        ],
+        spacing: { before: 200, after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Αριθμός Προσφοράς: ${proposalNumber}`,
+            size: 22,
+            bold: true,
+            color: 'FF0000',
+          }),
+        ],
+        spacing: { after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΟΙΚΟΝΟΜΟΤΕΧΝΙΚΗ ΠΡΟΤΑΣΗ',
+            bold: true,
+            size: 32,
+            color: '1F4788',
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 400, after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: projectName.toUpperCase(),
+            bold: true,
+            size: 24,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: customerName,
+            size: 22,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+      })
+    );
+
+    // Assignees section
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΠΑΡΑΣΚΕΥΑΣΕ ΧΕΙΡΟΝΟΜΕ:',
+            bold: true,
+            size: 20,
+          }),
+          new TextRun({
+            text: `  ${assignedUserName}`,
+            size: 20,
+          }),
+        ],
+        spacing: { before: 400, after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΕΞΟΥΣΙΑ ΥΠΟΓΡΑΦΗΣ:',
+            bold: true,
+            size: 20,
+          }),
+          new TextRun({
+            text: '  ΓΙΑΝΝΗΣ ΚΟΣΥΦΗΣ',
+            size: 20,
+          }),
+        ],
+        spacing: { after: 200 },
+      }),
+      new Paragraph({
+        text: '',
+        pageBreakBefore: true,
+      })
+    );
+
+    // ========================================
+    // 2. TABLE OF CONTENTS
+    // ========================================
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Περιεχόμενα',
+            bold: true,
+            size: 28,
+            color: '1F4788',
+          }),
+        ],
+        heading: HeadingLevel.HEADING_1,
+        spacing: { before: 200, after: 300 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'ΤΕΧΝΙΚΗ ΠΡΟΤΑΣΗ', size: 22 }),
+          new TextRun({ text: ' ............................................................. 3', size: 22 }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ', size: 22 }),
+          new TextRun({ text: ' .................................................... 4', size: 22 }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΤΑΣΗ', size: 22 }),
+          new TextRun({ text: ' .......................................................... 11', size: 22 }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'ΑΝΑΛΥΤΙΚΗ ΠΕΡΙΓΡΑΦΗ ΠΡΟΪΟΝΤΩΝ & ΣΥΝΤΗΡΗΣΗ ΒΛΑΒΩΝ', size: 22 }),
+          new TextRun({ text: ' .......... 13', size: 22 }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'ΤΡΟΠΟΣ & ΠΟΡΟΣ ΠΛΗΡΩΜΗΣ & ΕΓΓΥΗΣΗ', size: 22 }),
+          new TextRun({ text: ' ............................... 15', size: 22 }),
+        ],
+        spacing: { after: 400 },
+      }),
+      new Paragraph({
+        text: '',
+        pageBreakBefore: true,
+      })
+    );
+
+    // ========================================
+    // 3. TECHNICAL PROPOSAL (AI Generated Text with Formatting)
+    // ========================================
+    if (technicalDescription) {
+      // Section header
+      allChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ΤΕΧΝΙΚΗ ΠΡΟΤΑΣΗ',
+              bold: true,
+              size: 28,
+              color: 'FFFFFF',
+            }),
+          ],
+          shading: {
+            type: ShadingType.SOLID,
+            color: '1F4788',
+            fill: '1F4788',
+          },
+          spacing: { before: 200, after: 300 },
+        })
+      );
+      
+      // Convert technical description text into formatted paragraphs
+      const technicalParagraphs = convertTextToParagraphs(technicalDescription);
+      allChildren.push(...technicalParagraphs);
+      
+      // Page break after technical description
+      allChildren.push(
+        new Paragraph({
+          text: '',
+          pageBreakBefore: true,
+        })
+      );
+    }
+
+    // ========================================
+    // 4. PRODUCT SPECIFICATIONS (Bulleted Format)
+    // ========================================
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ',
+            bold: true,
+            size: 28,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '1F4788',
+          fill: '1F4788',
+        },
+        spacing: { before: 200, after: 300 },
+      })
+    );
+
+    for (let index = 0; index < productsData.length; index++) {
+      const product = productsData[index];
+      const fullProduct = fullProducts.find((p) => p.id === product.id);
+
+      // Product Name (Red + Underline)
+      allChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: fullProduct?.name || product.name,
+              bold: true,
+              size: 24,
+              color: 'FF0000',
+              underline: {
+                type: UnderlineType.SINGLE,
+              },
+            }),
+            new TextRun({
+              text: '  Product Name',
+              size: 20,
+            }),
+          ],
+          spacing: { before: 300, after: 150 },
+        })
+      );
+
+      // Product Image
+      if (fullProduct?.images && fullProduct.images.length > 0) {
+        try {
+          const imageUrl = fullProduct.images[0].url;
+          const imageResponse = await fetch(imageUrl);
+          if (imageResponse.ok) {
+            const imageBuffer = await imageResponse.arrayBuffer();
+            const imageType = imageUrl.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+
+            allChildren.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: Buffer.from(imageBuffer),
+                    type: imageType,
+                    transformation: {
+                      width: 300,
+                      height: 300,
+                    },
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 200 },
+              })
+            );
+          }
+        } catch (error) {
+          console.error(`❌ Failed to load image for product ${product.id}:`, error);
+        }
+      }
+
+      // Product Description
+      const greekTranslation = fullProduct?.translations?.find((t: any) => t.languageCode === 'el');
+      if (greekTranslation?.description) {
+        allChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Product description',
+                bold: true,
+                size: 22,
+                color: 'FF0000',
+              }),
+            ],
+            spacing: { before: 200, after: 100 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: greekTranslation.description,
+                size: 20,
+              }),
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200 },
+          })
+        );
+      }
+
+      // Product Specifications (Bulleted List)
+      if (fullProduct?.specifications && fullProduct.specifications.length > 0) {
+        allChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Βασικά χαρακτηριστικά',
+                bold: true,
+                size: 22,
+                color: 'FF0000',
+              }),
+              new TextRun({
+                text: '  Product specs',
+                size: 20,
+              }),
+            ],
+            spacing: { before: 200, after: 100 },
+          })
+        );
+
+        fullProduct.specifications.forEach((spec) => {
+          const greekTranslation = spec.translations.find((t) => t.languageCode === 'el');
+          const specName = greekTranslation?.specName || spec.specKey || 'N/A';
+          const specValue = greekTranslation?.specValue || 'N/A';
+
+          // Skip specs with N/A values
+          if (specValue === 'N/A' || !specValue || specValue.trim() === '') {
+            return;
+          }
+
+          allChildren.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `• ${specName}: ${specValue}`,
+                  size: 20,
+                }),
+              ],
+              spacing: { after: 50 },
+            })
+          );
+        });
+      }
+
+      allChildren.push(
+        new Paragraph({
+          text: '',
+          spacing: { after: 300 },
+        })
+      );
+    }
+
+    allChildren.push(
+      new Paragraph({
+        text: '',
+        pageBreakBefore: true,
+      })
+    );
+
+    // ========================================
+    // 5. FINANCIAL PROPOSAL (Pricing Tables)
+    // ========================================
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΤΑΣΗ',
+            bold: true,
+            size: 28,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '1F4788',
+          fill: '1F4788',
+        },
+        spacing: { before: 200, after: 300 },
+      })
+    );
+
+    // Separate required and optional products
+    const requiredProducts = productsData.filter((p: any) => !p.isOptional);
+    const optionalProducts = productsData.filter((p: any) => p.isOptional);
+
+    // Helper function to create pricing table
+    const createPricingTable = (items: any[], sectionTitle: string, greekTitle: string) => {
+      const elements: any[] = [];
+
+      // Section header (Red)
+      elements.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: sectionTitle,
+              bold: true,
+              size: 24,
+              color: 'FF0000',
+            }),
+            new TextRun({
+              text: `                    ${greekTitle}`,
+              bold: true,
+              size: 24,
+              color: 'FF0000',
+            }),
+          ],
+          spacing: { before: 300, after: 200 },
+        })
+      );
+
+      // Create table
+      const tableRows: TableRow[] = [];
+
+      // Header row (Dark blue background, white text)
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'α/α', bold: true, size: 20, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 8, type: WidthType.PERCENTAGE },
+              shading: { fill: '1F4788', type: ShadingType.SOLID, color: '1F4788' },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Περιγραφή', bold: true, size: 20, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 52, type: WidthType.PERCENTAGE },
+              shading: { fill: '1F4788', type: ShadingType.SOLID, color: '1F4788' },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Τεμ', bold: true, size: 20, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 10, type: WidthType.PERCENTAGE },
+              shading: { fill: '1F4788', type: ShadingType.SOLID, color: '1F4788' },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Τιμή Μονάδος €', bold: true, size: 18, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'με Μάτζιν', bold: true, size: 18, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 15, type: WidthType.PERCENTAGE },
+              shading: { fill: '1F4788', type: ShadingType.SOLID, color: '1F4788' },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: 'Τελ. Σύνολο', bold: true, size: 20, color: 'FFFFFF' }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              width: { size: 15, type: WidthType.PERCENTAGE },
+              shading: { fill: '1F4788', type: ShadingType.SOLID, color: '1F4788' },
+            }),
+          ],
+        })
+      );
+
+      // Data rows
+      let sectionTotal = 0;
+      items.forEach((item: any, idx: number) => {
+        const unitPriceWithMargin = item.unitPrice * (1 + (item.margin || 0) / 100);
+        const totalPrice = unitPriceWithMargin * item.quantity;
+        sectionTotal += totalPrice;
+
+        // Get full product details for description
+        const fullProduct = fullProducts.find((p) => p.id === item.id);
+        const description = fullProduct?.name || item.name;
+
+        tableRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: (idx + 1).toString(), size: 20 })],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: description, size: 20 })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: item.quantity.toString(), size: 20 })],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: `${unitPriceWithMargin.toFixed(2)} €`, size: 20 })],
+                    alignment: AlignmentType.RIGHT,
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: `${totalPrice.toFixed(2)} €`, size: 20 })],
+                    alignment: AlignmentType.RIGHT,
+                  }),
+                ],
+              }),
+            ],
+          })
+        );
+      });
+
+      // Total row (Yellow background)
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ text: '' })],
+              columnSpan: 4,
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${sectionTotal.toFixed(2)} €`,
+                      bold: true,
+                      size: 24,
+                    }),
+                  ],
+                  alignment: AlignmentType.RIGHT,
+                }),
+              ],
+              shading: { fill: 'FFD966', type: ShadingType.SOLID, color: 'FFD966' },
+            }),
+          ],
+        })
+      );
+
+      elements.push(
+        new Table({
+          rows: tableRows,
+          width: { size: 100, type: WidthType.PERCENTAGE },
+        })
+      );
+
+      return elements;
+    };
+
+    // Add Required Products Table
+    if (requiredProducts.length > 0) {
+      const requiredElements = createPricingTable(
+        requiredProducts,
+        'Main Equipment',
+        'ΒΑΣΙΚΟΣ ΕΞΟΠΛΙΣΜΟΣ'
+      );
+      allChildren.push(...requiredElements);
+    }
+
+    // Add Optional Products Table
+    if (optionalProducts.length > 0) {
+      const optionalElements = createPricingTable(
+        optionalProducts,
+        'Optional Equipment',
+        'ΠΡΟΕΡΑΙΤΙΚΟΣ ΕΞΟΠΛΙΣΜΟΣ'
+      );
+      allChildren.push(...optionalElements);
+    }
+
+    // Add Services Table
+    if (servicesData.length > 0) {
+      const servicesElements = createPricingTable(
+        servicesData,
+        'All Services',
+        'ΥΠΗΡΕΣΙΕΣ ΥΠΟΣΤΗΡΙΞΗΣ'
+      );
+      allChildren.push(...servicesElements);
+    }
+
+    // Grand Total (already calculated at line 504)
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `ΣΥΝΟΛΟ: ${subtotal.toFixed(2)} €`,
+            bold: true,
+            size: 24,
+          }),
+        ],
+        spacing: { before: 200, after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `ΦΠΑ 24%: ${vatAmount.toFixed(2)} €`,
+            bold: true,
+            size: 24,
+          }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `ΓΕΝΙΚΟ ΣΥΝΟΛΟ: ${grandTotal.toFixed(2)} €`,
+            bold: true,
+            size: 28,
+            color: '1F4788',
+          }),
+        ],
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 300, after: 400 },
+      }),
+      new Paragraph({
+        text: '',
+        pageBreakBefore: true,
+      })
+    );
+
+    // ========================================
+    // 6. WARRANTY & SUPPORT SECTION
+    // ========================================
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΑΠΟΜΑΚΡΥΣΜΕΝΗ ΥΠΟΣΤΗΡΙΞΗ & ΣΥΝΤΗΡΗΣΗ ΒΛΑΒΩΝ',
+            bold: true,
+            size: 24,
+            color: 'FFFFFF',
+          }),
+        ],
+        shading: {
+          type: ShadingType.SOLID,
+          color: '1F4788',
+          fill: '1F4788',
+        },
+        spacing: { before: 200, after: 300 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Η απομακρυσμένη υποστήριξη και συντήρηση περιλαμβάνει:',
+            size: 22,
+          }),
+        ],
+        spacing: { after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: '• Απομακρυσμένη υποστήριξη των τηλεφωνικών κέντρων',
+            size: 20,
+          }),
+        ],
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: '• Εκπαίδευση φυλάκων/υπολλήλων - όσους απαιτηθούν για χρήση και τοπρησία βλαβών, Όπου θα παρέχεται ο χώρος και το χρόνος να γίνει η εκπαίδευση χωρίς κάποιος κόσμος εμπλέκεται όλλον χρήσιμη στην λειτουργία των δοσοσμέδων',
+            size: 20,
+          }),
+        ],
+        spacing: { after: 400 },
+      })
+    );
+    END OF OLD PROGRAMMATIC GENERATION CODE - REMOVED */
+
+    // Save to database with versioning
+    const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
+    
+    const { nextVersion } = await manageDocumentVersions({
+      entityType: 'SITESURVEY',
+      entityId: siteSurveyId,
+      documentType: 'complete-proposal',
+      baseFileName,
+      fileExtension: 'docx',
+    });
+
+    const versionedFilename = generateVersionedFilename(baseFileName, nextVersion, 'docx');
+
+    console.log('📤 Uploading complete proposal to BunnyCDN:', versionedFilename);
+
+    const uploadResult = await uploadFileToBunny(
+      Buffer.from(buffer),
+      versionedFilename,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+
+    console.log('✅ Complete proposal uploaded:', uploadResult.url);
+
+    await prisma.file.create({
+      data: {
+        name: versionedFilename,
+        url: uploadResult.url,
+        filetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: buffer.byteLength,
+        type: 'SITESURVEY',
+        entityId: siteSurveyId,
+      },
+    });
+
+    // Return the document for download
+    return new NextResponse(Buffer.from(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(versionedFilename)}"`,
+      },
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error generating complete proposal:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to generate complete proposal',
+        details: error.message,
+      },
+      { status: 500 }
+    );
+  }
+}
+

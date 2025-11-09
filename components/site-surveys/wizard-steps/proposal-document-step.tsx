@@ -44,6 +44,12 @@ export default function ProposalDocumentStep({
             setInfrastructureBrief(data.aiContent.infrastructureBrief || '');
             setTechnicalBrief(data.aiContent.technicalBrief || '');
             setAiTechnicalDescription(data.aiContent.technicalDescription || '');
+            
+            // Show preview if there's existing content
+            if (data.aiContent.technicalDescription) {
+              setShowPreview(true);
+              console.log('✅ Loaded existing AI technical description from database');
+            }
           }
         }
       } catch (error) {
@@ -240,9 +246,14 @@ export default function ProposalDocumentStep({
           {showPreview && aiTechnicalDescription && (
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">
-                  Τεχνική Περιγραφή (AI - Επεξεργάσιμη)
-                </Label>
+                <div>
+                  <Label className="text-base font-semibold">
+                    Τεχνική Περιγραφή (AI - Επεξεργάσιμη)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    📝 Χρησιμοποιήστε διπλό Enter (\\n\\n) για νέα παράγραφο • Κεφαλίδες: ΚΕΙΜΕΝΟ ΣΕ ΚΕΦΑΛΑΙΑ • Bullet points: - ή • στην αρχή της γραμμής
+                  </p>
+                </div>
                 <Button
                   onClick={handleSaveAIContent}
                   disabled={isSavingAI}
@@ -257,7 +268,7 @@ export default function ProposalDocumentStep({
                   ) : (
                     <>
                       <Save className="h-3 w-3 mr-1" />
-                      Αποθήκευση
+                      Αποθήκευση στη Βάση
                     </>
                   )}
                 </Button>
@@ -265,12 +276,21 @@ export default function ProposalDocumentStep({
               <Textarea
                 value={aiTechnicalDescription}
                 onChange={(e) => setAiTechnicalDescription(e.target.value)}
-                className="min-h-[400px] resize-none font-mono text-sm"
+                className="min-h-[500px] resize-y font-sans text-sm leading-relaxed"
                 placeholder="Το AI θα δημιουργήσει την τεχνική περιγραφή εδώ..."
               />
-              <p className="text-xs text-muted-foreground">
-                💡 Μπορείτε να επεξεργαστείτε το κείμενο πριν το αποθηκεύσετε
-              </p>
+              <div className="flex items-start gap-2 text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-blue-900 mb-1">Οδηγίες Μορφοποίησης για Word:</p>
+                  <ul className="space-y-1 list-disc list-inside">
+                    <li>Διπλό Enter (κενή γραμμή) → Νέα παράγραφη</li>
+                    <li>ΚΕΙΜΕΝΟ ΣΕ ΚΕΦΑΛΑΙΑ (μέχρι 100 χαρακτήρες) → Αυτόματη κεφαλίδα με έντονη γραφή</li>
+                    <li>Γραμμή που αρχίζει με "•", "-" ή "*" → Bullet point</li>
+                    <li>Απλό Enter μέσα σε παράγραφο → Συνεχίζεται στην ίδια παράγραφο</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

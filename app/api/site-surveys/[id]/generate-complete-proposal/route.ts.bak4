@@ -675,20 +675,10 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       })
     );
     
-    // Track which products we've already detailed (to avoid duplicates)
-    const detailedProductIds = new Set();
-    
     // Loop through ALL products - EXACTLY like product analysis
     for (let index = 0; index < productsData.length; index++) {
       const product = productsData[index];
       const fullProduct = fullProducts.find(p => p.id === product.id);
-      
-      // Skip if we already added details for this product ID
-      if (detailedProductIds.has(product.id)) {
-        console.log(`⏭️ Skipping duplicate product ${index + 1}: ${product.name}`);
-        continue;
-      }
-      detailedProductIds.add(product.id);
       
       console.log(`📝 Adding product ${index + 1}/${productsData.length}:`, product.name);
       
@@ -819,14 +809,13 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
           }),
         ];
         
-        // Add specification rows (FILTER OUT N/A values)
+        // Add specification rows
         fullProduct.specifications.forEach((spec: any) => {
           const greekTranslation = spec.translations?.find((t: any) => t.languageCode === 'el');
           const specName = greekTranslation?.specName || spec.specKey || '';
           const specValue = greekTranslation?.specValue || '';
           
-          // Only add if both name and value exist AND value is NOT "N/A"
-          if (specName && specValue && specValue.trim() !== '' && specValue.toUpperCase() !== 'N/A') {
+          if (specName && specValue) {
             tableRows.push(
               new TableRow({
                 children: [
@@ -980,8 +969,8 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
         new TableRow({
           children: [
             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (productsData.length + index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: service.name, size: 18, italics: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 18, italics: true })] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: service.name, size: 18, italic: true })] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 18, italic: true })] })] }),
             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })] }),
             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })] }),
@@ -1040,6 +1029,176 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     
     const buffer = await Packer.toBuffer(doc);
     console.log('✅ Complete proposal generated with images EXACTLY like product analysis!');
+    
+    /* OLD TEMPLATE CODE
+    const productsWithImages = await Promise.all(
+      productsData.map(async (p: any) => {
+        const fullProduct = fullProducts.find((fp) => fp.id === p.id);
+        let imageBuffer = null;
+        
+        if (fullProduct?.images && fullProduct.images.length > 0) {
+          try {
+            const imageUrl = fullProduct.images[0].url;
+            console.log(`🖼️ Downloading image for ${p.name}:`, imageUrl);
+            
+            const imageResponse = await fetch(imageUrl);
+            if (imageResponse.ok) {
+              imageBuffer = await imageResponse.arrayBuffer();
+              console.log(`✅ Image downloaded: ${imageBuffer.byteLength} bytes`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to download image for ${p.name}:`, error);
+          }
+        }
+        
+        // Get Greek description and specs
+        const fullProd = fullProducts.find((fp) => fp.id === p.id);
+        const greekTrans = fullProd?.translations?.find((t: any) => t.languageCode === 'el');
+        const greekDesc = greekTrans?.description || '';
+        
+        // Get specifications as text
+        const specs = fullProd?.specifications
+          ?.map((spec: any) => {
+            const greekSpec = spec.translations?.find((t: any) => t.languageCode === 'el');
+            if (greekSpec?.specName && greekSpec?.specValue) {
+              return `${greekSpec.specName}: ${greekSpec.specValue}`;
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .join('\n') || '';
+        
+        // Calculate per-item price: totalPrice / quantity
+        const quantity = p.quantity || 1;
+        const totalWithMargin = p.totalPrice || 0;
+        const perItemPrice = totalWithMargin / quantity;
+        
+        return {
+          index: productsData.indexOf(p) + 1,
+          id: p.id,
+          name: p.name || 'N/A',
+          brand: p.brand || 'N/A',
+          category: p.category || 'N/A',
+          quantity: quantity,
+          unitPrice: perItemPrice.toFixed(2),
+          totalPrice: totalWithMargin.toFixed(2),
+          description: greekDesc,
+          specifications: specs,
+          image: imageBuffer ? Buffer.from(imageBuffer) : null,
+        };
+      })
+    );
+    
+    const servicesWithPricing = servicesData.map((s: any) => {
+      const quantity = s.quantity || 1;
+      const totalWithMargin = s.totalPrice || 0;
+      const perItemPrice = totalWithMargin / quantity;
+      
+      return {
+        index: productsData.length + servicesData.indexOf(s) + 1,
+        name: s.name || 'N/A',
+        brand: 'Υπηρεσία',
+        category: s.category || 'N/A',
+        quantity: quantity,
+        unitPrice: perItemPrice.toFixed(2),
+        totalPrice: totalWithMargin.toFixed(2),
+      };
+    });
+    
+    // Prepare template data
+    const templateData = {
+      PROJECT_TITLE: projectName,
+      CUSTOMER_NAME: customerName,
+      CUSTOMER_ADDRESS: siteSurvey.customer?.address || '',
+      ERP_QUOTE_NUMBER: proposalNumber,
+      DATE: currentDate,
+      ASSIGNEE_NAME: siteSurvey.assignTo?.name || '',
+      ASSIGNED_TO_NAME: siteSurvey.assignFrom?.name || '',
+      PROJECT_DESCRIPTION: siteSurvey.description || '',
+      INFRASTRUCTURE_DESC: infrastructureDescription,
+      TECHNICAL_DESC: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      GRAND_TOTAL: grandTotal.toFixed(2),
+      SUBTOTAL: subtotal.toFixed(2),
+      VAT_AMOUNT: vatAmount.toFixed(2),
+      products: productsWithImages,
+      services: servicesWithPricing,
+    };
+    
+    console.log('📝 Template data ready:', {
+      productsCount: productsWithImages.length,
+      servicesCount: servicesWithPricing.length,
+      productsWithImages: productsWithImages.filter(p => p.image).length,
+    });
+    
+    console.log('📊 FULL TEMPLATE DATA:', JSON.stringify({
+      PROJECT_TITLE: templateData.PROJECT_TITLE,
+      CUSTOMER_NAME: templateData.CUSTOMER_NAME,
+      products: productsWithImages.map(p => ({
+        name: p.name,
+        hasImage: !!p.image,
+        imageSize: p.image ? p.image.length : 0,
+        hasDescription: !!p.description,
+        hasSpecs: !!p.specifications,
+      })),
+      services: servicesWithPricing.map(s => ({ name: s.name })),
+    }, null, 2));
+    
+    // Load template
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Configure image module with correct API
+    const imageModule = new ImageModule({
+      centered: false,
+      getImage: (tagValue: any) => {
+        console.log('🖼️ getImage called for:', typeof tagValue);
+        // tagValue is the image buffer from templateData
+        if (!tagValue || !Buffer.isBuffer(tagValue)) {
+          console.warn('⚠️ Invalid image data, returning empty buffer');
+          // Return a valid 1x1 transparent PNG for missing images
+          return Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82]);
+        }
+        return tagValue;
+      },
+      getSize: () => {
+        return [300, 300];
+      },
+    });
+    
+    // Create Docxtemplater with image module
+    console.log('🔧 Creating Docxtemplater WITH ImageModule...');
+    const docTemplate = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      modules: [imageModule],
+      nullGetter(part: any) {
+        // Return empty string for undefined values
+        return '';
+      },
+    });
+    console.log('✅ Docxtemplater created with image support');
+    
+    try {
+      // Render template
+      console.log('🎨 Rendering template with', productsWithImages.length, 'products...');
+      docTemplate.render(templateData);
+      console.log('✅ Template rendering complete');
+    } catch (renderError: any) {
+      console.error('❌ Template render error:', renderError);
+      if (renderError.properties) {
+        console.error('Error properties:', renderError.properties);
+      }
+      console.error('Full error:', renderError);
+      throw renderError;
+    }
+    
+    // Generate buffer
+    const buffer = docTemplate.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+    
+    console.log('✅ YOUR template rendered successfully!');
 
     // Save to database with versioning
     const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;

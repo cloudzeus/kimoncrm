@@ -4,7 +4,8 @@ import { prisma } from '@/lib/db/prisma';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
 import { createProposalInSoftOne } from '@/lib/softone/create-proposal';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun } from 'docx';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
 import fs from 'fs';
 import path from 'path';
 
@@ -204,9 +205,51 @@ export async function POST(
     const aiContent = infrastructureData?.aiContent || {};
     const technicalDescription = aiContent.technicalDescription || latestProposal?.technicalDesc || '';
 
-    // ALWAYS create new ERP proposal (each generation is a new version)
-    console.log('🔄 Creating NEW ERP proposal...');
-    {
+    // Check if proposal already exists with ERP number
+    const existingErpProposal = await prisma.proposal.findFirst({
+      where: {
+        siteSurveyId: siteSurveyId,
+        erpProposalNumber: { not: null },
+      },
+      select: {
+        id: true,
+        erpProposalNumber: true, // This IS the FINCODE from SoftOne
+        erpQuoteNumber: true,
+        erpSeries: true,
+        erpSeriesNum: true,
+        createdAt: true,
+      },
+    });
+
+    // If ERP proposal exists and user hasn't confirmed to skip, ask for confirmation
+    if (existingErpProposal && !skipErpCreation) {
+      console.log('⚠️ Existing ERP proposal found:', existingErpProposal);
+      return NextResponse.json({
+        warningType: 'ERP_PROPOSAL_EXISTS',
+        message: 'Υπάρχει ήδη προσφορά στο ERP για αυτή τη μελέτη',
+        existingProposal: {
+          erpProposalNumber: existingErpProposal.erpProposalNumber, // FINCODE
+          erpQuoteNumber: existingErpProposal.erpQuoteNumber,
+          series: existingErpProposal.erpSeries,
+          seriesNum: existingErpProposal.erpSeriesNum,
+          createdAt: existingErpProposal.createdAt,
+        },
+        question: 'Θέλετε να δημιουργήσετε νέα προσφορά στο ERP;',
+        actions: {
+          useExisting: 'Χρήση υπάρχουσας προσφοράς (συνιστάται)',
+          createNew: 'Δημιουργία νέας προσφοράς στο ERP',
+        },
+      }, { status: 409 }); // 409 Conflict
+    }
+
+    // Reset proposal number based on user choice
+    // If user chose to skip ERP creation, use existing proposal number
+    if (skipErpCreation && existingErpProposal) {
+      proposalNumber = existingErpProposal.erpProposalNumber || existingErpProposal.erpQuoteNumber || '';
+      console.log('ℹ️ Using existing ERP proposal number:', proposalNumber);
+    }
+    // Only create new ERP order if no existing proposal
+    else if (!existingErpProposal) {
       // Try to create ERP order to get FINCODE
       try {
         if (siteSurvey.customer?.trdr && (allProducts.length > 0 || allServices.length > 0)) {
@@ -369,7 +412,12 @@ export async function POST(
           console.log('⚠️ Proposal saved after ERP error');
         }
       } // Close try-catch
-    } // Close the block for creating ERP proposal
+    } // Close else if (!existingErpProposal)
+    else {
+      // Use existing proposal number
+      proposalNumber = existingErpProposal?.erpProposalNumber || 'TRF>PENDING';
+      console.log('ℹ️ Using existing proposal number:', proposalNumber);
+    }
 
     // Fetch full product details with specifications
     const productIds = allProducts.map((p: any) => p.id);
@@ -421,7 +469,6 @@ export async function POST(
         .join('\n') || 'Δεν υπάρχουν προδιαγραφές';
 
       return {
-        id: p.id, // CRITICAL: Include ID for lookup later!
         name: greekTranslation?.name || fullProduct?.name || 'N/A',
         brand: fullProduct?.brand?.name || 'N/A',
         category: fullProduct?.category?.name || 'N/A',
@@ -468,9 +515,7 @@ export async function POST(
       );
     }
 
-    console.log('📊 Generating proposal PROGRAMMATICALLY like product analysis (with images)...');
-    
-    const allChildren: any[] = [];
+    console.log('📊 Using template to generate proposal document...');
     
     // Generate Infrastructure Description with OpenAI
     let infrastructureDescription = '';
@@ -539,9 +584,49 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       infrastructureDescription = infrastructureData?.infrastructureDesc || 'Η περιγραφή υποδομής θα προστεθεί σύντομα.';
     }
 
-    // ========================================
-    // DOCUMENT HEADER
-    // ========================================
+    // Prepare template data matching your template placeholders
+    const templateData = {
+      PROJECT_TITLE: projectName,
+      CUSTOMER_NAME: customerName,
+      CUSTOMER_ADDRESS: siteSurvey.customer?.address || '',
+      ERP_QUOTE_NUMBER: proposalNumber,
+      DATE: currentDate,
+      ASSIGNEE_NAME: siteSurvey.assignTo?.name || '',
+      ASSIGNED_TO_NAME: siteSurvey.assignFrom?.name || '',
+      PROJECT_DESCRIPTION: siteSurvey.description || '',
+      PROJECT_SCOPE: infrastructureData?.projectScope || '',
+      PROJECT_DURATION: infrastructureData?.projectDuration || '',
+      INFRASTRUCTURE_DESC: infrastructureDescription,
+      TECHNICAL_DESC: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      GRAND_TOTAL: grandTotal.toFixed(2),
+      // First product for single-value fields in template
+      PRODUCT_NAME: productsData[0]?.name || '',
+      BRAND: productsData[0]?.brand || '',
+      QUANTITY: productsData[0]?.quantity || '',
+      PRICE: productsData[0]?.unitPrice?.toFixed(2) || '',
+      TOTAL: productsData[0]?.totalPrice?.toFixed(2) || '',
+      PRODUCT_INDEX: '1',
+    };
+    
+    console.log('📄 Loading template and rendering...');
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+    
+    doc.render(templateData);
+    
+    const buffer = doc.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+    
+    console.log('✅ Template rendered successfully');
+    
+    /* DETAILED PRODUCT SECTIONS WILL BE ADDED LATER
     allChildren.push(
       new Paragraph({
         children: [
@@ -593,39 +678,37 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
             size: 22,
           }),
         ],
-        spacing: { after: 600 },
+        spacing: { after: 400 },
       })
     );
     
     // ========================================
     // INFRASTRUCTURE DESCRIPTION
     // ========================================
-    if (infrastructureDescription) {
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: 'ΠΕΡΙΓΡΑΦΗ ΥΠΟΔΟΜΗΣ',
-              bold: true,
-              size: 26,
-              color: '1F4788',
-            }),
-          ],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 400, after: 200 },
-        }),
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: infrastructureDescription,
-              size: 22,
-            }),
-          ],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 400 },
-        })
-      );
-    }
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΠΕΡΙΓΡΑΦΗ ΥΠΟΔΟΜΗΣ',
+            bold: true,
+            size: 26,
+            color: '1F4788',
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: infrastructureDescription || 'Η περιγραφή υποδομής θα προστεθεί σύντομα.',
+            size: 22,
+          }),
+        ],
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 300 },
+      })
+    );
     
     // ========================================
     // TECHNICAL DESCRIPTION
@@ -652,19 +735,19 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
             }),
           ],
           alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 400 },
+          spacing: { after: 300 },
         })
       );
     }
     
     // ========================================
-    // PRODUCTS - EXACTLY LIKE PRODUCT ANALYSIS
+    // PRODUCTS SECTION WITH IMAGES & TABLE
     // ========================================
     allChildren.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: 'ΠΕΡΙΓΡΑΦΗ ΠΡΟΪΟΝΤΩΝ',
+            text: 'ΠΡΟΪΟΝΤΑ',
             bold: true,
             size: 28,
             color: '1F4788',
@@ -675,53 +758,38 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       })
     );
     
-    // Track which products we've already detailed (to avoid duplicates)
-    const detailedProductIds = new Set();
-    
-    // Loop through ALL products - EXACTLY like product analysis
+    // Add each product with image and details
     for (let index = 0; index < productsData.length; index++) {
       const product = productsData[index];
-      const fullProduct = fullProducts.find(p => p.id === product.id);
+      const fullProduct = fullProducts.find((p) => p.id === product.id);
       
-      // Skip if we already added details for this product ID
-      if (detailedProductIds.has(product.id)) {
-        console.log(`⏭️ Skipping duplicate product ${index + 1}: ${product.name}`);
-        continue;
-      }
-      detailedProductIds.add(product.id);
-      
-      console.log(`📝 Adding product ${index + 1}/${productsData.length}:`, product.name);
-      
-      // Product Name - EXACTLY like product analysis
+      // Product Name
       allChildren.push(
         new Paragraph({
           children: [
             new TextRun({
               text: `${index + 1}. ${product.name}`,
               bold: true,
-              size: 28,
+              size: 24,
+              color: 'FF0000',
             }),
           ],
-          heading: HeadingLevel.HEADING_1,
           spacing: { before: 400, after: 200 },
         })
       );
       
-      // Product Image - EXACTLY like product analysis
+      // Product Image
       if (fullProduct?.images && fullProduct.images.length > 0) {
         try {
           const imageUrl = fullProduct.images[0].url;
           console.log(`🖼️ Downloading image for product ${product.id}:`, imageUrl);
           
-          // Download image and convert to buffer
           const imageResponse = await fetch(imageUrl);
           if (imageResponse.ok) {
             const imageBuffer = await imageResponse.arrayBuffer();
-            
-            // Determine image type from URL
             const imageType = imageUrl.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
             
-            console.log(`✅ Image downloaded successfully: ${imageBuffer.byteLength} bytes, type: ${imageType}`);
+            console.log(`✅ Image downloaded: ${imageBuffer.byteLength} bytes`);
             
             allChildren.push(
               new Paragraph({
@@ -739,120 +807,78 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
                 spacing: { before: 200, after: 200 },
               })
             );
-          } else {
-            console.error(`❌ Failed to download image: ${imageResponse.status}`);
           }
         } catch (error) {
-          console.error(`❌ Error embedding image for product ${product.id}:`, error);
-        }
-      } else {
-        console.log(`ℹ️ No images available for product ${product.id}`);
-      }
-      
-      // Description in Greek - EXACTLY like product analysis
-      let greekDescription = '';
-      if (fullProduct?.translations && Array.isArray(fullProduct.translations)) {
-        const greekTranslation = fullProduct.translations.find((t: any) => t.languageCode === 'el');
-        if (greekTranslation?.description) {
-          greekDescription = greekTranslation.description;
+          console.error(`❌ Error loading image for product ${product.id}:`, error);
         }
       }
       
-      if (greekDescription) {
-        allChildren.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: "ΠΕΡΙΓΡΑΦΗ:",
-                bold: true,
-                size: 20,
-              }),
-            ],
-            spacing: { before: 200, after: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: greekDescription,
-                size: 18,
-              }),
-            ],
-            spacing: { after: 200 },
-          })
-        );
-      }
+      // Product Details
+      allChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Μάρκα: ', bold: true, size: 22 }),
+            new TextRun({ text: product.brand || 'N/A', size: 22 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Κατηγορία: ', bold: true, size: 22 }),
+            new TextRun({ text: product.category || 'N/A', size: 22 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Ποσότητα: ', bold: true, size: 22 }),
+            new TextRun({ text: product.quantity?.toString() || '0', size: 22 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Τιμή Μονάδας: ', bold: true, size: 22 }),
+            new TextRun({ text: `€${product.unitPrice?.toFixed(2) || '0.00'}`, size: 22 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Περιθώριο: ', bold: true, size: 22 }),
+            new TextRun({ text: `${product.margin || 0}%`, size: 22 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Σύνολο: ', bold: true, size: 22, color: 'FF0000' }),
+            new TextRun({ text: `€${product.totalPrice?.toFixed(2) || '0.00'}`, size: 22, bold: true, color: 'FF0000' }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
       
-      // Specifications Table - EXACTLY like product analysis
-      if (greekDescription && fullProduct?.specifications && fullProduct.specifications.length > 0) {
+      // Specifications
+      if (product.specifications && product.specifications.trim()) {
         allChildren.push(
           new Paragraph({
             children: [
               new TextRun({
-                text: "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ:",
+                text: 'Προδιαγραφές:',
                 bold: true,
+                size: 22,
+              }),
+            ],
+            spacing: { before: 100, after: 100 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: product.specifications,
                 size: 20,
               }),
             ],
-            spacing: { before: 200, after: 100 },
-          })
-        );
-        
-        const tableRows = [
-          // Header row
-          new TableRow({
-            children: [
-              new TableCell({
-                children: [new Paragraph({
-                  children: [new TextRun({ text: "ΠΡΟΔΙΑΓΡΑΦΗ", bold: true, size: 18 })],
-                  alignment: AlignmentType.CENTER,
-                })],
-                width: { size: 50, type: WidthType.PERCENTAGE },
-              }),
-              new TableCell({
-                children: [new Paragraph({
-                  children: [new TextRun({ text: "ΤΙΜΗ", bold: true, size: 18 })],
-                  alignment: AlignmentType.CENTER,
-                })],
-                width: { size: 50, type: WidthType.PERCENTAGE },
-              }),
-            ],
-          }),
-        ];
-        
-        // Add specification rows (FILTER OUT N/A values)
-        fullProduct.specifications.forEach((spec: any) => {
-          const greekTranslation = spec.translations?.find((t: any) => t.languageCode === 'el');
-          const specName = greekTranslation?.specName || spec.specKey || '';
-          const specValue = greekTranslation?.specValue || '';
-          
-          // Only add if both name and value exist AND value is NOT "N/A"
-          if (specName && specValue && specValue.trim() !== '' && specValue.toUpperCase() !== 'N/A') {
-            tableRows.push(
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({ text: specName, size: 16 })],
-                    })],
-                  }),
-                  new TableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({ text: specValue, size: 16 })],
-                    })],
-                  }),
-                ],
-              })
-            );
-          }
-        });
-        
-        allChildren.push(
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: tableRows,
-          }),
-          new Paragraph({
-            children: [new TextRun({ text: '', size: 12 })],
             spacing: { after: 300 },
           })
         );
@@ -867,7 +893,7 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
         new Paragraph({
           children: [
             new TextRun({
-              text: 'ΥΠΗΡΕΣΙΕΣ ΥΠΟΣΤΗΡΙΞΗΣ',
+              text: 'ΥΠΗΡΕΣΙΕΣ',
               bold: true,
               size: 28,
               color: '1F4788',
@@ -879,10 +905,6 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       );
       
       servicesData.forEach((service: any, index: number) => {
-        const quantity = service.quantity || 1;
-        const totalWithMargin = service.totalPrice || 0;
-        const perItemPrice = totalWithMargin / quantity;
-        
         allChildren.push(
           new Paragraph({
             children: [
@@ -896,22 +918,22 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'Ποσότητα: ', bold: true, size: 20 }),
-              new TextRun({ text: quantity.toString(), size: 20 }),
+              new TextRun({ text: 'Ποσότητα: ', bold: true, size: 22 }),
+              new TextRun({ text: service.quantity?.toString() || '0', size: 22 }),
             ],
             spacing: { after: 100 },
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'Τιμή Μονάδας: ', bold: true, size: 20 }),
-              new TextRun({ text: `€${perItemPrice.toFixed(2)}`, size: 20 }),
+              new TextRun({ text: 'Τιμή Μονάδας: ', bold: true, size: 22 }),
+              new TextRun({ text: `€${service.unitPrice?.toFixed(2) || '0.00'}`, size: 22 }),
             ],
             spacing: { after: 100 },
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: 'Σύνολο: ', bold: true, size: 20, color: 'FF0000' }),
-              new TextRun({ text: `€${totalWithMargin.toFixed(2)}`, size: 20, bold: true, color: 'FF0000' }),
+              new TextRun({ text: 'Σύνολο: ', bold: true, size: 22, color: 'FF0000' }),
+              new TextRun({ text: `€${service.totalPrice?.toFixed(2) || '0.00'}`, size: 22, bold: true, color: 'FF0000' }),
             ],
             spacing: { after: 300 },
           })
@@ -920,13 +942,13 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     }
     
     // ========================================
-    // PRICING TABLE
+    // FULL PRODUCTS & SERVICES PRICING TABLE
     // ========================================
     allChildren.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: 'ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΤΑΣΗ - ΠΙΝΑΚΑΣ ΤΙΜΩΝ',
+            text: 'ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΤΑΣΗ - ΑΝΑΛΥΤΙΚΟΣ ΠΙΝΑΚΑΣ',
             bold: true,
             size: 28,
             color: '1F4788',
@@ -937,87 +959,138 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       })
     );
     
-    const pricingTableRows = [
+    // Build table rows for all products and services
+    const tableRows = [
+      // Header row
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Α/Α', bold: true, size: 20 })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΠΡΟΪΟΝ/ΥΠΗΡΕΣΙΑ', bold: true, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'BRAND', bold: true, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΠΟΣ.', bold: true, size: 20 })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΤΙΜΗ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΣΥΝΟΛΟ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Α/Α', bold: true, size: 20 })], alignment: AlignmentType.CENTER })],
+            width: { size: 8, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Περιγραφή', bold: true, size: 20 })] })],
+            width: { size: 37, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Μάρκα', bold: true, size: 20 })] })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Ποσ.', bold: true, size: 20 })], alignment: AlignmentType.CENTER })],
+            width: { size: 10, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Τιμή', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Σύνολο', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
         ],
       }),
     ];
     
-    // Add all products
+    // Add all products to table
     productsData.forEach((product: any, index: number) => {
-      const quantity = product.quantity || 1;
-      const totalWithMargin = product.totalPrice || 0;
-      const perItemPrice = totalWithMargin / quantity;
-      
-      pricingTableRows.push(
+      tableRows.push(
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: product.name, size: 18 })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: product.brand, size: 18 })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })] }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 20 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.name || 'N/A', size: 20 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.brand || 'N/A', size: 20 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.quantity?.toString() || '0', size: 20 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${product.unitPrice?.toFixed(2) || '0.00'}`, size: 20 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${product.totalPrice?.toFixed(2) || '0.00'}`, size: 20, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
           ],
         })
       );
     });
     
-    // Add all services
+    // Add all services to table
     servicesData.forEach((service: any, index: number) => {
-      const quantity = service.quantity || 1;
-      const totalWithMargin = service.totalPrice || 0;
-      const perItemPrice = totalWithMargin / quantity;
-      
-      pricingTableRows.push(
+      tableRows.push(
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (productsData.length + index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: service.name, size: 18, italics: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 18, italics: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })] }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (productsData.length + index + 1).toString(), size: 20 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: service.name || 'N/A', size: 20, italic: true })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 20, italic: true })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: service.quantity?.toString() || '0', size: 20 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${service.unitPrice?.toFixed(2) || '0.00'}`, size: 20 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: `€${service.totalPrice?.toFixed(2) || '0.00'}`, size: 20, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
           ],
         })
       );
     });
     
-    // Add totals
-    pricingTableRows.push(
+    // Add totals rows
+    tableRows.push(
+      // Subtotal
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΥΠΟΣΥΝΟΛΟ', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${subtotal.toFixed(2)}`, bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph('')], columnSpan: 5 }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${subtotal.toFixed(2)}`, bold: true, size: 22 })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       }),
+      // VAT
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΦΠΑ 24%', size: 20 })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${vatAmount.toFixed(2)}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΦΠΑ 24%', size: 20 })], alignment: AlignmentType.RIGHT })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${vatAmount.toFixed(2)}`, size: 22 })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       }),
+      // Grand Total
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΓΕΝΙΚΟ ΣΥΝΟΛΟ', bold: true, size: 22, color: 'FF0000' })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${grandTotal.toFixed(2)}`, bold: true, size: 24, color: 'FF0000' })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΓΕΝΙΚΟ ΣΥΝΟΛΟ', bold: true, size: 22, color: 'FF0000' })], alignment: AlignmentType.RIGHT })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${grandTotal.toFixed(2)}`, bold: true, size: 24, color: 'FF0000' })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       })
     );
     
-    allChildren.push(
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: pricingTableRows,
-      })
-    );
+    const fullPricingTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: tableRows,
+    });
+    
+    allChildren.push(fullPricingTable);
     
     // ========================================
     // CREATE DOCUMENT
@@ -1038,8 +1111,9 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       }],
     });
     
+    // Generate buffer
     const buffer = await Packer.toBuffer(doc);
-    console.log('✅ Complete proposal generated with images EXACTLY like product analysis!');
+    console.log('✅ Complete proposal document generated programmatically');
 
     // Save to database with versioning
     const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;

@@ -54,15 +54,19 @@ export function WizardProvider({
     const timeoutId = setTimeout(() => {
       if (productPricing.size > 0 || servicePricing.size > 0) {
         console.log('🔄 [CONTEXT] Auto-saving pricing to database...');
-        saveToDatabase();
+        saveToDatabase(true); // Pass true for auto-save (no toast on start)
       }
     }, 2000); // Debounce 2 seconds
 
     return () => clearTimeout(timeoutId);
   }, [productPricing, servicePricing]);
 
-  const saveToDatabase = useCallback(async (): Promise<boolean> => {
+  const saveToDatabase = useCallback(async (isAutoSave = false): Promise<boolean> => {
     setIsAutoSaving(true);
+    
+    // Show saving toast (only for manual saves, not auto-saves)
+    const toastId = !isAutoSave ? toast.loading('💾 Saving wizard data to database...') : null;
+    
     try {
       console.log('💾 [CONTEXT] Saving wizard data to database via Server Action...');
       console.log('💾 [CONTEXT] Buildings:', buildings.length);
@@ -77,13 +81,30 @@ export function WizardProvider({
 
       if (!result.success) {
         console.error('❌ [CONTEXT] Save failed:', result.error);
+        if (toastId) toast.error('Failed to save data', { id: toastId });
         return false;
       }
 
       console.log('✅ [CONTEXT] Auto-save complete');
+      console.log('✅ [CONTEXT] Server verified:', result.verified);
+      
+      // Show success toast with database verification
+      const verifiedCount = (result.verified?.productPricing || 0) + (result.verified?.servicePricing || 0);
+      const message = isAutoSave 
+        ? `✅ Auto-saved & verified: ${verifiedCount} items in database`
+        : `✅ Saved & verified: ${verifiedCount} items in database`;
+      
+      if (toastId) {
+        toast.success(message, { id: toastId });
+      } else {
+        // For auto-save, show a brief success toast
+        toast.success(message, { duration: 2000 });
+      }
+      
       return true;
     } catch (error) {
       console.error('❌ [CONTEXT] Error during auto-save:', error);
+      if (toastId) toast.error('Error saving data', { id: toastId });
       return false;
     } finally {
       setIsAutoSaving(false);

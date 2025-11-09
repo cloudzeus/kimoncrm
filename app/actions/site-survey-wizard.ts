@@ -84,7 +84,29 @@ export async function saveWizardData(siteSurveyId: string, wizardData: {
     revalidatePath(`/site-surveys/${siteSurveyId}`);
 
     console.log('🔥 [SERVER ACTION] ========== SAVE COMPLETE ==========');
-    return { success: true };
+    
+    // Verify the save by reading back from database
+    const verification = await prisma.siteSurvey.findUnique({
+      where: { id: siteSurveyId },
+      select: {
+        infrastructureData: true,
+      },
+    });
+    
+    const verifiedWizardData = (verification?.infrastructureData as any)?.wizardData || {};
+    console.log('✅ [SERVER ACTION] VERIFICATION - Data now in DB:', {
+      productPricingCount: Object.keys(verifiedWizardData.productPricing || {}).length,
+      servicePricingCount: Object.keys(verifiedWizardData.servicePricing || {}).length,
+      buildingsCount: verifiedWizardData.buildings?.length || 0,
+    });
+    
+    return { 
+      success: true,
+      verified: {
+        productPricing: Object.keys(verifiedWizardData.productPricing || {}).length,
+        servicePricing: Object.keys(verifiedWizardData.servicePricing || {}).length,
+      }
+    };
   } catch (error) {
     console.error('❌ [SERVER ACTION] ========== ERROR OCCURRED ==========');
     console.error('❌ [SERVER ACTION] Error type:', error?.constructor?.name);

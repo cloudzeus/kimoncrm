@@ -4,7 +4,9 @@ import { prisma } from '@/lib/db/prisma';
 import { uploadFileToBunny } from '@/lib/bunny/upload';
 import { manageDocumentVersions, generateVersionedFilename } from '@/lib/utils/document-versioning';
 import { createProposalInSoftOne } from '@/lib/softone/create-proposal';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, ImageRun } from 'docx';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import ImageModule from 'docxtemplater-image-module-free';
 import fs from 'fs';
 import path from 'path';
 
@@ -468,9 +470,7 @@ export async function POST(
       );
     }
 
-    console.log('📊 Generating proposal PROGRAMMATICALLY like product analysis (with images)...');
-    
-    const allChildren: any[] = [];
+    console.log('📊 Using YOUR template with loops for products/services...');
     
     // Generate Infrastructure Description with OpenAI
     let infrastructureDescription = '';
@@ -539,9 +539,140 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       infrastructureDescription = infrastructureData?.infrastructureDesc || 'Η περιγραφή υποδομής θα προστεθεί σύντομα.';
     }
 
-    // ========================================
-    // DOCUMENT HEADER
-    // ========================================
+    // Download all product images for template
+    const productsWithImages = await Promise.all(
+      productsData.map(async (p: any) => {
+        const fullProduct = fullProducts.find((fp) => fp.id === p.id);
+        let imageBuffer = null;
+        
+        if (fullProduct?.images && fullProduct.images.length > 0) {
+          try {
+            const imageUrl = fullProduct.images[0].url;
+            console.log(`🖼️ Downloading image for ${p.name}:`, imageUrl);
+            
+            const imageResponse = await fetch(imageUrl);
+            if (imageResponse.ok) {
+              imageBuffer = await imageResponse.arrayBuffer();
+              console.log(`✅ Image downloaded: ${imageBuffer.byteLength} bytes`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to download image for ${p.name}:`, error);
+          }
+        }
+        
+        // Get Greek description and specs
+        const fullProd = fullProducts.find((fp) => fp.id === p.id);
+        const greekTrans = fullProd?.translations?.find((t: any) => t.languageCode === 'el');
+        const greekDesc = greekTrans?.description || '';
+        
+        // Get specifications as text
+        const specs = fullProd?.specifications
+          ?.map((spec: any) => {
+            const greekSpec = spec.translations?.find((t: any) => t.languageCode === 'el');
+            if (greekSpec?.specName && greekSpec?.specValue) {
+              return `${greekSpec.specName}: ${greekSpec.specValue}`;
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .join('\n') || '';
+        
+        // Calculate per-item price: totalPrice / quantity
+        const quantity = p.quantity || 1;
+        const totalWithMargin = p.totalPrice || 0;
+        const perItemPrice = totalWithMargin / quantity;
+        
+        return {
+          index: productsData.indexOf(p) + 1,
+          id: p.id,
+          name: p.name || 'N/A',
+          brand: p.brand || 'N/A',
+          category: p.category || 'N/A',
+          quantity: quantity,
+          unitPrice: perItemPrice.toFixed(2),
+          totalPrice: totalWithMargin.toFixed(2),
+          description: greekDesc,
+          specifications: specs,
+          image: imageBuffer ? Buffer.from(imageBuffer) : null,
+        };
+      })
+    );
+    
+    const servicesWithPricing = servicesData.map((s: any) => {
+      const quantity = s.quantity || 1;
+      const totalWithMargin = s.totalPrice || 0;
+      const perItemPrice = totalWithMargin / quantity;
+      
+      return {
+        index: productsData.length + servicesData.indexOf(s) + 1,
+        name: s.name || 'N/A',
+        brand: 'Υπηρεσία',
+        category: s.category || 'N/A',
+        quantity: quantity,
+        unitPrice: perItemPrice.toFixed(2),
+        totalPrice: totalWithMargin.toFixed(2),
+      };
+    });
+    
+    // Prepare template data
+    const templateData = {
+      PROJECT_TITLE: projectName,
+      CUSTOMER_NAME: customerName,
+      CUSTOMER_ADDRESS: siteSurvey.customer?.address || '',
+      ERP_QUOTE_NUMBER: proposalNumber,
+      DATE: currentDate,
+      ASSIGNEE_NAME: siteSurvey.assignTo?.name || '',
+      ASSIGNED_TO_NAME: siteSurvey.assignFrom?.name || '',
+      PROJECT_DESCRIPTION: siteSurvey.description || '',
+      INFRASTRUCTURE_DESC: infrastructureDescription,
+      TECHNICAL_DESC: technicalDescription || 'Η τεχνική περιγραφή θα προστεθεί σύντομα.',
+      GRAND_TOTAL: grandTotal.toFixed(2),
+      SUBTOTAL: subtotal.toFixed(2),
+      VAT_AMOUNT: vatAmount.toFixed(2),
+      products: productsWithImages,
+      services: servicesWithPricing,
+    };
+    
+    console.log('📝 Template data ready:', {
+      productsCount: productsWithImages.length,
+      servicesCount: servicesWithPricing.length,
+      productsWithImages: productsWithImages.filter(p => p.image).length,
+    });
+    
+    // Load template
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    
+    // Configure image module
+    const imageOpts = {
+      centered: false,
+      getImage(tagValue: any) {
+        return tagValue; // Return the buffer directly
+      },
+      getSize() {
+        return [300, 300]; // 300x300 pixels
+      },
+    };
+    
+    // Create Docxtemplater with image module
+    const docTemplate = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      modules: [new ImageModule(imageOpts)],
+    });
+    
+    // Render template
+    docTemplate.render(templateData);
+    
+    // Generate buffer
+    const buffer = docTemplate.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+    
+    console.log('✅ YOUR template rendered successfully!');
+    
+    /* OLD PROGRAMMATIC CODE REMOVED
     allChildren.push(
       new Paragraph({
         children: [
@@ -600,32 +731,30 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     // ========================================
     // INFRASTRUCTURE DESCRIPTION
     // ========================================
-    if (infrastructureDescription) {
-      allChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: 'ΠΕΡΙΓΡΑΦΗ ΥΠΟΔΟΜΗΣ',
-              bold: true,
-              size: 26,
-              color: '1F4788',
-            }),
-          ],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 400, after: 200 },
-        }),
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: infrastructureDescription,
-              size: 22,
-            }),
-          ],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { after: 400 },
-        })
-      );
-    }
+    allChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'ΠΕΡΙΓΡΑΦΗ ΥΠΟΔΟΜΗΣ',
+            bold: true,
+            size: 26,
+            color: '1F4788',
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: infrastructureDescription || 'Η περιγραφή υποδομής θα προστεθεί σύντομα.',
+            size: 22,
+          }),
+        ],
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 400 },
+      })
+    );
     
     // ========================================
     // TECHNICAL DESCRIPTION
@@ -658,7 +787,7 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     }
     
     // ========================================
-    // PRODUCTS - EXACTLY LIKE PRODUCT ANALYSIS
+    // PRODUCTS SECTION - EXACTLY LIKE ANALYSIS
     // ========================================
     allChildren.push(
       new Paragraph({
@@ -675,39 +804,27 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       })
     );
     
-    // Track which products we've already detailed (to avoid duplicates)
-    const detailedProductIds = new Set();
-    
-    // Loop through ALL products - EXACTLY like product analysis
     for (let index = 0; index < productsData.length; index++) {
       const product = productsData[index];
-      const fullProduct = fullProducts.find(p => p.id === product.id);
-      
-      // Skip if we already added details for this product ID
-      if (detailedProductIds.has(product.id)) {
-        console.log(`⏭️ Skipping duplicate product ${index + 1}: ${product.name}`);
-        continue;
-      }
-      detailedProductIds.add(product.id);
+      const fullProduct = fullProducts.find((p) => p.id === product.id);
       
       console.log(`📝 Adding product ${index + 1}/${productsData.length}:`, product.name);
       
-      // Product Name - EXACTLY like product analysis
+      // Product Name
       allChildren.push(
         new Paragraph({
           children: [
             new TextRun({
               text: `${index + 1}. ${product.name}`,
               bold: true,
-              size: 28,
+              size: 24,
             }),
           ],
-          heading: HeadingLevel.HEADING_1,
           spacing: { before: 400, after: 200 },
         })
       );
       
-      // Product Image - EXACTLY like product analysis
+      // Product Image (EXACTLY like analysis document)
       if (fullProduct?.images && fullProduct.images.length > 0) {
         try {
           const imageUrl = fullProduct.images[0].url;
@@ -744,12 +861,13 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
           }
         } catch (error) {
           console.error(`❌ Error embedding image for product ${product.id}:`, error);
+          // Skip image if error - DON'T break the loop
         }
       } else {
         console.log(`ℹ️ No images available for product ${product.id}`);
       }
       
-      // Description in Greek - EXACTLY like product analysis
+      // Description in Greek (EXACTLY like analysis document)
       let greekDescription = '';
       if (fullProduct?.translations && Array.isArray(fullProduct.translations)) {
         const greekTranslation = fullProduct.translations.find((t: any) => t.languageCode === 'el');
@@ -758,6 +876,7 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
         }
       }
       
+      // Only add description section if Greek translation exists
       if (greekDescription) {
         allChildren.push(
           new Paragraph({
@@ -769,7 +888,10 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
               }),
             ],
             spacing: { before: 200, after: 100 },
-          }),
+          })
+        );
+        
+        allChildren.push(
           new Paragraph({
             children: [
               new TextRun({
@@ -782,7 +904,7 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
         );
       }
       
-      // Specifications Table - EXACTLY like product analysis
+      // Specifications Table (EXACTLY like analysis document)
       if (greekDescription && fullProduct?.specifications && fullProduct.specifications.length > 0) {
         allChildren.push(
           new Paragraph({
@@ -796,7 +918,10 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
             spacing: { before: 200, after: 100 },
           })
         );
-        
+      }
+      
+      // Create specifications table from database
+      if (greekDescription && fullProduct?.specifications && fullProduct.specifications.length > 0) {
         const tableRows = [
           // Header row
           new TableRow({
@@ -819,14 +944,13 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
           }),
         ];
         
-        // Add specification rows (FILTER OUT N/A values)
+        // Add specification rows (use Greek translations)
         fullProduct.specifications.forEach((spec: any) => {
           const greekTranslation = spec.translations?.find((t: any) => t.languageCode === 'el');
           const specName = greekTranslation?.specName || spec.specKey || '';
           const specValue = greekTranslation?.specValue || '';
           
-          // Only add if both name and value exist AND value is NOT "N/A"
-          if (specName && specValue && specValue.trim() !== '' && specValue.toUpperCase() !== 'N/A') {
+          if (specName && specValue) {
             tableRows.push(
               new TableRow({
                 children: [
@@ -846,11 +970,13 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
           }
         });
         
+        const specsTable = new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: tableRows,
+        });
+        
+        allChildren.push(specsTable);
         allChildren.push(
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: tableRows,
-          }),
           new Paragraph({
             children: [new TextRun({ text: '', size: 12 })],
             spacing: { after: 300 },
@@ -920,7 +1046,7 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     }
     
     // ========================================
-    // PRICING TABLE
+    // PRICING TABLE - ALL PRODUCTS & SERVICES
     // ========================================
     allChildren.push(
       new Paragraph({
@@ -938,19 +1064,38 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
     );
     
     const pricingTableRows = [
+      // Header
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Α/Α', bold: true, size: 20 })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΠΡΟΪΟΝ/ΥΠΗΡΕΣΙΑ', bold: true, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'BRAND', bold: true, size: 20 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΠΟΣ.', bold: true, size: 20 })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΤΙΜΗ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΣΥΝΟΛΟ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'Α/Α', bold: true, size: 20 })], alignment: AlignmentType.CENTER })],
+            width: { size: 8, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΠΡΟΪΟΝ/ΥΠΗΡΕΣΙΑ', bold: true, size: 20 })] })],
+            width: { size: 37, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'BRAND', bold: true, size: 20 })] })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΠΟΣ.', bold: true, size: 20 })], alignment: AlignmentType.CENTER })],
+            width: { size: 10, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΤΙΜΗ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΣΥΝΟΛΟ (€)', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+            width: { size: 15, type: WidthType.PERCENTAGE },
+          }),
         ],
       }),
     ];
     
-    // Add all products
+    // Add all products to table
     productsData.forEach((product: any, index: number) => {
       const quantity = product.quantity || 1;
       const totalWithMargin = product.totalPrice || 0;
@@ -959,18 +1104,30 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       pricingTableRows.push(
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: product.name, size: 18 })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: product.brand, size: 18 })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })] }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.name || 'N/A', size: 18 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: product.brand || 'N/A', size: 18 })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
           ],
         })
       );
     });
     
-    // Add all services
+    // Add all services to table
     servicesData.forEach((service: any, index: number) => {
       const quantity = service.quantity || 1;
       const totalWithMargin = service.totalPrice || 0;
@@ -979,45 +1136,75 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       pricingTableRows.push(
         new TableRow({
           children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: (productsData.length + index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: service.name, size: 18, italics: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 18, italics: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })] }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: (productsData.length + index + 1).toString(), size: 18 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: service.name || 'N/A', size: 18, italic: true })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: 'Υπηρεσία', size: 18, italic: true })] })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: quantity.toString(), size: 18 })], alignment: AlignmentType.CENTER })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: perItemPrice.toFixed(2), size: 18 })], alignment: AlignmentType.RIGHT })],
+            }),
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun({ text: totalWithMargin.toFixed(2), size: 18, bold: true })], alignment: AlignmentType.RIGHT })],
+            }),
           ],
         })
       );
     });
     
-    // Add totals
+    // Add totals rows
     pricingTableRows.push(
+      // Subtotal
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΥΠΟΣΥΝΟΛΟ', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${subtotal.toFixed(2)}`, bold: true, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΥΠΟΣΥΝΟΛΟ', bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${subtotal.toFixed(2)}`, bold: true, size: 20 })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       }),
+      // VAT
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΦΠΑ 24%', size: 20 })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${vatAmount.toFixed(2)}`, size: 20 })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΦΠΑ 24%', size: 20 })], alignment: AlignmentType.RIGHT })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${vatAmount.toFixed(2)}`, size: 20 })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       }),
+      // Grand Total
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ΓΕΝΙΚΟ ΣΥΝΟΛΟ', bold: true, size: 22, color: 'FF0000' })], alignment: AlignmentType.RIGHT })], columnSpan: 5 }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `€${grandTotal.toFixed(2)}`, bold: true, size: 24, color: 'FF0000' })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: 'ΓΕΝΙΚΟ ΣΥΝΟΛΟ', bold: true, size: 22, color: 'FF0000' })], alignment: AlignmentType.RIGHT })],
+            columnSpan: 5,
+          }),
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: `€${grandTotal.toFixed(2)}`, bold: true, size: 24, color: 'FF0000' })], alignment: AlignmentType.RIGHT })],
+          }),
         ],
       })
     );
     
-    allChildren.push(
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: pricingTableRows,
-      })
-    );
+    const pricingTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: pricingTableRows,
+    });
+    
+    allChildren.push(pricingTable);
     
     // ========================================
     // CREATE DOCUMENT
@@ -1038,8 +1225,9 @@ ${wizardBuildings.length > 0 ? JSON.stringify(wizardBuildings, null, 2) : 'Δε�
       }],
     });
     
+    // Generate buffer
     const buffer = await Packer.toBuffer(doc);
-    console.log('✅ Complete proposal generated with images EXACTLY like product analysis!');
+    console.log('✅ Complete proposal document generated programmatically');
 
     // Save to database with versioning
     const baseFileName = `Complete-Proposal_${siteSurvey.title || 'SiteSurvey'}_${new Date().toISOString().split('T')[0]}`;
