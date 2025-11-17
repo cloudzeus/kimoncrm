@@ -1392,6 +1392,7 @@ model SiteSurvey {
   proposedConnections         ProposedConnection[]
   proposedProductAssociations ProposedProductAssociation[]
   proposals                   Proposal[]
+  surveyInvites               SurveyInvite[]
 
   @@index([customerId])
   @@index([assignToId])
@@ -1437,6 +1438,25 @@ model CablingSurvey {
   siteSurvey          SiteSurvey @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
 
   @@index([siteSurveyId])
+}
+
+model SurveyInvite {
+  id            String              @id @default(cuid())
+  token         String              @unique
+  siteSurveyId  String
+  invitedEmail  String
+  expiresAt     DateTime
+  status        SurveyInviteStatus  @default(PENDING)
+  message       String?             @db.Text
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  accessedAt    DateTime?
+  siteSurvey    SiteSurvey          @relation(fields: [siteSurveyId], references: [id], onDelete: Cascade)
+
+  @@index([siteSurveyId])
+  @@index([token])
+  @@index([invitedEmail])
+  @@index([status])
 }
 
 model Building {
@@ -2516,6 +2536,14 @@ enum SurveyStage {
   REQUIREMENTS_AND_PRODUCTS // Step 2: Requirements and product/service associations
   PRICING_COMPLETED // Step 3: Pricing defined
   DOCUMENTS_READY // Step 4: All documents ready (BOM, infrastructure, proposal)
+}
+
+enum SurveyInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+  COMPLETED
 }
 
 /// ** Cabling Site Survey **

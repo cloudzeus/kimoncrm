@@ -48,6 +48,7 @@ import { SiteSurveyFormDialog } from "@/components/site-surveys/site-survey-form
 import { VoipSurveyForm } from "@/components/site-surveys/voip-survey-form";
 import { CablingHierarchyForm } from "@/components/site-surveys/cabling-hierarchy-form";
 import { NetworkDiagramModal } from "@/components/site-surveys/network-diagram-modal";
+import { InviteCollaboratorDialog } from "@/components/site-surveys/invite-collaborator-dialog";
 import {
   Dialog,
   DialogContent,
@@ -119,6 +120,8 @@ export default function SiteSurveysPage() {
   const [networkDiagramOpen, setNetworkDiagramOpen] = useState(false);
   const [diagramData, setDiagramData] = useState<any>(null);
   const [diagramSurveyId, setDiagramSurveyId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [selectedSurveyForInvite, setSelectedSurveyForInvite] = useState<SiteSurvey | null>(null);
 
   // Fix hydration by mounting on client side
   useEffect(() => {
@@ -668,6 +671,13 @@ export default function SiteSurveysPage() {
                           <Mail className="h-4 w-4 mr-2" />
                           NOTIFY PEOPLE
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedSurveyForInvite(survey);
+                          setInviteDialogOpen(true);
+                        }}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          INVITE COLLABORATOR
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleDelete(survey)}
@@ -788,6 +798,21 @@ export default function SiteSurveysPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Collaborator Dialog */}
+      {selectedSurveyForInvite && (
+        <InviteCollaboratorDialog
+          open={inviteDialogOpen}
+          onOpenChange={(open) => {
+            setInviteDialogOpen(open);
+            if (!open) {
+              setSelectedSurveyForInvite(null);
+            }
+          }}
+          siteSurveyId={selectedSurveyForInvite.id}
+          siteSurveyTitle={selectedSurveyForInvite.title}
+        />
+      )}
 
       {/* Network Diagram Modal */}
       {diagramData && (

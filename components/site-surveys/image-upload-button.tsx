@@ -13,6 +13,7 @@ interface ImageUploadButtonProps {
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg";
   className?: string;
+  allowCamera?: boolean; // Enable camera capture on mobile
 }
 
 export function ImageUploadButton({
@@ -23,6 +24,7 @@ export function ImageUploadButton({
   variant = "outline",
   size = "sm",
   className = "",
+  allowCamera = false,
 }: ImageUploadButtonProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +91,7 @@ export function ImageUploadButton({
         type="file"
         accept="image/*,application/pdf"
         onChange={handleFileSelect}
+        capture={allowCamera ? "environment" : undefined}
         className="hidden"
       />
       <Button
@@ -96,17 +99,17 @@ export function ImageUploadButton({
         size={size}
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className={className}
+        className={`${className} min-h-[44px] sm:min-h-[36px]`}
       >
         {uploading ? (
           <>
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            Uploading...
+            <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 mr-2 sm:mr-1 animate-spin" />
+            <span className="text-sm sm:text-xs">Uploading...</span>
           </>
         ) : (
           <>
-            <Upload className="h-3 w-3 mr-1" />
-            {label}
+            <Upload className="h-4 w-4 sm:h-3 sm:w-3 mr-2 sm:mr-1" />
+            <span className="text-sm sm:text-xs">{label}</span>
           </>
         )}
       </Button>

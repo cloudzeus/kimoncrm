@@ -56,30 +56,36 @@ export function BuildingsStep({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold">Buildings & Infrastructure</h3>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold">Buildings & Infrastructure</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Define buildings with hierarchical structure: Building → Central Rack & Floors
           </p>
         </div>
-        <Button onClick={addBuilding}>
+        <Button 
+          onClick={addBuilding}
+          className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px]"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Building
         </Button>
       </div>
 
       {localBuildings.length === 0 ? (
-        <Card>
-          <CardContent className="py-16">
+        <Card className="border-2 border-dashed">
+          <CardContent className="py-12 sm:py-16 px-4">
             <div className="text-center">
-              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Buildings Yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <Building2 className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold mb-2">No Buildings Yet</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-6 max-w-md mx-auto">
                 Start by adding your first building to define the infrastructure hierarchy
               </p>
-              <Button onClick={addBuilding}>
+              <Button 
+                onClick={addBuilding}
+                className="min-h-[44px] sm:min-h-[40px]"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add First Building
               </Button>
@@ -87,7 +93,7 @@ export function BuildingsStep({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {localBuildings.map((building) => (
             <BuildingTreeView
               key={building.id}
