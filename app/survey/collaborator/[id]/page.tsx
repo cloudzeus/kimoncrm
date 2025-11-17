@@ -271,10 +271,10 @@ export default function CollaboratorSurveyPage() {
 
             {currentStep === 2 && (
               <EquipmentAssignmentStep
-                buildings={wizardData.buildings as TypesBuildingData[]}
+                buildings={wizardData.buildings as unknown as TypesBuildingData[]}
                 onUpdate={(buildings) => {
                   // Convert back to ComprehensiveBuildingData format
-                  setWizardData({ buildings: buildings as ComprehensiveBuildingData[] });
+                  setWizardData({ buildings: buildings as unknown as ComprehensiveBuildingData[] });
                 }}
                 siteSurveyId={siteSurveyId}
               />
