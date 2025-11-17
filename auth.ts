@@ -62,9 +62,67 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile, email }) {
+      // Allow credentials provider to always sign in
+      if (account?.provider === "credentials") {
+        return true
+      }
+
+      // For OAuth providers, check if user exists and link accounts
+      if (account && user.email) {
+        try {
+          // Check if user with this email already exists
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            include: { accounts: true },
+          })
+
+          if (existingUser) {
+            // Check if this OAuth account is already linked
+            const existingAccount = existingUser.accounts.find(
+              (acc) => acc.provider === account.provider && acc.providerAccountId === account.providerAccountId
+            )
+
+            if (!existingAccount) {
+              // Link the OAuth account to the existing user
+              await prisma.account.create({
+                data: {
+                  userId: existingUser.id,
+                  type: account.type,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  refresh_token: typeof account.refresh_token === 'string' ? account.refresh_token : null,
+                  access_token: typeof account.access_token === 'string' ? account.access_token : null,
+                  expires_at: typeof account.expires_at === 'number' ? account.expires_at : null,
+                  token_type: typeof account.token_type === 'string' ? account.token_type : null,
+                  scope: typeof account.scope === 'string' ? account.scope : null,
+                  id_token: typeof account.id_token === 'string' ? account.id_token : null,
+                  session_state: typeof account.session_state === 'string' ? account.session_state : null,
+                },
+              })
+            }
+
+            // Update user ID to the existing user so NextAuth uses it
+            user.id = existingUser.id
+            user.role = existingUser.role || "USER"
+            return true
+          }
+
+          // If user doesn't exist, let NextAuth create it (normal flow)
+          return true
+        } catch (error) {
+          console.error("Error in signIn callback:", error)
+          // Allow sign-in to proceed even if linking fails
+          return true
+        }
+      }
+
+      return true
+    },
+    async jwt({ token, user, account }) {
       if (user) {
         token.role = user.role
+        token.email = user.email
       }
       return token
     },
@@ -72,6 +130,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.sub!
         session.user.role = token.role as string
+        session.user.email = token.email as string
       }
       return session
     },
