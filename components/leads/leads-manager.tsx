@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ResizableTableHeader } from "./resizable-table-header";
 import { Checkbox } from "@/components/ui/checkbox";
+import { saveColumnVisibilityPreferences, loadColumnVisibilityPreferences } from "@/app/actions/user-preferences";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -230,13 +231,42 @@ export function LeadsManager() {
 
   const [columnWidths, setColumnWidths] = useState(defaultColumnWidths);
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Load preferences from database on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const savedVisibility = await loadColumnVisibilityPreferences('leads');
+        if (savedVisibility) {
+          setVisibleColumns(prev => ({ ...defaultVisibleColumns, ...savedVisibility }));
+        }
+      } catch (error) {
+        console.error('Error loading column preferences:', error);
+      } finally {
+        setIsHydrated(true);
+      }
+    };
+
+    loadPreferences();
+  }, []);
   
   const handleColumnResize = (column: keyof typeof columnWidths, newWidth: number) => {
     setColumnWidths(prev => ({ ...prev, [column]: Math.max(50, newWidth) }));
   };
 
-  const toggleColumnVisibility = (column: keyof typeof visibleColumns) => {
-    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  const toggleColumnVisibility = async (column: keyof typeof visibleColumns) => {
+    const updated = { ...visibleColumns, [column]: !visibleColumns[column] };
+    setVisibleColumns(updated);
+    
+    // Save to database
+    if (isHydrated) {
+      try {
+        await saveColumnVisibilityPreferences('leads', updated);
+      } catch (error) {
+        console.error('Error saving column visibility preferences:', error);
+      }
+    }
   };
 
   const toggleRowExpand = (leadId: string) => {
@@ -599,6 +629,11 @@ export function LeadsManager() {
                   />
                 </TableHead>
               )}
+              {visibleColumns.actions && (
+                <TableHead className="text-right" style={{ width: columnWidths.actions }}>
+                  Actions
+                </TableHead>
+              )}
               {visibleColumns.expand && <TableHead className="w-12" />}
               {visibleColumns.leadNumber && (
                 <ResizableTableHeader
@@ -697,9 +732,6 @@ export function LeadsManager() {
               {visibleColumns.activities && (
                 <TableHead>Activities</TableHead>
               )}
-              {visibleColumns.actions && (
-                <TableHead className="text-right">Actions</TableHead>
-              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -725,6 +757,45 @@ export function LeadsManager() {
                           checked={selectedLeads.has(lead.id)}
                           onCheckedChange={() => toggleSelectLead(lead.id)}
                         />
+                      </TableCell>
+                    )}
+                    {visibleColumns.actions && (
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => router.push(`/leads/${lead.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingLead(lead); setShowFormDialog(true); }}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Lead
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNotifyLead(lead.id)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Notify Users
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUploadFile(lead.id)}>
+                              <UploadIcon className="h-4 w-4 mr-2" />
+                              Upload File
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(lead.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Lead
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     )}
                     {visibleColumns.expand && (
@@ -764,21 +835,21 @@ export function LeadsManager() {
                     )}
                     {visibleColumns.stage && (
                       <TableCell className="cursor-pointer" onClick={() => router.push(`/leads/${lead.id}`)}>
-                        <Badge className={`${STAGE_COLORS[lead.stage]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                        <Badge className={`${STAGE_COLORS[lead.stage]}`}>
                           {lead.stage.replace(/_/g, " ")}
                         </Badge>
                       </TableCell>
                     )}
                     {visibleColumns.status && (
                       <TableCell className="cursor-pointer" onClick={() => router.push(`/leads/${lead.id}`)}>
-                        <Badge className={`${STATUS_COLORS[lead.status]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                        <Badge className={`${STATUS_COLORS[lead.status]}`}>
                           {lead.status}
                         </Badge>
                       </TableCell>
                     )}
                     {visibleColumns.priority && (
                       <TableCell className="cursor-pointer" onClick={() => router.push(`/leads/${lead.id}`)}>
-                        <Badge className={`${PRIORITY_COLORS[lead.priority]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                        <Badge className={`${PRIORITY_COLORS[lead.priority]}`}>
                           {lead.priority}
                         </Badge>
                       </TableCell>
@@ -858,7 +929,7 @@ export function LeadsManager() {
                         <div className="flex flex-col gap-1.5">
                       {lead.siteSurvey && (
                         <div>
-                          <Badge variant="outline" className="text-[9px]">
+                          <Badge variant="outline">
                             📋 SS: {lead.siteSurvey.status}
                           </Badge>
                         </div>
@@ -878,45 +949,6 @@ export function LeadsManager() {
                         )}
                         </div>
                       </div>
-                      </TableCell>
-                    )}
-                    {visibleColumns.actions && (
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => router.push(`/leads/${lead.id}`)}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setEditingLead(lead); setShowFormDialog(true); }}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Lead
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleNotifyLead(lead.id)}>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Notify Users
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUploadFile(lead.id)}>
-                          <UploadIcon className="h-4 w-4 mr-2" />
-                          Upload File
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleDelete(lead.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Lead
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                      </DropdownMenu>
                       </TableCell>
                     )}
                   </TableRow>
@@ -947,7 +979,7 @@ export function LeadsManager() {
                             <div>
                               <span className="font-semibold text-xs">Stage:</span>
                               <div className="mt-1">
-                                <Badge className={`${STAGE_COLORS[lead.stage]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                                <Badge className={`${STAGE_COLORS[lead.stage]}`}>
                                   {lead.stage.replace(/_/g, " ")}
                                 </Badge>
                               </div>
@@ -955,7 +987,7 @@ export function LeadsManager() {
                             <div>
                               <span className="font-semibold text-xs">Status:</span>
                               <div className="mt-1">
-                                <Badge className={`${STATUS_COLORS[lead.status]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                                <Badge className={`${STATUS_COLORS[lead.status]}`}>
                                   {lead.status}
                                 </Badge>
                               </div>
@@ -963,7 +995,7 @@ export function LeadsManager() {
                             <div>
                               <span className="font-semibold text-xs">Priority:</span>
                               <div className="mt-1">
-                                <Badge className={`${PRIORITY_COLORS[lead.priority]}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                                <Badge className={`${PRIORITY_COLORS[lead.priority]}`}>
                                   {lead.priority}
                                 </Badge>
                               </div>

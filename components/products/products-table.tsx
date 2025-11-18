@@ -330,12 +330,12 @@ export function ProductsTable() {
       render: (value) => (
         <div className="flex items-center space-x-2 text-sm">
           {value?.inventory !== undefined && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline">
               {value.inventory} stock
             </Badge>
           )}
           {value?.media !== undefined && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline">
               {value.media} media
             </Badge>
           )}

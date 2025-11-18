@@ -105,11 +105,26 @@ model User {
   contact                  Contact?                  @relation(fields: [contactId], references: [id])
   department               Department?               @relation(fields: [departmentId], references: [id])
   workPosition             WorkPosition?             @relation(fields: [workPositionId], references: [id])
+  preferences              UserPreference[]
 
   @@index([branchId], map: "User_branchId_fkey")
   @@index([contactId], map: "User_contactId_fkey")
   @@index([departmentId], map: "User_departmentId_fkey")
   @@index([workPositionId], map: "User_workPositionId_fkey")
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  tableName String   // e.g., "leads", "products", "customers", "proposals"
+  key       String   // e.g., "columnVisibility", "columnWidths"
+  value     Json     // The actual preference data
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tableName, key])
+  @@index([userId], map: "UserPreference_userId_fkey")
 }
 
 model Department {

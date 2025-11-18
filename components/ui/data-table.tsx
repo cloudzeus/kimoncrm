@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ExcelJS from "exceljs";
+import { saveColumnVisibilityPreferences, loadColumnVisibilityPreferences } from "@/app/actions/user-preferences";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -78,6 +79,7 @@ export interface DataTableProps<T> {
   filterable?: boolean;
   selectable?: boolean;
   resizable?: boolean;
+  tableName?: string; // Table identifier for saving preferences (e.g., "proposals", "leads")
   onRowClick?: (row: T) => void;
   onSelectionChange?: (selectedRows: T[]) => void;
   onSortChange?: (sort: SortConfig | null) => void;
@@ -96,6 +98,7 @@ export function DataTable<T extends Record<string, any>>({
   filterable = true,
   selectable = false,
   resizable = true,
+  tableName,
   onRowClick,
   onSelectionChange,
   onSortChange,
@@ -120,6 +123,41 @@ export function DataTable<T extends Record<string, any>>({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load preferences from database on mount
+  useEffect(() => {
+    if (!tableName) {
+      setIsHydrated(true);
+      return;
+    }
+
+    const loadPreferences = async () => {
+      try {
+        const savedVisibility = await loadColumnVisibilityPreferences(tableName);
+        if (savedVisibility) {
+          setColumnConfig(prev => {
+            const updated = { ...prev };
+            Object.keys(savedVisibility).forEach(key => {
+              if (updated[key]) {
+                updated[key] = {
+                  ...updated[key],
+                  visible: savedVisibility[key],
+                };
+              }
+            });
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error('Error loading column preferences:', error);
+      } finally {
+        setIsHydrated(true);
+      }
+    };
+
+    loadPreferences();
+  }, [tableName]);
 
   // Column resize handlers
   useEffect(() => {
@@ -239,15 +277,30 @@ export function DataTable<T extends Record<string, any>>({
   }, [sortConfig, sortable, onSortChange]);
 
   // Handle column visibility toggle
-  const toggleColumnVisibility = useCallback((key: string) => {
-    setColumnConfig(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        visible: !prev[key].visible,
-      },
-    }));
-  }, []);
+  const toggleColumnVisibility = useCallback(async (key: string) => {
+    setColumnConfig(prev => {
+      const updated = {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          visible: !prev[key].visible,
+        },
+      };
+
+      // Save to database if tableName is provided
+      if (tableName && isHydrated) {
+        const visibilityMap: Record<string, boolean> = {};
+        Object.keys(updated).forEach(colKey => {
+          visibilityMap[colKey] = updated[colKey].visible;
+        });
+        saveColumnVisibilityPreferences(tableName, visibilityMap).catch(error => {
+          console.error('Error saving column visibility preferences:', error);
+        });
+      }
+
+      return updated;
+    });
+  }, [tableName, isHydrated]);
 
   // Handle column width change
   const handleColumnResize = useCallback((key: string, newWidth: number) => {
@@ -342,7 +395,13 @@ export function DataTable<T extends Record<string, any>>({
     return row.id || row.key || JSON.stringify(row);
   };
 
-  const visibleColumns = columns.filter(col => columnConfig[col.key as string]?.visible);
+  // Separate actions column and other columns, then reorder
+  const allVisibleColumns = columns.filter(col => columnConfig[col.key as string]?.visible);
+  const actionsColumn = allVisibleColumns.find(col => (col.key as string).toLowerCase() === 'actions');
+  const otherColumns = allVisibleColumns.filter(col => (col.key as string).toLowerCase() !== 'actions');
+  
+  // Order: other columns first, then actions column (will be placed after checkbox in rendering)
+  const visibleColumns = [...otherColumns, ...(actionsColumn ? [actionsColumn] : [])];
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -427,7 +486,22 @@ export function DataTable<T extends Record<string, any>>({
                   </th>
                 )}
                 
-                {visibleColumns.map((column, index) => (
+                {/* Render actions column right after checkbox if it exists */}
+                {actionsColumn && (
+                  <th
+                    key={`header-actions`}
+                    className="px-4 py-3 text-left font-medium text-muted-foreground"
+                    style={resizable && columnConfig[actionsColumn.key as string] ? {
+                      width: `${columnConfig[actionsColumn.key as string].width}px`,
+                      minWidth: `${columnConfig[actionsColumn.key as string].width}px`,
+                      maxWidth: `${columnConfig[actionsColumn.key as string].width}px`,
+                    } : { width: columnConfig[actionsColumn.key as string]?.width }}
+                  >
+                    <span>{actionsColumn.label}</span>
+                  </th>
+                )}
+                
+                {otherColumns.map((column, index) => (
                   <th
                     key={`header-${column.key as string}-${index}`}
                     className="px-4 py-3 text-left font-medium text-muted-foreground relative group"
@@ -481,7 +555,7 @@ export function DataTable<T extends Record<string, any>>({
               {loading ? (
                 <tr>
                   <td 
-                    colSpan={visibleColumns.length + (selectable ? 1 : 0)} 
+                    colSpan={allVisibleColumns.length + (selectable ? 1 : 0)} 
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     Loading...
@@ -490,7 +564,7 @@ export function DataTable<T extends Record<string, any>>({
               ) : filteredAndSortedData.length === 0 ? (
                 <tr>
                   <td 
-                    colSpan={visibleColumns.length + (selectable ? 1 : 0)} 
+                    colSpan={allVisibleColumns.length + (selectable ? 1 : 0)} 
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No data found
@@ -513,7 +587,27 @@ export function DataTable<T extends Record<string, any>>({
                       </td>
                     )}
                     
-                    {visibleColumns.map((column, columnIndex) => (
+                    {/* Render actions column right after checkbox if it exists */}
+                    {actionsColumn && (
+                      <td 
+                        key={`${getRowId(row)}-actions`} 
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                        style={resizable && columnConfig[actionsColumn.key as string] ? {
+                          width: `${columnConfig[actionsColumn.key as string].width}px`,
+                          minWidth: `${columnConfig[actionsColumn.key as string].width}px`,
+                          maxWidth: `${columnConfig[actionsColumn.key as string].width}px`,
+                        } : undefined}
+                      >
+                        {actionsColumn.render ? (
+                          actionsColumn.render(getNestedValue(row, actionsColumn.key), row)
+                        ) : (
+                          <span>{getNestedValue(row, actionsColumn.key)}</span>
+                        )}
+                      </td>
+                    )}
+                    
+                    {otherColumns.map((column, columnIndex) => (
                       <td 
                         key={`${getRowId(row)}-${column.key as string}-${columnIndex}`} 
                         className="px-4 py-3"

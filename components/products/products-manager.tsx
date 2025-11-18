@@ -58,6 +58,7 @@ import ProductSpecificationsDialog from './product-specifications-dialog';
 import ProductImagesDialog from './product-images-dialog';
 import BulkUpdateDialog from './bulk-update-dialog';
 import { ResizableTableHeader } from './resizable-table-header';
+import { saveColumnVisibilityPreferences, loadColumnVisibilityPreferences } from '@/app/actions/user-preferences';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -224,36 +225,26 @@ export default function ProductsManager() {
     direction: 'desc',
   });
 
-  // Load from localStorage after hydration
+  // Load from database after hydration
   useEffect(() => {
-    const savedWidths = localStorage.getItem('products-column-widths');
-    const savedVisibility = localStorage.getItem('products-visible-columns');
-
-    if (savedWidths) {
+    const loadPreferences = async () => {
       try {
-        const parsedWidths = JSON.parse(savedWidths);
-        setColumnWidths({ ...defaultColumnWidths, ...parsedWidths });
-      } catch (e) {
-        console.error('Failed to parse column widths:', e);
-        setColumnWidths(defaultColumnWidths);
-      }
-    } else {
-      setColumnWidths(defaultColumnWidths);
-    }
-
-    if (savedVisibility) {
-      try {
-        const parsedVisibility = JSON.parse(savedVisibility);
-        setVisibleColumns({ ...defaultVisibleColumns, ...parsedVisibility });
-      } catch (e) {
-        console.error('Failed to parse visible columns:', e);
+        const savedVisibility = await loadColumnVisibilityPreferences('products');
+        if (savedVisibility) {
+          setVisibleColumns({ ...defaultVisibleColumns, ...savedVisibility });
+        } else {
+          setVisibleColumns(defaultVisibleColumns);
+        }
+      } catch (error) {
+        console.error('Error loading column preferences:', error);
         setVisibleColumns(defaultVisibleColumns);
+      } finally {
+        setIsHydrated(true);
       }
-    } else {
-      setVisibleColumns(defaultVisibleColumns);
-    }
+    };
 
-    setIsHydrated(true);
+    loadPreferences();
+    setColumnWidths(defaultColumnWidths);
   }, []);
 
   // Save column widths to localStorage
@@ -263,23 +254,29 @@ export default function ProductsManager() {
     localStorage.setItem('products-column-widths', JSON.stringify(updatedWidths));
   };
 
-  // Save column visibility to localStorage
-  const saveColumnVisibility = (newVisibility: typeof visibleColumns) => {
+  // Save column visibility to database
+  const saveColumnVisibility = async (newVisibility: typeof visibleColumns) => {
     setVisibleColumns(newVisibility);
-    localStorage.setItem('products-visible-columns', JSON.stringify(newVisibility));
+    if (isHydrated) {
+      try {
+        await saveColumnVisibilityPreferences('products', newVisibility);
+      } catch (error) {
+        console.error('Error saving column visibility preferences:', error);
+      }
+    }
   };
 
-  const toggleColumn = (column: keyof typeof visibleColumns) => {
-    saveColumnVisibility({
+  const toggleColumn = async (column: keyof typeof visibleColumns) => {
+    const updated = {
       ...visibleColumns,
       [column]: !visibleColumns[column],
-    });
+    };
+    await saveColumnVisibility(updated);
   };
 
-  const resetView = () => {
+  const resetView = async () => {
     setColumnWidths(defaultColumnWidths);
-    saveColumnVisibility(defaultVisibleColumns);
-    localStorage.setItem('products-column-widths', JSON.stringify(defaultColumnWidths));
+    await saveColumnVisibility(defaultVisibleColumns);
     toast({
       title: 'View Reset',
       description: 'Column settings have been reset to default',
@@ -886,8 +883,16 @@ export default function ProductsManager() {
                     onCheckedChange={toggleAllProducts}
                   />
                 </TableHead>
-                  )}
-                  {visibleColumns.images && (
+              )}
+              {visibleColumns.actions && (
+                <TableHead 
+                  className="text-right"
+                  style={{ width: `${columnWidths.actions}px`, minWidth: `${columnWidths.actions}px` }}
+                >
+                  ACTIONS
+                </TableHead>
+              )}
+              {visibleColumns.images && (
                     <ResizableTableHeader
                       width={columnWidths.images}
                       onResize={(w) => handleColumnResize('images', w)}
@@ -1094,14 +1099,6 @@ export default function ProductsManager() {
                 >
                   CREATED
                 </ResizableTableHeader>
-              )}
-              {visibleColumns.actions && (
-                <TableHead 
-                  className="text-right"
-                  style={{ width: `${columnWidths.actions}px`, minWidth: `${columnWidths.actions}px` }}
-                >
-                  ACTIONS
-                </TableHead>
               )}
             </TableRow>
           </TableHeader>

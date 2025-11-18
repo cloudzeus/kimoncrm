@@ -403,7 +403,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       render: (value) => {
         const statusInfo = getStatusBadge(value);
         return (
-          <Badge variant={statusInfo.variant} className="text-xs">
+          <Badge variant={statusInfo.variant}>
             {statusInfo.label}
           </Badge>
         );
@@ -416,7 +416,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       filterable: true,
       width: 200,
       render: (value) => (
-        <Badge variant="outline" className="text-xs">
+        <Badge variant="outline">
           {getStageBadge(value)}
         </Badge>
       ),
@@ -428,7 +428,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
       filterable: true,
       width: 150,
       render: (value) => value ? (
-        <Badge variant="default" className="bg-blue-600 font-mono text-xs">
+        <Badge variant="default" className="bg-blue-600 font-mono">
           {value}
         </Badge>
       ) : (
@@ -608,6 +608,7 @@ export function ProposalsTable({ proposals, onRefresh }: ProposalsTableProps) {
         filterable={true}
         selectable={true}
         resizable={true}
+        tableName="proposals"
         onRowClick={(row) => router.push(`/proposals/${row.id}/edit`)}
         onSelectionChange={(rows) => setSelectedRows(rows as Proposal[])}
         onExport={(data, columns) => {
